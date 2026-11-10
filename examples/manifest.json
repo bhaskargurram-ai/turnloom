@@ -1,0 +1,9 @@
+[
+  {
+    "benchmark": "local-smoke",
+    "id": "example-fix",
+    "task": "Fix the bug in this workspace and run its focused tests.",
+    "workspace": "/absolute/path/to/pristine/example-repo",
+    "check": "python -m pytest -q tests/test_example.py"
+  }
+]

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "turnloom"
+version = "0.1.0"
+description = "A terminal coding agent with recoverable context and per-task cost estimates"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = []
+
+[project.scripts]
+turnloom = "turnloom.cli:main"
+turnloom-eval = "turnloom.evaluate:main"
+turnloom-compare = "turnloom.compare:main"
+
+[tool.setuptools]
+packages = ["turnloom"]
+
+[tool.setuptools.package-data]
+turnloom = ["personas/*.md", "personas/LICENSE"]

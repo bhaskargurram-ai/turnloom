@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 168" role="img" aria-labelledby="title desc">
+  <title id="title">Turnloom</title>
+  <desc id="desc">Interwoven mint and amber threads beside the Turnloom wordmark.</desc>
+  <rect width="960" height="168" rx="18" fill="#101f26"/>
+  <g fill="none" stroke-width="9" stroke-linecap="round">
+    <path d="M42 49h45q16 0 26 18l20 34q9 16 24 16h34 M42 69h32q15 0 25 17l20 34q10 17 25 17h47" stroke="#77dac3"/>
+    <path d="M42 115h37q15 0 26-22l15-32q12-25 30-25h41 M42 135h48q17 0 29-24l17-35q10-20 25-20h30" stroke="#edb980"/>
+  </g>
+  <text x="233" y="94" font-family="Inter,Arial,sans-serif" font-size="69" font-weight="700" fill="#f2f5ed">Turnloom</text>
+  <text x="238" y="129" font-family="monospace" font-size="18" fill="#aad2c7">A coding agent with recoverable context</text>
+</svg>

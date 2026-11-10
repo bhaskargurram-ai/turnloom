@@ -1,0 +1,313 @@
+"""A small, measurable coding-agent harness for OpenAI-compatible chat endpoints."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from dataclasses import replace
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+from collections.abc import Callable
+from turnloom.context import Observations
+
+
+SYSTEM_PROMPT = """You are an autonomous coding agent working in the current directory.
+Read the task carefully. Inspect the relevant files before editing. Make the smallest correct change.
+For repository tasks, run focused tests or another meaningful check before finishing when possible.
+If a check fails, diagnose and fix the cause, then check again. Report what changed and what ran.
+Never fetch benchmark solutions, answer keys, other agents' trajectories, or upstream versions
+containing the task's answer. Do not tailor code to a hidden grader.
+Use the shell tool for inspection, edits, and verification. Keep commands focused.
+"""
+
+TOOL = {
+    "type": "function",
+    "function": {
+        "name": "shell",
+        "description": "Run a shell command in the task workspace and return its exit code and output.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "command": {"type": "string"},
+                "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 180},
+            },
+            "required": ["command"],
+        },
+    },
+}
+
+
+RECALL = {"type": "function", "function": {
+    "name": "recall", "description": "Read a slice of an older tool result by reference.",
+    "parameters": {"type": "object", "required": ["reference"], "properties": {
+        "reference": {"type": "string"}, "offset": {"type": "integer"}, "length": {"type": "integer"}
+    }},
+}}
+
+
+@dataclass
+class Config:
+    endpoint: str
+    model: str
+    api_key: str
+    workspace: Path
+    deadline_seconds: int = 1800
+    max_steps: int = 0
+    context_tokens: int = 128000
+    max_reply_tokens: int = 8192
+    reasoning_effort: str | None = None
+    output_chars: int = 16000
+    transcript: Path | None = None
+    system_prompt: str = SYSTEM_PROMPT
+    input_rate: float = 0
+    output_rate: float = 0
+    budget_usd: float = 0
+    fold_history: bool = True
+    approve: Callable[[str], bool] | None = None
+
+
+@dataclass
+class Result:
+    status: str
+    answer: str
+    steps: int
+    elapsed_seconds: float
+    usage: dict[str, int] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
+    estimated_usd: float = 0
+    folded_chars: int = 0
+
+
+def api_request(config: Config, messages: list[dict[str, Any]], deadline: float, allow_tools: bool = True) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "model": config.model,
+        "messages": messages,
+        "max_tokens": config.max_reply_tokens,
+    }
+    if allow_tools:
+        payload["tools"] = [TOOL, RECALL]
+        payload["tool_choice"] = "auto"
+    if config.reasoning_effort:
+        payload["reasoning_effort"] = config.reasoning_effort
+    url = config.endpoint.rstrip("/")
+    if not url.endswith("/chat/completions"):
+        url += "/chat/completions"
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {config.api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    for attempt in range(4):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("Agent deadline exceeded during model request")
+        try:
+            with urllib.request.urlopen(request, timeout=min(remaining, 180)) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as error:
+            body = error.read(2000).decode("utf-8", errors="replace")
+            if error.code not in (408, 429, 500, 502, 503, 504) or attempt == 3:
+                raise RuntimeError(f"Model HTTP {error.code}: {body}") from error
+        except (urllib.error.URLError, TimeoutError) as error:
+            if attempt == 3:
+                raise RuntimeError(f"Model transport failure: {error}") from error
+        time.sleep(min(2**attempt, max(0, deadline - time.monotonic())))
+    raise RuntimeError("Model request exhausted retries")
+
+
+def shorten(output: str, limit: int) -> str:
+    if len(output) <= limit:
+        return output
+    head = limit // 2
+    tail = limit - head
+    return output[:head] + f"\n...[{len(output) - limit} characters omitted]...\n" + output[-tail:]
+
+
+def run_shell(arguments: str, config: Config, deadline: float) -> str:
+    try:
+        parsed = json.loads(arguments)
+        command = parsed["command"]
+        if not isinstance(command, str) or not command.strip():
+            raise ValueError("command must be a nonempty string")
+        timeout = int(parsed.get("timeout_seconds", 120))
+        timeout = min(max(timeout, 1), 180, max(1, int(deadline - time.monotonic())))
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
+        return json.dumps({"error": f"Invalid shell arguments: {error}"})
+    try:
+        if config.approve and not config.approve(command):
+            return json.dumps({"error": "Operator declined the command"})
+        child_env = {key: value for key, value in os.environ.items()
+                     if key not in ("HARNESS_API_KEY", "GH_TOKEN", "GITHUB_TOKEN")
+                     and value != config.api_key}
+        completed = subprocess.run(
+            command,
+            shell=True,
+            cwd=config.workspace,
+            env=child_env,
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=timeout,
+        )
+        return json.dumps({
+            "exit_code": completed.returncode,
+            "stdout": shorten(completed.stdout, config.output_chars),
+            "stderr": shorten(completed.stderr, config.output_chars),
+        })
+    except subprocess.TimeoutExpired as error:
+        return json.dumps({
+            "error": f"Command timed out after {timeout}s",
+            "stdout": shorten(str(error.stdout or ""), config.output_chars),
+            "stderr": shorten(str(error.stderr or ""), config.output_chars),
+        })
+
+
+def estimated_tokens(messages: list[dict[str, Any]]) -> int:
+    return sum(len(json.dumps(message, ensure_ascii=False)) for message in messages) // 4
+
+
+def fit_context(messages, config):
+    room = config.context_tokens - config.max_reply_tokens - 600
+    while estimated_tokens(messages) > room:
+        latest_task = max(index for index, item in enumerate(messages) if item["role"] == "user")
+        start = 3 if latest_task == 2 else 2
+        boundary = next((index for index in range(start + 1, len(messages))
+                         if messages[index]["role"] in ("user", "assistant")), None)
+        if boundary is None:
+            raise ValueError("The current turn exceeds the configured context window.")
+        del messages[start:boundary]
+
+
+def write_event(path: Path | None, event: dict[str, Any]) -> None:
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as output:
+        output.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
+def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
+    if not config.workspace.is_dir():
+        raise ValueError(f"Workspace does not exist: {config.workspace}")
+    started = time.monotonic()
+    deadline = started + config.deadline_seconds
+    messages = history if history is not None else []
+    if not messages:
+        messages.append({"role": "system", "content": config.system_prompt})
+    messages.append({"role": "user", "content": task})
+    archive = archive or Observations()
+    folded = 0
+    cost = 0.0
+    write_event(config.transcript, {"type": "start", "model": config.model, "task": task, "system_prompt": config.system_prompt})
+    usage = {"prompt_tokens": 0, "completion_tokens": 0}
+    errors: list[str] = []
+    answer = ""
+    status = "timeout"
+    steps = 0
+    while True:
+        if time.monotonic() >= deadline:
+            status = "timeout"
+            break
+        if config.max_steps and steps >= config.max_steps:
+            status = "step_limit"
+            break
+        steps += 1
+        try:
+            if config.fold_history:
+                folded += archive.fold(messages)
+            fit_context(messages, config)
+            request_config = config
+            if config.budget_usd:
+                remaining = config.budget_usd - cost
+                input_estimate = (estimated_tokens(messages) + 600) * config.input_rate / 1_000_000
+                affordable = int((remaining - input_estimate) * 1_000_000 / config.output_rate)
+                if affordable < 1:
+                    status = "budget_limit"
+                    break
+                request_config = replace(config, max_reply_tokens=min(config.max_reply_tokens, affordable))
+            response = api_request(request_config, messages, deadline)
+            reported = response.get("usage") or {}
+            if config.budget_usd and not all(isinstance(reported.get(key), int) for key in usage):
+                raise ValueError("Provider omitted usage needed for budget tracking")
+            for key in usage:
+                usage[key] += int(reported.get(key, 0) or 0)
+            cost = (usage["prompt_tokens"] * config.input_rate + usage["completion_tokens"] * config.output_rate) / 1_000_000
+            raw_message = response["choices"][0]["message"]
+            message = {key: value for key, value in raw_message.items() if key in ("role", "content", "tool_calls", "reasoning_content")}
+            message["role"] = "assistant"
+            messages.append(message)
+            write_event(config.transcript, {"type": "assistant", "step": steps, "message": message, "usage": reported, "estimated_usd": cost})
+            calls = message.get("tool_calls") or []
+            if not calls:
+                answer = message.get("content") or ""
+                status = "completed" if answer and response["choices"][0].get("finish_reason") != "length" else "error"
+                if status == "error":
+                    errors.append("Model ended without a complete answer or tool call")
+                break
+            for call in calls:
+                tool_name = call.get("function", {}).get("name")
+                arguments = call.get("function", {}).get("arguments", "{}")
+                if tool_name == "shell":
+                    result = run_shell(arguments, config, deadline)
+                elif tool_name == "recall":
+                    result = archive.recall(arguments)
+                else:
+                    result = json.dumps({"error": f"Unknown tool: {tool_name}"})
+                messages.append({"role": "tool", "tool_call_id": call["id"], "content": result})
+                write_event(config.transcript, {"type": "tool", "step": steps, "id": call["id"], "result": json.loads(result)})
+        except (RuntimeError, ValueError, IndexError, TypeError, KeyError, OSError) as error:
+            errors.append(str(error))
+            status = "timeout" if time.monotonic() >= deadline else "error"
+            break
+    result = Result(status, answer, steps, round(time.monotonic() - started, 3), usage, errors, cost, folded)
+    write_event(config.transcript, {"type": "end", "result": result.__dict__})
+    return result
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Run the leaderboard coding harness")
+    parser.add_argument("--task", help="Task text; otherwise read stdin")
+    parser.add_argument("--workspace", type=Path, default=Path.cwd())
+    parser.add_argument("--model", default=os.environ.get("HARNESS_MODEL"))
+    parser.add_argument("--endpoint", default=os.environ.get("HARNESS_ENDPOINT"))
+    parser.add_argument("--api-key", default=os.environ.get("HARNESS_API_KEY"))
+    parser.add_argument("--deadline-seconds", type=int, default=1800)
+    parser.add_argument("--max-steps", type=int, default=0, help="0 means no step limit")
+    parser.add_argument("--context-tokens", type=int, default=128000)
+    parser.add_argument("--max-reply-tokens", type=int, default=8192)
+    parser.add_argument("--reasoning-effort")
+    parser.add_argument("--system-prompt-file", type=Path)
+    parser.add_argument("--output-chars", type=int, default=16000)
+    parser.add_argument("--transcript", type=Path)
+    arguments = parser.parse_args()
+    if not arguments.model or not arguments.endpoint or not arguments.api_key:
+        parser.error("Set HARNESS_MODEL, HARNESS_ENDPOINT, and HARNESS_API_KEY (or pass flags)")
+    task = arguments.task if arguments.task is not None else sys.stdin.read()
+    if not task.strip():
+        parser.error("Task text is empty")
+    config = Config(
+        endpoint=arguments.endpoint, model=arguments.model, api_key=arguments.api_key,
+        workspace=arguments.workspace.resolve(), deadline_seconds=arguments.deadline_seconds,
+        max_steps=arguments.max_steps, context_tokens=arguments.context_tokens,
+        max_reply_tokens=arguments.max_reply_tokens, reasoning_effort=arguments.reasoning_effort,
+        transcript=arguments.transcript, output_chars=arguments.output_chars,
+        system_prompt=arguments.system_prompt_file.read_text(encoding="utf-8") if arguments.system_prompt_file else SYSTEM_PROMPT,
+    )
+    result = run_agent(task, config)
+    print(json.dumps(result.__dict__, ensure_ascii=False))
+    return 0 if result.status == "completed" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
