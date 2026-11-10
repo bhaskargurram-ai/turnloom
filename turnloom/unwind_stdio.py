@@ -1,13 +1,24 @@
-"""Supply Windows process streams to the pinned Unwind proxy's transport."""
+"""Run Unwind's reversibility proxy in front of an MCP server on Windows process streams.
+
+    python -m turnloom.unwind_stdio LEDGER [COMMAND [ARGS...]]
+
+With no command the upstream is the bundled VerifyDoc server.
+"""
 
 import asyncio
 import sys
 
 
-async def serve(ledger):
+async def serve(ledger, *upstream):
     from unwind.proxy.stdio import UnwindStdioProxy
 
-    proxy = UnwindStdioProxy(sys.executable, ["-I", "-m", "verifydoc.mcp_server"], db_path=ledger)
+    if upstream:
+        command, arguments = upstream[0], list(upstream[1:])
+    elif getattr(sys, "frozen", False):
+        command, arguments = sys.executable, ["--internal", "verifydoc"]
+    else:
+        command, arguments = sys.executable, ["-I", "-m", "verifydoc.mcp_server"]
+    proxy = UnwindStdioProxy(command, arguments, db_path=ledger)
     # Unwind 0.2 accepts caller-provided streams on its pump. Its default
     # Unix pipe adapter rejects Windows anonymous pipe handles.
     pump = proxy._pump

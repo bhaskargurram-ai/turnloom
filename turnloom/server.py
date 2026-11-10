@@ -10,7 +10,7 @@ def serve(workspace):
         from mcp.server.fastmcp import FastMCP
     except ImportError as error:
         raise ValueError("Install Turnloom with the mcp extra.") from error
-    server = FastMCP("Turnloom receipts")
+    server = FastMCP("Turnloom")
     root = workspace.resolve() / ".turnloom"
 
     @server.tool()
@@ -45,5 +45,21 @@ def serve(workspace):
                     status = result["status"]
                     totals["statuses"][status] = totals["statuses"].get(status, 0) + 1
         return totals
+
+    from turnloom.context import Observations
+    archive = Observations(capacity=20_000_000)
+
+    @server.tool()
+    def archive_output(content: str) -> dict:
+        """Park a long tool result outside the conversation. Returns a reference and a short preview to keep instead."""
+        reference = archive.save(content)
+        if not reference:
+            raise ValueError("Content exceeds the archive capacity")
+        return {"reference": reference, "preview": content[:180], "characters": len(content)}
+
+    @server.tool()
+    def recall(reference: str, offset: int = 0, length: int = 1600) -> dict:
+        """Read a slice of archived content by reference. At most 4000 characters per call."""
+        return json.loads(archive.recall(json.dumps({"reference": reference, "offset": offset, "length": length})))
 
     server.run(transport="stdio")

@@ -1,0 +1,266 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 624b9a3..1ef7303 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -10,6 +10,13 @@ The ledger record schema is versioned separately (`schema_version`, see
+ 
+ ### Added
+ 
++- **`provio-sdk` (Python): `Provio(on_decision=...)`**. An observer called with
++  `(call, decision, approval)` for every call that is about to run. `approval`
++  is the approver's answer for a granted ask and `None` when the policy let the
++  call through, so a host can tell the two apart without wrapping its approver.
++  It cannot change the outcome: exceptions it raises are swallowed.
++- **Turnloom integration notes**: [docs/integrations/turnloom.md](docs/integrations/turnloom.md).
++
+ - **`provio log --json`**: one JSON object per session (JSON Lines:
+   `session_id`, `records`, `denied`, `approved_by_human`) for scripts and CI.
+   The default table is unchanged. (#14)
+diff --git a/README.md b/README.md
+index 26fa389..830f131 100644
+--- a/README.md
++++ b/README.md
+@@ -120,6 +120,7 @@ is missing or errors, the tool does not run.
+ | **LangGraph** | `provio_sdk.langgraph.provio_tool_node(tools, provio)` | yes |
+ | **OpenAI Agents SDK** | `provio_sdk.openai_agents.guard_agent(agent, provio)` | yes |
+ | **Claude Agent SDK** (Python / TypeScript) | `provio_sdk.claude_agent_sdk.provio_hooks(provio)` / `createProvioIntegration({ client })` | yes |
++| **Turnloom** | `pip install "turnloom[guard]"`; the gate turns on when the workspace has a `provio.yaml` ([docs/integrations/turnloom.md](docs/integrations/turnloom.md)) | yes — a provio `ask` becomes Turnloom's approval prompt |
+ | **Any MCP client** | `provio proxy --mcp --server <name> -- <server cmd>` (stdio), or `--transport http --upstream <url>` for remote servers; tool definitions are [pinned](docs/mcp-pins.md), so a changed one is held until you accept it | every MCP tool call |
+ | **Any other agent** | `provio run -- <agent>`: kernel-confined launch; or call `provio check` from its hook system | launch, plus hooks where the agent has them |
+ 
+diff --git a/adapters/python/README.md b/adapters/python/README.md
+index b090a7e..be21b78 100644
+--- a/adapters/python/README.md
++++ b/adapters/python/README.md
+@@ -76,6 +76,15 @@ redacted **text** provio sends back, not the original object.
+ and share one child process; `close()` (or `with`) closes its stdin and waits
+ for it to exit, and an `atexit` hook closes anything left open.
+ 
++### Observing decisions
++
++`Provio(on_decision=fn)` calls `fn(call, decision, approval)` for every call
++that is about to run, after any approval and before the tool. `approval` is
++`None` when the policy allowed the call on its own and the approver's
++`Approval` when a human granted an `ask`. Use it to label UI or logs. It only
++observes: its return value is ignored and an exception it raises is swallowed.
++Blocked calls raise as before and are not reported to it.
++
+ ### Approvals
+ 
+ With no approver, `Provio` runs `--ask deny`: every `ask` fails closed. Give it
+diff --git a/adapters/python/src/provio_sdk/guard.py b/adapters/python/src/provio_sdk/guard.py
+index bc034cc..430b341 100644
+--- a/adapters/python/src/provio_sdk/guard.py
++++ b/adapters/python/src/provio_sdk/guard.py
+@@ -32,6 +32,7 @@ from .types import Approval, ApprovalRequest, Caller, Decision, Server, ToolCall
+ T = TypeVar("T")
+ ApproverResult = Union[bool, Approval]
+ Approver = Callable[[ApprovalRequest], Union[ApproverResult, Awaitable[ApproverResult]]]
++DecisionObserver = Callable[[ToolCall, Decision, Union[Approval, None]], None]
+ 
+ DEFAULT_APPROVAL_TIMEOUT = 300.0
+ 
+@@ -104,6 +105,13 @@ class Provio:
+             ``timeout_ms``, else 300s). Timeout rejects.
+         send_output: send tool output to ``complete`` (hashed, never stored)
+             for non-redact calls too. Redact calls always send it.
++        on_decision: called with ``(call, decision, approval)`` for every call
++            that is about to run, after any approval and before the tool.
++            ``approval`` is the approver's answer for a granted ask and ``None``
++            when the policy let the call through on its own, so a host can tell
++            "the policy allowed this" from "a human approved this". It observes
++            only: its return value is ignored and an exception it raises is
++            swallowed, so it can never run or stop a tool.
+     """
+ 
+     def __init__(
+@@ -116,6 +124,7 @@ class Provio:
+         approver_id: str = "adapter:provio-sdk",
+         approval_timeout: float | None = None,
+         send_output: bool = True,
++        on_decision: DecisionObserver | None = None,
+         **client_kwargs: Any,
+     ) -> None:
+         if client is not None and client_kwargs:
+@@ -135,6 +144,7 @@ class Provio:
+         self.approver_id = approver_id
+         self.approval_timeout = approval_timeout
+         self.send_output = send_output
++        self.on_decision = on_decision
+ 
+     # -- lifecycle ---------------------------------------------------------
+ 
+@@ -235,9 +245,18 @@ class Provio:
+             return Approval(False, self.approver_id)
+         return _normalize_approval(res, self.approver_id)
+ 
++    def _observe(self, call: ToolCall, d: Decision, approval: Approval | None) -> Decision:
++        if self.on_decision is not None:
++            try:
++                self.on_decision(call, d, approval)
++            except Exception:  # noqa: BLE001 - an observer must never change the outcome
++                pass
++        return d
++
+     def authorize(self, call: ToolCall) -> Decision:
+         """decide (+ approve/resolve). Returns a dispatching decision or raises."""
+         d = self.client.decide(call)
++        approval: Approval | None = None
+         if d.approval_required:
+             ap = self._ask_sync(call, d)
+             assert d.ref is not None  # parse_decision guarantees it
+@@ -246,10 +265,12 @@ class Provio:
+                 if d.dispatch:
+                     raise ProvioProtocolError("provio dispatched a call the approver rejected")
+                 raise ProvioApprovalRejected(d)
+-        return self._final(d)
++            approval = ap
++        return self._observe(call, self._final(d), approval)
+ 
+     async def aauthorize(self, call: ToolCall) -> Decision:
+         d = await self.aclient.decide(call)
++        approval: Approval | None = None
+         if d.approval_required:
+             ap = await self._ask_async(call, d)
+             assert d.ref is not None
+@@ -258,7 +279,8 @@ class Provio:
+                 if d.dispatch:
+                     raise ProvioProtocolError("provio dispatched a call the approver rejected")
+                 raise ProvioApprovalRejected(d)
+-        return self._final(d)
++            approval = ap
++        return self._observe(call, self._final(d), approval)
+ 
+     # -- step 5: record ----------------------------------------------------
+ 
+diff --git a/adapters/python/tests/test_guard.py b/adapters/python/tests/test_guard.py
+index a004281..b946550 100644
+--- a/adapters/python/tests/test_guard.py
++++ b/adapters/python/tests/test_guard.py
+@@ -87,6 +87,51 @@ def test_ask_defer_approved(fake_bin, fake_log):
+     assert log[2]["ref"] == "ref-1.approved"  # complete uses the ref resolve returned
+ 
+ 
++def test_on_decision_tells_policy_allow_from_human_approval(fake_bin):
++    seen = []
++    with Provio(approver=lambda r: Approval(True, "human:alice"),
++                on_decision=lambda call, d, approval: seen.append((call.tool, d.dispatch, approval))) as w:
++        w.execute("allowed", {}, Spy())
++        w.execute("asky", {}, Spy())
++    assert seen[0] == ("allowed", True, None)
++    assert seen[1][:2] == ("asky", True) and seen[1][2].approver == "human:alice"
++
++
++def test_on_decision_is_not_called_for_blocked_calls_and_cannot_block(fake_bin):
++    seen = []
++
++    def observer(call, d, approval):
++        seen.append(call.tool)
++        raise RuntimeError("observer bug")
++
++    spy = Spy()
++    with Provio(approver=lambda r: False, on_decision=observer) as w:
++        with pytest.raises(ProvioDenied):
++            w.execute("denied", {}, spy)
++        with pytest.raises(ProvioApprovalRejected):
++            w.execute("asky", {}, spy)
++        assert w.execute("allowed", {}, spy) == "ran"  # the observer raised; the tool still ran
++    assert seen == ["allowed"] and spy.calls == 1
++
++
++async def test_on_decision_async_path(fake_bin):
++    seen = []
++
++    async def tool():
++        return "ran"
++
++    async def approver(r):
++        return Approval(True, "human:bob")
++
++    w = Provio(approver=approver, on_decision=lambda call, d, approval: seen.append(approval))
++    try:
++        assert await w.aexecute("allowed", {}, tool) == "ran"
++        assert await w.aexecute("asky", {}, tool) == "ran"
++    finally:
++        w.close()
++    assert seen[0] is None and seen[1].approver == "human:bob"
++
++
+ def test_ask_defer_rejected(fake_bin):
+     spy = Spy()
+     with Provio(approver=lambda r: False) as w, pytest.raises(ProvioApprovalRejected):
+diff --git a/docs/README.md b/docs/README.md
+index f152561..0543ce1 100644
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -17,7 +17,7 @@
+ | [ledger-postgres.md](ledger-postgres.md) | The Postgres ledger store: setup, roles, schema, concurrency, TLS |
+ | [mcp-pins.md](mcp-pins.md) | MCP tool pinning: changed tool definitions (rug pulls) are held until you accept them |
+ | [mcp-http.md](mcp-http.md) | The MCP proxy over Streamable HTTP / SSE |
+-| [integrations/](integrations/) | Codex CLI, Gemini CLI, Cursor and Windsurf: setup, mapping, residual risks |
++| [integrations/](integrations/) | Codex CLI, Gemini CLI, Cursor, Windsurf and Turnloom: setup, mapping, residual risks |
+ 
+ Internal build planning (how the project is being built, not how to use it)
+ lives in [internal/](internal/).
+diff --git a/docs/integrations/turnloom.md b/docs/integrations/turnloom.md
+new file mode 100644
+index 0000000..cb2228f
+--- /dev/null
++++ b/docs/integrations/turnloom.md
+@@ -0,0 +1,56 @@
++# Turnloom
++
++[Turnloom](https://github.com/bhaskargurram-ai/turnloom) is a local coding
++workbench with its own agent loop. provio decides every tool call that loop
++makes: shell commands, workspace reads and MCP tool calls. It uses the Python
++SDK (`provio-sdk`), so the decision point is the same `provio check --stdio`
++gateway as every other SDK integration ([Contract 6](../INTERFACES.md)).
++
++## Setup
++
++```sh
++pip install "turnloom[guard]"   # brings provio-sdk and the provio binary
++provio init                     # or create provio.yaml in Turnloom Studio's Policy view
++turnloom run "Fix the failing test"
++```
++
++Turnloom turns the gate on whenever the workspace has a `provio.yaml`. It
++prints `Provio policy gate on` at start. `--no-gate` skips it for one run.
++
++## Mapping
++
++| Turnloom tool | provio `tool` | args |
++|---|---|---|
++| `shell` | `bash` | `command` |
++| `workspace` (list, read, search) | `fs.read` | `path` (absolute), `action` |
++| `mcp_call` | the MCP tool's own name, with `server` | the tool's arguments |
++| `mcp_search`, `recall` | not sent | read Turnloom's own catalog and archive |
++
++The caller is recorded as `agent: turnloom` with Turnloom's version, and the
++session id is the id of the Turnloom transcript, so a ledger session lines up
++with one `.turnloom/<id>.jsonl` trace.
++
++## Verdicts
++
++| Verdict | Terminal, interactive | Terminal with `--yes` | Studio |
++|---|---|---|---|
++| `deny` | not run; the model reads the rule and reason | same | same; the call is marked blocked in the activity log |
++| `ask` | the operator is asked, seeing the command | refused (nobody to ask) | the approval card shows the rule and reason |
++| `allow` | the operator still confirms | runs | depends on the mode below |
++| `redact` | the model receives the redacted text | same | same |
++
++Studio has three modes, chosen in its Policy view: **Confirm every call**
++(provio refuses what it denies and the operator approves everything else),
++**Let the policy decide** (allowed calls run without a prompt; only `ask`
++verdicts reach the operator), and **Gate off**.
++
++## Residual risks
++
++- Turnloom's shell tool runs with the operator's permissions and is not inside
++  provio's kernel boundary. Launch Turnloom with `provio run -- turnloom ...`
++  for that boundary.
++- Studio's own panels (the editor, document verification, the undo ledger) act
++  for the operator and are not agent tool calls, so they are not sent to provio.
++- The gate fails closed: when provio is missing or does not answer, the tool
++  does not run. A workspace with a `provio.yaml` and no provio installed stops
++  with an install hint instead of running ungoverned.

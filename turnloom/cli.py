@@ -7,7 +7,6 @@ import os
 import sys
 from contextlib import nullcontext
 from dataclasses import asdict
-from importlib.resources import files
 from pathlib import Path
 from uuid import uuid4
 
@@ -15,24 +14,14 @@ from turnloom import __version__
 from turnloom.agent import Config, SYSTEM_PROMPT, run_agent
 from turnloom.context import Observations
 from turnloom.extensions import McpTools, skills
-from turnloom import providers
+from turnloom import providers, roster
 
 
-SPECIALISTS = {
-    "builder": None,
-    "reviewer": "engineering-code-reviewer.md",
-    "architect": "engineering-software-architect.md",
-    "debugger": None,
-}
-
-
-def instructions(role, extra):
+def instructions(role, extra, workspace=None):
     parts = [SYSTEM_PROMPT, "Older tool output may be folded. Use recall with the reference and offset to retrieve it."]
-    if SPECIALISTS[role]:
-        raw = files("turnloom").joinpath("personas", SPECIALISTS[role]).read_text(encoding="utf-8")
-        parts.append(raw.split("---", 2)[-1].strip())
-    elif role == "debugger":
-        parts.append("Reproduce the symptom, isolate its first failing boundary, then verify the fix against the reproduction.")
+    persona = roster.body(role, workspace)
+    if persona:
+        parts.append(persona)
     if extra:
         parts.append(extra.read_text(encoding="utf-8"))
     return "\n\n".join(parts)
@@ -72,7 +61,9 @@ def main(argv=None):
     parser.add_argument("--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="action", required=True)
     providers.register(commands)
-    commands.add_parser("personas", help="List available specialists")
+    listing = commands.add_parser("personas", help="List available specialists")
+    listing.add_argument("--search", default="", help="Filter by name, division or description")
+    listing.add_argument("--all", action="store_true", help="Include every division, not only engineering roles")
     commands.add_parser("demo", help="Try context folding and recall offline")
     commands.add_parser("replay", help="Inspect a saved session offline").add_argument("path", type=Path)
     commands.add_parser("skills", help="List skills from a local collection").add_argument("root", type=Path)
@@ -81,6 +72,15 @@ def main(argv=None):
     probe.add_argument("server")
     probe.add_argument("query", nargs="?", default="")
     commands.add_parser("serve", help="Expose local run receipts over MCP stdio").add_argument("--workspace", type=Path, default=Path.cwd())
+    layer = commands.add_parser("proxy", help="Serve an OpenAI-compatible endpoint that folds context for another harness")
+    layer.add_argument("--port", type=int, default=8787)
+    layer.add_argument("--workspace", type=Path, default=Path.cwd(), help="Where the usage ledger is written")
+    layer.add_argument("--keep", type=int, default=3, help="Newest tool results left unfolded")
+    layer.add_argument("--no-fold", action="store_true", help="Meter only")
+    layer.add_argument("--token", default="", help="Require this bearer token from clients")
+    export = commands.add_parser("atif", help="Convert a session transcript to an ATIF trajectory")
+    export.add_argument("transcript", type=Path)
+    export.add_argument("output", type=Path)
     for name in ("run", "chat", "team"):
         sub = commands.add_parser(name, help={"run": "Run one task", "chat": "Start a chat", "team": "Plan, build and review with LangGraph"}[name])
         if name != "chat":
@@ -89,9 +89,10 @@ def main(argv=None):
         sub.add_argument("--skills-dir", type=Path)
         sub.add_argument("--skill", action="append", default=[], help="Load a named skill from --skills-dir")
         sub.add_argument("--workspace", type=Path, default=Path.cwd())
-        sub.add_argument("--persona", choices=SPECIALISTS, default="builder")
+        sub.add_argument("--persona", default="builder", help="A persona id from turnloom personas")
         sub.add_argument("--persona-file", type=Path, help="Additional trusted Markdown instructions")
         sub.add_argument("--yes", action="store_true", help="Automatically approve shell commands")
+        sub.add_argument("--no-gate", action="store_true", help="Skip the Provio policy gate even when the workspace has a provio.yaml")
         sub.add_argument("--budget", type=float, default=0, help="Estimated USD allowance per task")
         sub.add_argument("--input-rate", type=float, help="USD per million input tokens")
         sub.add_argument("--output-rate", type=float, help="USD per million output tokens")
@@ -130,12 +131,31 @@ def main(argv=None):
         except (ValueError, OSError) as error:
             parser.error(str(error))
     if args.action == "personas":
-        print("builder    Implement and test changes\ndebugger   Reproduce and isolate failures\n"
-              "reviewer   Review correctness and security\narchitect  Design interfaces and boundaries")
+        query = args.search.casefold()
+        rows = [row for row in roster.catalog(Path.cwd()) if query in json.dumps(row, ensure_ascii=False).casefold()
+                and (args.all or query or row["division"] in ("turnloom", "custom", "engineering", "testing", "security"))]
+        for row in rows:
+            print(f"{row['id']:<46} {row['division']:<18} {row['description'][:90]}".encode("ascii", "replace").decode())
+        print(f"\n{len(rows)} personas. reviewer and architect are short names for the code reviewer and "
+              "software architect. Add --all for every division.", file=sys.stderr)
         return 0
     if args.action == "replay":
         replay(args.path)
         return 0
+    if args.action == "atif":
+        from turnloom import atif
+        try:
+            trajectory = atif.export(args.transcript, args.output)
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(f"Wrote {len(trajectory['steps'])} steps to {args.output}")
+        return 0
+    if args.action == "proxy":
+        from turnloom import proxy
+        try:
+            return proxy.serve(providers.resolve(), args.workspace.resolve(), args.port, max(0, args.keep), not args.no_fold, args.token)
+        except (ValueError, OSError) as error:
+            parser.error(str(error))
     archive = Observations()
     if args.action == "demo":
         messages = [{"role": "tool", "content": "passed: sample test\n" * 100}]
@@ -147,6 +167,7 @@ def main(argv=None):
     if not args.workspace.is_dir() or args.deadline <= 0 or not 0 < args.reply < args.context - 600:
         parser.error("Provide a workspace directory, positive deadline and context with room for the reply.")
     try:
+        roster.find(args.persona, args.workspace)
         if sys.stdin.isatty() and not any(os.environ.get(key) for key in ("HARNESS_MODEL", "HARNESS_ENDPOINT")) and not providers.profile():
             providers.command(parser.parse_args(["connect"]))
         connection = providers.resolve()
@@ -164,7 +185,8 @@ def main(argv=None):
         parser.error("Interactive approvals require a terminal. For a trusted sandbox pass --yes.")
     trace = args.workspace.resolve() / ".turnloom" / (uuid4().hex + ".jsonl")
     config = Config(connection.endpoint, connection.model, connection.key, args.workspace.resolve(),
-                    system_prompt=instructions(args.persona, args.persona_file), transcript=trace,
+                    system_prompt=instructions(args.persona, args.persona_file, args.workspace), transcript=trace,
+                    cache_rate=connection.cache_rate,
                     context_tokens=args.context, max_reply_tokens=args.reply, deadline_seconds=args.deadline,
                     reasoning_effort=args.effort, approve=None if args.yes else approve,
                     fold_history=not args.no_fold, budget_usd=args.budget,
@@ -179,7 +201,16 @@ def main(argv=None):
                     parser.error(f"Unknown skill: {name}")
                 _, source, body = catalog[name]
                 config.system_prompt += f"\n\nSkill {name}. Resource directory: {source.parent}\n{body}"
-        with McpTools(args.mcp, config.workspace) if args.mcp else nullcontext() as connections:
+        from turnloom import guard
+        gate = nullcontext()
+        if not args.no_gate and guard.policy_path(config.workspace).is_file():
+            if not guard.installed():
+                parser.error('This workspace has a provio.yaml but Provio is not installed. Run python -m pip install '
+                             '"turnloom[guard]", or pass --no-gate to run without the policy.')
+            # With --yes nobody is there to answer, so an ask verdict is refused. Otherwise the operator confirms every call.
+            gate = guard.Gate(config.workspace, approve=None if args.yes else approve, confirm=not args.yes, session=trace.stem)
+            print("Provio policy gate on: provio.yaml", file=sys.stderr)
+        with gate as config.gate, McpTools(args.mcp, config.workspace) if args.mcp else nullcontext() as connections:
             config.mcp = connections
             return converse(args, config, trace, archive)
     except (ValueError, OSError) as error:

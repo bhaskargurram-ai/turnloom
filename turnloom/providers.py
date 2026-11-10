@@ -12,9 +12,25 @@ from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
 
+from turnloom import gateway
+
 
 PROVIDERS = json.loads(files("turnloom").joinpath("data", "providers.json").read_text(encoding="utf-8"))
 POPULAR = ["openrouter", "huggingface", "ollama", "lmstudio", "vllm", "llamacpp", "groq", "deepseek", "google", "openai"]
+
+
+def known(provider):
+    return isinstance(provider, str) and (provider in PROVIDERS or provider.startswith(gateway.PREFIX))
+
+
+def info(provider):
+    """Display name, endpoint and API-key variable for a preset or a LiteLLM gateway provider."""
+    if provider in PROVIDERS:
+        return tuple(PROVIDERS[provider])
+    if not known(provider):
+        raise ValueError(f"Unknown provider: {provider}")
+    key = provider.removeprefix(gateway.PREFIX)
+    return gateway.NAMES.get(key, key.replace("_", " ").title()) + " via LiteLLM", gateway.SCHEME + key, gateway.key_variable(provider)
 
 
 def profile_path():
@@ -30,7 +46,7 @@ def profile():
         record = json.loads(profile_path().read_text(encoding="utf-8"))
     except FileNotFoundError:
         return None
-    if not isinstance(record, dict) or record.get("provider") not in PROVIDERS or not isinstance(record.get("model"), str):
+    if not isinstance(record, dict) or not known(record.get("provider")) or not isinstance(record.get("model"), str):
         raise ValueError("Invalid saved connection. Run turnloom connect to replace it.")
     return record
 
@@ -59,7 +75,7 @@ def vault():
 
 
 def secret(provider, required=True):
-    _, _, variable = PROVIDERS[provider]
+    _, _, variable = info(provider)
     if not variable:
         return ""
     value = os.environ.get(variable)
@@ -90,6 +106,8 @@ def rate(value, scale=1):
 
 
 def models(provider, key=""):
+    if provider.startswith(gateway.PREFIX):
+        return gateway.models(provider)
     endpoint = PROVIDERS[provider][1]
     try:
         data = fetch(endpoint + "/models", key)
@@ -133,7 +151,9 @@ def models(provider, key=""):
         if prompt is not None and completion is not None:
             tier = "free" if all(rate(value) == 0 for value in pricing.values()) else "paid"
         result.append({"model": item["id"], "input": prompt, "output": completion, "tier": tier,
-                       "tools": True if isinstance(parameters, list) else None, "source": "live catalog"})
+                       "tools": True if isinstance(parameters, list) else None, "source": "live catalog",
+                       "context": item.get("context_length") if isinstance(item.get("context_length"), int) else None,
+                       "cache_read": rate(pricing.get("input_cache_read"), 1e6) if advertised else None})
     return sorted(result, key=lambda item: item["model"].casefold())
 
 
@@ -178,6 +198,8 @@ def label(row):
 def command(args):
     providers = list(dict.fromkeys(POPULAR + sorted(PROVIDERS)))
     options = [(key, f"{key}  {PROVIDERS[key][0]}  {PROVIDERS[key][1]}") for key in providers]
+    if gateway.available() and (args.action == "providers" or not getattr(args, "provider", None)):
+        options += [(key, f"{key}  {name} via LiteLLM  {count} models") for key, name, count in gateway.providers()]
     if args.action == "providers":
         for _, text in options:
             if args.search.casefold() in text.casefold():
@@ -186,7 +208,7 @@ def command(args):
     if args.action in ("connection", "disconnect"):
         record = profile()
         if args.action == "disconnect":
-            if record and args.forget_key and PROVIDERS[record["provider"]][2]:
+            if record and args.forget_key and info(record["provider"])[2]:
                 store = vault()
                 service = "turnloom:" + record["provider"]
                 if store.get_password(service, "api-key"):
@@ -197,7 +219,12 @@ def command(args):
         print(json.dumps(record, indent=2) if record else "No saved connection.")
         return 0
     provider = args.provider or choose("Provider", options)
-    name, endpoint, variable = PROVIDERS[provider]
+    if not known(provider):
+        raise ValueError(f"Unknown provider: {provider}. Run turnloom providers to list them.")
+    unset = gateway.requirements(provider) if provider.startswith(gateway.PREFIX) else []
+    if len(unset) > 1 and args.action == "connect":
+        raise ValueError(f"{provider} reads {', '.join(unset)}. Set them in your environment, then connect again.")
+    name, endpoint, variable = info(provider)
     key = secret(provider, required=False)
     entered = False
     if args.action == "connect" and provider != "openrouter" and variable and not key:
@@ -272,7 +299,8 @@ def register(commands):
         "--forget-key", action="store_true", help="Also delete this provider's key from the OS credential store")
     for name in ("models", "connect"):
         sub = commands.add_parser(name, help="Browse the model catalog" if name == "models" else "Choose a provider and save a model")
-        sub.add_argument("provider", nargs="?" if name == "connect" else None, choices=sorted(PROVIDERS), metavar="PROVIDER")
+        sub.add_argument("provider", nargs="?" if name == "connect" else None, metavar="PROVIDER",
+                         help="A preset id from turnloom providers, or litellm:<provider> for a native API")
         sub.add_argument("--tier", choices=["all", "free", "paid", "unknown"], default="all")
         sub.add_argument("--search", default="")
         sub.add_argument("--open-weights", action="store_true", help="Show model IDs marked open weights in Models.dev")
@@ -288,9 +316,12 @@ class Connection:
     input_rate: float = 0
     output_rate: float = 0
     free: bool = False
+    cache_rate: float | None = None
+    context: int = 0
+    provider: str = ""
 
 
-def resolve(endpoint=None, model=None, key=None):
+def resolve(endpoint=None, model=None, key=None, lookup=False):
     endpoint = endpoint or os.environ.get("HARNESS_ENDPOINT")
     model = model or os.environ.get("HARNESS_MODEL")
     if endpoint or model:
@@ -301,6 +332,18 @@ def resolve(endpoint=None, model=None, key=None):
     if not record:
         raise ValueError("Choose your provider and model with turnloom connect.")
     provider = record["provider"]
-    return Connection(PROVIDERS[provider][1], record["model"], secret(provider),
-                      rate(record.get("input")) or 0, rate(record.get("output")) or 0,
-                      record.get("tier") == "free" and record.get("input") == record.get("output") == 0)
+    return connection(provider, record, secret(provider, required=bool(info(provider)[2])), lookup)
+
+
+def connection(provider, row, key, lookup=True):
+    """Bind a catalog row to its endpoint. With lookup, missing limits and cache pricing come from
+    LiteLLM's public map. Loading that map takes seconds, so command-line runs skip it."""
+    complete = row.get("context") and row.get("cache_read") is not None
+    listed = gateway.lookup(row["model"], provider) if lookup and not complete else None
+    context = row.get("context") or (listed or {}).get("context") or 0
+    cache = rate(row.get("cache_read"))
+    if cache is None and listed and listed.get("input") == rate(row.get("input")):
+        cache = rate(listed.get("cache_read"))
+    return Connection(info(provider)[1], row["model"], key, rate(row.get("input")) or 0, rate(row.get("output")) or 0,
+                      row.get("tier") == "free" and not rate(row.get("input")) and not rate(row.get("output")),
+                      cache, int(context) if isinstance(context, (int, float)) else 0, provider)

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from turnloom.agent import SYSTEM_PROMPT, Config, run_agent
-from turnloom.cli import SPECIALISTS, instructions
+from turnloom.cli import instructions
 from turnloom.extensions import McpTools
 from turnloom.team import run_team
 from turnloom.providers import resolve
@@ -90,7 +90,7 @@ def main() -> int:
     parser.add_argument("--max-reply-tokens", type=int, default=8192)
     parser.add_argument("--reasoning-effort")
     parser.add_argument("--system-prompt-file", type=Path)
-    parser.add_argument("--persona", choices=SPECIALISTS, default="builder")
+    parser.add_argument("--persona", default="builder")
     parser.add_argument("--team", action="store_true")
     parser.add_argument("--mcp", type=Path, help="Trusted MCP configuration for each trial")
     parser.add_argument("--no-fold", action="store_true")

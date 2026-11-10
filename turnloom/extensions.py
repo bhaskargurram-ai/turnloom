@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import threading
 from contextlib import ExitStack, asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
@@ -67,6 +68,9 @@ class McpTools:
             if path is not None:
                 spec["args"] = [value.replace("${configDir}", str(path.resolve().parent)) for value in spec.get("args", [])]
         self.workspace = workspace
+        self.enabled = set(self.servers)
+        self.before_approval = None
+        self.lock = threading.RLock()
         self.sessions = {}
         self.catalogs = {}
         self.stack = ExitStack()
@@ -84,7 +88,7 @@ class McpTools:
         return self.stack.__exit__(*exc)
 
     def schema(self):
-        server = {"type": "string", "enum": list(self.servers)}
+        server = {"type": "string", "enum": [name for name in self.servers if name in self.enabled]}
         def tool(name, description, properties):
             return {"type": "function", "function": {"name": name, "description": description,
                     "parameters": {"type": "object", "properties": properties, "required": list(properties)}}}
@@ -95,19 +99,50 @@ class McpTools:
                  {"server": server, "name": {"type": "string"}, "arguments": {"type": "object"}}),
         ]
 
+    def session(self, server):
+        if server not in self.sessions:
+            manager = self.portal.wrap_async_context_manager(connect(self.servers[server], self.workspace, self.startup_timeout))
+            self.sessions[server] = self.stack.enter_context(manager)
+        return self.sessions[server]
+
+    def tools(self, server):
+        """Every tool a server advertises, starting the server on first use."""
+        with self.lock:
+            if server not in self.catalogs:
+                self.catalogs[server] = self.portal.call(self._list, self.session(server))
+            return [{"name": item.name, "description": (item.description or "")[:700], "inputSchema": item.inputSchema}
+                    for item in self.catalogs[server]]
+
+    def direct(self, server, name, arguments, timeout=30):
+        """Call a tool for the operator, outside a model turn. The caller is the approval."""
+        with self.lock:
+            try:
+                result = self.portal.call(self.session(server).call_tool, name, arguments, timedelta(seconds=timeout))
+            except Exception as error:
+                return {"error": f"{type(error).__name__}: {error}"}
+            return {"isError": result.isError, "content": [part.text if part.type == "text" else
+                    {"type": part.type} for part in result.content], "structuredContent": result.structuredContent}
+
     def dispatch(self, operation, raw, approve, remaining=30):
+        with self.lock:
+            return self._dispatch(operation, raw, approve, remaining)
+
+    def _dispatch(self, operation, raw, approve, remaining):
         try:
             params = json.loads(raw)
             server = params["server"]
-            spec = self.servers[server]
+            if server not in self.enabled:
+                return {"error": f"Server {server} is not enabled for this turn"}
+            if operation == "mcp_call" and approve and self.before_approval:
+                try:
+                    self.before_approval(server, params["name"], params["arguments"])
+                except Exception:
+                    pass
             if operation == "mcp_call" and approve and not approve(f"MCP {server} / {params['name']} {json.dumps(params['arguments'])}"):
                 return {"error": "Operator declined the tool call"}
             if remaining <= 0:
                 return {"error": "Task deadline expired"}
-            if server not in self.sessions:
-                manager = self.portal.wrap_async_context_manager(connect(spec, self.workspace, self.startup_timeout))
-                self.sessions[server] = self.stack.enter_context(manager)
-            session = self.sessions[server]
+            session = self.session(server)
             if operation == "mcp_search":
                 if server not in self.catalogs:
                     self.catalogs[server] = self.portal.call(self._list, session)

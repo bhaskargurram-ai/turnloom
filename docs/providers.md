@@ -17,9 +17,21 @@ The terminal shows up to twelve choices at a time. Enter a number, type part of 
 | A local model server | `turnloom connect vllm` or `turnloom connect llamacpp` | Run the server on its standard port. A protected instance can use the custom endpoint environment settings below. |
 | Direct hosted inference | `turnloom providers`, then `turnloom connect` | Choose the account you want to bill. Reuse its provider-specific environment variable or enter its key once. |
 
+## Native provider APIs
+
+Anthropic, Amazon Bedrock, Google Vertex AI, Azure OpenAI and other providers that do not offer a plain OpenAI-compatible endpoint are reached through [LiteLLM](https://github.com/BerriAI/litellm). Install the `llm` extra, which `full` includes.
+
+```sh
+python -m pip install ".[llm]"
+turnloom providers --search litellm
+turnloom connect litellm:anthropic
+```
+
+A provider that authenticates with one API key asks for it and stores it like any other. Providers that need several settings, such as AWS credentials or an Azure endpoint and API version, read them from your environment. `turnloom connect` names the variables that are missing. Model lists and prices for these providers come from LiteLLM's public price map, so a model your account cannot use may still be listed. Requests on Claude models mark the system prompt for prompt caching, and cached input is priced at the listed cache rate.
+
 ## Coverage and costs
 
-Version 0.3 bundles 200 provider presets. The catalog includes fixed HTTPS endpoints with a single credential variable and tool-capable model entries from the November 10 Models.dev snapshot, plus common direct and local endpoints. Native-only APIs, cloud deployments with tenant-specific URLs, and services requiring custom signing need a compatible gateway or deployment configuration. Presets describe routing; availability depends on the account, region, service version and selected model.
+Turnloom bundles 200 provider presets. The catalog includes fixed HTTPS endpoints with a single credential variable and tool-capable model entries from the November 10 Models.dev snapshot, plus common direct and local endpoints. Native-only APIs, cloud deployments with tenant-specific URLs, and services requiring custom signing need a compatible gateway or deployment configuration. Presets describe routing; availability depends on the account, region, service version and selected model.
 
 Turnloom queries the chosen endpoint's model list. For services without a list route (HTTP 404 or 405), it uses the public Models.dev catalog and labels the source. Pricing and capability data come from the endpoint when available, with public metadata filling gaps. Free means a reported free route or zero advertised OpenRouter charges. Unreported pricing stays unknown. Open weights is a metadata filter on matching IDs, and individual models retain their own licenses. Models with unreported tool support should be checked on a small task.
 

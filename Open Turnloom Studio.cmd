@@ -5,7 +5,7 @@ if not exist ".venv\Scripts\python.exe" (
   py -3 -m venv .venv
   if errorlevel 1 goto :failed
 )
-".venv\Scripts\python.exe" -I -c "from importlib.metadata import version; import turnloom; assert turnloom.__version__=='0.5.0' and version('rollback-mcp')=='0.2.0' and version('verifydoc')=='0.10.0' and version('ripgrep')=='14.1.0'" >nul 2>nul
+".venv\Scripts\python.exe" -I -c "from importlib.metadata import version; import turnloom; assert turnloom.__version__=='0.6.0' and version('rollback-mcp')=='0.2.0' and version('verifydoc')=='0.10.0' and version('ripgrep')=='14.1.0'; import webview" >nul 2>nul
 if errorlevel 1 (
   ".venv\Scripts\python.exe" -m pip install -e ".[studio]"
   if errorlevel 1 goto :failed

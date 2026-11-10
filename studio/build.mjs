@@ -30,12 +30,19 @@ for (const name of [...packages].sort()) {
   const legal = (await readdir(folder)).filter((file) =>
     /^(licen[sc]e|notice)(\.|$)/i.test(file),
   );
-  if (!legal.length && name !== "@cline/ui")
-    throw new Error("Missing license file for " + name);
+  if (!legal.length && name !== "@cline/ui" && !manifest.license)
+    throw new Error("Missing license for " + name);
   notices +=
     "\n" + name + " " + manifest.version + "  " + manifest.license + "\n";
   for (const file of legal)
     notices += (await readFile(path.join(folder, file), "utf8")) + "\n";
+  if (!legal.length && name !== "@cline/ui")
+    notices +=
+      "The package ships no license file. Its manifest declares " +
+      manifest.license +
+      ". Source: " +
+      (manifest.repository?.url || manifest.homepage || "https://www.npmjs.com/package/" + name) +
+      "\n";
   if (name === "@cline/ui")
     notices += (await readFile("CLINE-LICENSE", "utf8")) + "\n";
 }
