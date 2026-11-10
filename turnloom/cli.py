@@ -15,6 +15,7 @@ from turnloom import __version__
 from turnloom.agent import Config, SYSTEM_PROMPT, run_agent
 from turnloom.context import Observations
 from turnloom.extensions import McpTools, skills
+from turnloom import providers
 
 
 SPECIALISTS = {
@@ -70,6 +71,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog="turnloom", description="A coding agent with recoverable context.")
     parser.add_argument("--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="action", required=True)
+    providers.register(commands)
     commands.add_parser("personas", help="List available specialists")
     commands.add_parser("demo", help="Try context folding and recall offline")
     commands.add_parser("replay", help="Inspect a saved session offline").add_argument("path", type=Path)
@@ -91,8 +93,8 @@ def main(argv=None):
         sub.add_argument("--persona-file", type=Path, help="Additional trusted Markdown instructions")
         sub.add_argument("--yes", action="store_true", help="Automatically approve shell commands")
         sub.add_argument("--budget", type=float, default=0, help="Estimated USD allowance per task")
-        sub.add_argument("--input-rate", type=float, default=0, help="USD per million input tokens")
-        sub.add_argument("--output-rate", type=float, default=0, help="USD per million output tokens")
+        sub.add_argument("--input-rate", type=float, help="USD per million input tokens")
+        sub.add_argument("--output-rate", type=float, help="USD per million output tokens")
         sub.add_argument("--context", type=int, default=128000)
         sub.add_argument("--reply", type=int, default=4096)
         sub.add_argument("--deadline", type=int, default=1800)
@@ -100,6 +102,11 @@ def main(argv=None):
         sub.add_argument("--no-fold", action="store_true")
         sub.add_argument("--json", action="store_true", help="Print result as JSON")
     args = parser.parse_args(argv)
+    if args.action in {"providers", "connection", "disconnect", "connect", "models"}:
+        try:
+            return providers.command(args)
+        except (OSError, ValueError, EOFError) as error:
+            parser.error(str(error))
     if args.action == "serve":
         from turnloom.server import serve
         try:
@@ -139,17 +146,24 @@ def main(argv=None):
         return 0
     if not args.workspace.is_dir() or args.deadline <= 0 or not 0 < args.reply < args.context - 600:
         parser.error("Provide a workspace directory, positive deadline and context with room for the reply.")
+    try:
+        if sys.stdin.isatty() and not any(os.environ.get(key) for key in ("HARNESS_MODEL", "HARNESS_ENDPOINT")) and not providers.profile():
+            providers.command(parser.parse_args(["connect"]))
+        connection = providers.resolve()
+    except (ValueError, OSError, EOFError) as error:
+        parser.error(str(error))
+    if args.input_rate is None:
+        args.input_rate = connection.input_rate
+    if args.output_rate is None:
+        args.output_rate = connection.output_rate
     rates = (args.input_rate, args.output_rate, args.budget)
-    if any(value < 0 or not math.isfinite(value) for value in rates) or (args.budget and min(rates) <= 0):
+    free_route = connection.free and args.input_rate == args.output_rate == 0
+    if any(value < 0 or not math.isfinite(value) for value in rates) or (args.budget and min(rates) <= 0 and not free_route):
         parser.error("A budget requires positive finite input and output rates.")
-    model = os.environ.get("HARNESS_MODEL")
-    endpoint = os.environ.get("HARNESS_ENDPOINT")
-    if not model or not endpoint:
-        parser.error("Set HARNESS_MODEL and HARNESS_ENDPOINT to your model and Chat Completions base URL.")
     if not args.yes and not sys.stdin.isatty():
         parser.error("Interactive approvals require a terminal. For a trusted sandbox pass --yes.")
     trace = args.workspace.resolve() / ".turnloom" / (uuid4().hex + ".jsonl")
-    config = Config(endpoint, model, os.environ.get("HARNESS_API_KEY", ""), args.workspace.resolve(),
+    config = Config(connection.endpoint, connection.model, connection.key, args.workspace.resolve(),
                     system_prompt=instructions(args.persona, args.persona_file), transcript=trace,
                     context_tokens=args.context, max_reply_tokens=args.reply, deadline_seconds=args.deadline,
                     reasoning_effort=args.effort, approve=None if args.yes else approve,

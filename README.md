@@ -14,16 +14,14 @@ turnloom demo
 turnloom personas
 ```
 
-The offline demo folds a sample test log and recalls a slice by reference. For a live run, configure the base URL, model ID, and key for your provider. In PowerShell:
+For a live session, pick a provider and a model in the terminal. The first interactive chat also opens the picker automatically.
 
-```powershell
-$env:HARNESS_ENDPOINT = "https://your-provider.example/v1"
-$env:HARNESS_MODEL = "your-tool-capable-model"
-$env:HARNESS_API_KEY = Read-Host -MaskInput "Model key"
+```sh
+turnloom connect
 turnloom chat --workspace . --persona debugger
 ```
 
-Use PowerShell 7.1+ for masked input. On Linux and macOS export the same environment variables. A local endpoint that accepts unauthenticated requests can use an empty key. Enter `/quit` to close a chat.
+Choose OpenRouter to sign in through your browser, or choose Ollama to browse models on your running local server. Try `turnloom models openrouter --tier free --open-weights` to browse free open-weight routes. Enter `/quit` to close a chat. [Provider setup and coverage](docs/providers.md)
 
 | Command | Use it for |
 | --- | --- |

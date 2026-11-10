@@ -18,6 +18,7 @@ from turnloom.agent import SYSTEM_PROMPT, Config, run_agent
 from turnloom.cli import SPECIALISTS, instructions
 from turnloom.extensions import McpTools
 from turnloom.team import run_team
+from turnloom.providers import resolve
 
 
 def score_command(command: str, workspace: Path, timeout: int) -> bool:
@@ -94,11 +95,17 @@ def main() -> int:
     parser.add_argument("--mcp", type=Path, help="Trusted MCP configuration for each trial")
     parser.add_argument("--no-fold", action="store_true")
     parser.add_argument("--output-chars", type=int, default=16000)
-    parser.add_argument("--input-usd-per-million", type=float, default=0)
-    parser.add_argument("--output-usd-per-million", type=float, default=0)
+    parser.add_argument("--input-usd-per-million", type=float)
+    parser.add_argument("--output-usd-per-million", type=float)
     arguments = parser.parse_args()
-    if not arguments.model or not arguments.endpoint or not arguments.api_key:
-        parser.error("Set HARNESS_MODEL, HARNESS_ENDPOINT, and HARNESS_API_KEY")
+    try:
+        connection = resolve(arguments.endpoint, arguments.model, arguments.api_key)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+    if arguments.input_usd_per_million is None:
+        arguments.input_usd_per_million = connection.input_rate
+    if arguments.output_usd_per_million is None:
+        arguments.output_usd_per_million = connection.output_rate
     if arguments.attempts < 1:
         parser.error("--attempts must be positive")
     cases = json.loads(arguments.manifest.read_text(encoding="utf-8"))
@@ -121,8 +128,8 @@ def main() -> int:
                 shutil.copytree(case["workspace"], workspace, ignore=shutil.ignore_patterns(".git", "__pycache__", ".pytest_cache"))
                 transcript = arguments.results / "transcripts" / f"{case['benchmark']}-{case['id']}-{attempt}.jsonl"
                 config = Config(
-                    endpoint=arguments.endpoint, model=arguments.model,
-                    api_key=arguments.api_key, workspace=workspace,
+                    endpoint=connection.endpoint, model=connection.model,
+                    api_key=connection.key, workspace=workspace,
                     deadline_seconds=int(case.get("deadline_seconds", arguments.deadline_seconds)),
                     max_steps=arguments.max_steps,
                     context_tokens=arguments.context_tokens,

@@ -16,6 +16,9 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Callable
 from turnloom.context import Observations
+from turnloom.providers import PROVIDERS
+
+KEY_VARIABLES = {variable for _, _, variable in PROVIDERS.values()} | {"HARNESS_API_KEY", "GH_TOKEN", "GITHUB_TOKEN"}
 
 
 SYSTEM_PROMPT = """You are an autonomous coding agent working in the current directory.
@@ -97,18 +100,19 @@ def api_request(config: Config, messages: list[dict[str, Any]], deadline: float,
         payload["tool_choice"] = "auto"
     if config.reasoning_effort:
         payload["reasoning_effort"] = config.reasoning_effort
+    if config.endpoint.rstrip("/") == "https://api.openai.com/v1":
+        payload["max_completion_tokens"] = payload.pop("max_tokens")
     url = config.endpoint.rstrip("/")
     if not url.endswith("/chat/completions"):
         url += "/chat/completions"
     request = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {config.api_key}",
-            "Content-Type": "application/json",
-        },
+        headers={"Content-Type": "application/json", "User-Agent": "Turnloom/0.3"},
         method="POST",
     )
+    if config.api_key:
+        request.add_unredirected_header("Authorization", f"Bearer {config.api_key}")
     for attempt in range(4):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
@@ -149,7 +153,7 @@ def run_shell(arguments: str, config: Config, deadline: float) -> str:
         if config.approve and not config.approve(command):
             return json.dumps({"error": "Operator declined the command"})
         child_env = {key: value for key, value in os.environ.items()
-                     if key not in ("HARNESS_API_KEY", "GH_TOKEN", "GITHUB_TOKEN")
+                     if key not in KEY_VARIABLES
                      and value != config.api_key}
         completed = subprocess.run(
             command,
@@ -236,8 +240,9 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
             if config.budget_usd:
                 remaining = config.budget_usd - cost
                 input_estimate = (estimated_tokens(messages) + protocol_overhead(config)) * config.input_rate / 1_000_000
-                affordable = int((remaining - input_estimate) * 1_000_000 / config.output_rate)
-                if affordable < 1:
+                affordable = (int((remaining - input_estimate) * 1_000_000 / config.output_rate)
+                              if config.output_rate else config.max_reply_tokens)
+                if remaining <= input_estimate or affordable < 1:
                     status = "budget_limit"
                     break
                 request_config = replace(config, max_reply_tokens=min(config.max_reply_tokens, affordable))
