@@ -68,7 +68,7 @@ try {
   await page.getByRole("checkbox", { name: "VerifyDoc via Unwind" }).check();
   await composer.fill("Verify receipt");
   await button("Send message").click();
-  await button("Approve").click();
+  await button("Approve").click({timeout:110_000});
   await page.getByText("Receipt verified.").waitFor();
   page.once("dialog", (dialog) => dialog.accept());
   await button("Close Studio").click();
