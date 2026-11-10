@@ -39,10 +39,10 @@ def companion_tools(workspace):
     ledger.parent.mkdir(exist_ok=True)
     if os.name == "nt":
         spec = {"command": str(Path(sys.executable).with_name("python.exe")),
-                "args": ["-I", "-m", "turnloom.unwind_stdio", str(ledger), upstream]}
+                "args": ["-I", "-m", "turnloom.unwind_stdio", str(ledger)]}
     else:
         spec = {"command": proxy, "args": ["run", "--db", str(ledger), "--", upstream]}
-    return McpTools(None, workspace, servers={"verifydoc": spec})
+    return McpTools(None, workspace, servers={"verifydoc": spec}, startup_timeout=90)
 
 
 class StudioArchive(Observations):

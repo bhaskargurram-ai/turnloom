@@ -4,10 +4,10 @@ import asyncio
 import sys
 
 
-async def serve(ledger, upstream):
+async def serve(ledger):
     from unwind.proxy.stdio import UnwindStdioProxy
 
-    proxy = UnwindStdioProxy(upstream, db_path=ledger)
+    proxy = UnwindStdioProxy(sys.executable, ["-I", "-m", "verifydoc.mcp_server"], db_path=ledger)
     # Unwind 0.2 accepts caller-provided streams on its pump. Its default
     # Unix pipe adapter rejects Windows anonymous pipe handles.
     pump = proxy._pump

@@ -35,7 +35,7 @@ def skills(root):
 
 
 @asynccontextmanager
-async def connect(spec, workspace):
+async def connect(spec, workspace, startup_timeout=20):
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
 
@@ -43,13 +43,14 @@ async def connect(spec, workspace):
     params = StdioServerParameters(command=spec["command"], args=spec.get("args", []),
                                    cwd=str(workspace), env=env)
     async with stdio_client(params) as streams:
-        async with ClientSession(*streams, read_timeout_seconds=timedelta(seconds=20)) as session:
+        async with ClientSession(*streams, read_timeout_seconds=timedelta(seconds=startup_timeout)) as session:
             await session.initialize()
             yield session
 
 
 class McpTools:
-    def __init__(self, path, workspace, *, servers=None):
+    def __init__(self, path, workspace, *, servers=None, startup_timeout=20):
+        self.startup_timeout = startup_timeout
         data = {"mcpServers": servers} if servers is not None else json.loads(path.read_text(encoding="utf-8-sig"))
         self.servers = data.get("mcpServers") if isinstance(data, dict) else None
         if not isinstance(self.servers, dict) or not self.servers:
@@ -104,7 +105,7 @@ class McpTools:
             if remaining <= 0:
                 return {"error": "Task deadline expired"}
             if server not in self.sessions:
-                manager = self.portal.wrap_async_context_manager(connect(spec, self.workspace))
+                manager = self.portal.wrap_async_context_manager(connect(spec, self.workspace, self.startup_timeout))
                 self.sessions[server] = self.stack.enter_context(manager)
             session = self.sessions[server]
             if operation == "mcp_search":
