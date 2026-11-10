@@ -36,6 +36,8 @@ Use PowerShell 7.1+ for masked input. On Linux and macOS export the same environ
 
 ## Control spend
 
+**Optional integrations.** Install `python -m pip install ".[full]"` to run the LangGraph team, load Agent Skills, and connect MCP servers. Try `turnloom tools examples/mcp.json git git_status` after activating the virtual environment. Git, time, browser, filesystem, memory and reasoning configurations are included. [Integration guide](docs/integrations.md)
+
 ```sh
 turnloom run "Find the failing test" --input-rate 1 --output-rate 4 --budget 0.10
 ```

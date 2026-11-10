@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    "time": {"command": "mcp-server-time", "args": ["--local-timezone", "UTC"]},
+    "git": {"command": "mcp-server-git", "args": ["--repository", "."]}
+  }
+}

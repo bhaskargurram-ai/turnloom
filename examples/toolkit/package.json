@@ -1,0 +1,10 @@
+{
+  "name": "turnloom-optional-tools",
+  "private": true,
+  "dependencies": {
+    "@playwright/mcp": "0.0.85",
+    "@modelcontextprotocol/server-filesystem": "2.2.0",
+    "@modelcontextprotocol/server-memory": "2.1.0",
+    "@modelcontextprotocol/server-sequential-thinking": "2.1.1"
+  }
+}

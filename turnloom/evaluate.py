@@ -10,11 +10,14 @@ import shutil
 import subprocess
 import tempfile
 from collections import defaultdict
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
 from turnloom.agent import SYSTEM_PROMPT, Config, run_agent
 from turnloom.cli import SPECIALISTS, instructions
+from turnloom.extensions import McpTools
+from turnloom.team import run_team
 
 
 def score_command(command: str, workspace: Path, timeout: int) -> bool:
@@ -87,6 +90,8 @@ def main() -> int:
     parser.add_argument("--reasoning-effort")
     parser.add_argument("--system-prompt-file", type=Path)
     parser.add_argument("--persona", choices=SPECIALISTS, default="builder")
+    parser.add_argument("--team", action="store_true")
+    parser.add_argument("--mcp", type=Path, help="Trusted MCP configuration for each trial")
     parser.add_argument("--no-fold", action="store_true")
     parser.add_argument("--output-chars", type=int, default=16000)
     parser.add_argument("--input-usd-per-million", type=float, default=0)
@@ -128,7 +133,10 @@ def main() -> int:
                     system_prompt=instructions(arguments.persona, arguments.system_prompt_file),
                     fold_history=not arguments.no_fold,
                 )
-                result = run_agent(case["task"], config)
+                with McpTools(arguments.mcp, workspace.resolve()) if arguments.mcp else nullcontext() as connections:
+                    config.mcp = connections
+                    runner = run_team if arguments.team else run_agent
+                    result = runner(case["task"], config)
                 passed = result.status == "completed" and score_command(case["check"], workspace, int(case.get("check_timeout_seconds", 120)))
                 cost = (
                     result.usage["prompt_tokens"] * arguments.input_usd_per_million

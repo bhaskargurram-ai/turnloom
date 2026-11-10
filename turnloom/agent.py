@@ -71,6 +71,7 @@ class Config:
     budget_usd: float = 0
     fold_history: bool = True
     approve: Callable[[str], bool] | None = None
+    mcp: Any = None
 
 
 @dataclass
@@ -92,7 +93,7 @@ def api_request(config: Config, messages: list[dict[str, Any]], deadline: float,
         "max_tokens": config.max_reply_tokens,
     }
     if allow_tools:
-        payload["tools"] = [TOOL, RECALL]
+        payload["tools"] = [TOOL, RECALL] + (config.mcp.schema() if config.mcp else [])
         payload["tool_choice"] = "auto"
     if config.reasoning_effort:
         payload["reasoning_effort"] = config.reasoning_effort
@@ -178,7 +179,7 @@ def estimated_tokens(messages: list[dict[str, Any]]) -> int:
 
 
 def fit_context(messages, config):
-    room = config.context_tokens - config.max_reply_tokens - 600
+    room = config.context_tokens - config.max_reply_tokens - protocol_overhead(config)
     while estimated_tokens(messages) > room:
         latest_task = max(index for index, item in enumerate(messages) if item["role"] == "user")
         start = 3 if latest_task == 2 else 2
@@ -187,6 +188,10 @@ def fit_context(messages, config):
         if boundary is None:
             raise ValueError("The current turn exceeds the configured context window.")
         del messages[start:boundary]
+
+
+def protocol_overhead(config):
+    return 600 + (estimated_tokens(config.mcp.schema()) if config.mcp else 0)
 
 
 def write_event(path: Path | None, event: dict[str, Any]) -> None:
@@ -230,7 +235,7 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
             request_config = config
             if config.budget_usd:
                 remaining = config.budget_usd - cost
-                input_estimate = (estimated_tokens(messages) + 600) * config.input_rate / 1_000_000
+                input_estimate = (estimated_tokens(messages) + protocol_overhead(config)) * config.input_rate / 1_000_000
                 affordable = int((remaining - input_estimate) * 1_000_000 / config.output_rate)
                 if affordable < 1:
                     status = "budget_limit"
@@ -262,6 +267,12 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
                     result = run_shell(arguments, config, deadline)
                 elif tool_name == "recall":
                     result = archive.recall(arguments)
+                elif config.mcp and tool_name in ("mcp_search", "mcp_call"):
+                    outcome = config.mcp.dispatch(tool_name, arguments, config.approve, deadline - time.monotonic())
+                    result = json.dumps(outcome, ensure_ascii=False)
+                    if len(result) > config.output_chars:
+                        reference = archive.save(result)
+                        result = json.dumps({"preview": shorten(result, config.output_chars), "reference": reference})
                 else:
                     result = json.dumps({"error": f"Unknown tool: {tool_name}"})
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": result})

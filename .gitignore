@@ -7,3 +7,5 @@ build/
 .turnloom/
 .env*
 results/
+node_modules/
+.playwright-mcp/

@@ -5,6 +5,7 @@ import json
 import math
 import os
 import sys
+from contextlib import nullcontext
 from dataclasses import asdict
 from importlib.resources import files
 from pathlib import Path
@@ -13,6 +14,7 @@ from uuid import uuid4
 from turnloom import __version__
 from turnloom.agent import Config, SYSTEM_PROMPT, run_agent
 from turnloom.context import Observations
+from turnloom.extensions import McpTools, skills
 
 
 SPECIALISTS = {
@@ -71,10 +73,19 @@ def main(argv=None):
     commands.add_parser("personas", help="List available specialists")
     commands.add_parser("demo", help="Try context folding and recall offline")
     commands.add_parser("replay", help="Inspect a saved session offline").add_argument("path", type=Path)
-    for name in ("run", "chat"):
-        sub = commands.add_parser(name, help="Run one task" if name == "run" else "Start an interactive session")
-        if name == "run":
+    commands.add_parser("skills", help="List skills from a local collection").add_argument("root", type=Path)
+    probe = commands.add_parser("tools", help="Discover MCP tools without a model connection")
+    probe.add_argument("config", type=Path)
+    probe.add_argument("server")
+    probe.add_argument("query", nargs="?", default="")
+    commands.add_parser("serve", help="Expose local run receipts over MCP stdio").add_argument("--workspace", type=Path, default=Path.cwd())
+    for name in ("run", "chat", "team"):
+        sub = commands.add_parser(name, help={"run": "Run one task", "chat": "Start a chat", "team": "Plan, build and review with LangGraph"}[name])
+        if name != "chat":
             sub.add_argument("task")
+        sub.add_argument("--mcp", type=Path, help="Explicit trusted stdio server configuration")
+        sub.add_argument("--skills-dir", type=Path)
+        sub.add_argument("--skill", action="append", default=[], help="Load a named skill from --skills-dir")
         sub.add_argument("--workspace", type=Path, default=Path.cwd())
         sub.add_argument("--persona", choices=SPECIALISTS, default="builder")
         sub.add_argument("--persona-file", type=Path, help="Additional trusted Markdown instructions")
@@ -89,6 +100,28 @@ def main(argv=None):
         sub.add_argument("--no-fold", action="store_true")
         sub.add_argument("--json", action="store_true", help="Print result as JSON")
     args = parser.parse_args(argv)
+    if args.action == "serve":
+        from turnloom.server import serve
+        try:
+            serve(args.workspace)
+        except ValueError as error:
+            parser.error(str(error))
+        return 0
+    if args.action == "skills":
+        try:
+            for name, (description, _, _) in skills(args.root).items():
+                print(f"{name}  {description}")
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        return 0
+    if args.action == "tools":
+        try:
+            with McpTools(args.config, Path.cwd()) as tools:
+                result = tools.dispatch("mcp_search", json.dumps({"server": args.server, "query": args.query}), None)
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+                return int("error" in result)
+        except (ValueError, OSError) as error:
+            parser.error(str(error))
     if args.action == "personas":
         print("builder    Implement and test changes\ndebugger   Reproduce and isolate failures\n"
               "reviewer   Review correctness and security\narchitect  Design interfaces and boundaries")
@@ -122,25 +155,47 @@ def main(argv=None):
                     reasoning_effort=args.effort, approve=None if args.yes else approve,
                     fold_history=not args.no_fold, budget_usd=args.budget,
                     input_rate=args.input_rate, output_rate=args.output_rate)
+    try:
+        if args.skill and not args.skills_dir:
+            parser.error("--skill requires --skills-dir")
+        if args.skill:
+            catalog = skills(args.skills_dir)
+            for name in dict.fromkeys(args.skill):
+                if name not in catalog:
+                    parser.error(f"Unknown skill: {name}")
+                _, source, body = catalog[name]
+                config.system_prompt += f"\n\nSkill {name}. Resource directory: {source.parent}\n{body}"
+        with McpTools(args.mcp, config.workspace) if args.mcp else nullcontext() as connections:
+            config.mcp = connections
+            return converse(args, config, trace, archive)
+    except (ValueError, OSError) as error:
+        parser.error(str(error))
+
+
+def converse(args, config, trace, archive):
     history = []
     print(f"Turnloom {__version__} · {args.persona} · {trace}", file=sys.stderr)
     while True:
         try:
-            task = args.task if args.action == "run" else input("\nturnloom › ").strip()
+            task = args.task if args.action != "chat" else input("\nturnloom › ").strip()
         except (KeyboardInterrupt, EOFError):
             return 0
         if args.action == "chat" and task == "/quit":
             return 0
         if not task.strip():
-            if args.action == "run":
-                parser.error("Task cannot be empty")
+            if args.action != "chat":
+                raise ValueError("Task cannot be empty")
             continue
-        result = run_agent(task, config, history, archive)
+        if args.action == "team":
+            from turnloom.team import run_team
+            result = run_team(task, config)
+        else:
+            result = run_agent(task, config, history, archive)
         if args.json:
             print(json.dumps(asdict(result), ensure_ascii=False))
         else:
             receipt(asdict(result))
             if args.input_rate or args.output_rate:
                 print(f"Estimated cost at configured rates: ${result.estimated_usd:.6f}")
-        if args.action == "run" or result.status != "completed":
+        if args.action != "chat" or result.status != "completed":
             return int(result.status != "completed")

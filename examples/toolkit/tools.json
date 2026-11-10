@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "browser": {"command": "node", "args": ["${configDir}/node_modules/@playwright/mcp/cli.js", "--isolated", "--headless"]},
+    "files": {"command": "node", "args": ["${configDir}/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js", "."]},
+    "memory": {"command": "node", "args": ["${configDir}/node_modules/@modelcontextprotocol/server-memory/dist/index.js"], "pass_env": ["MEMORY_FILE_PATH"]},
+    "reasoning": {"command": "node", "args": ["${configDir}/node_modules/@modelcontextprotocol/server-sequential-thinking/dist/index.js"]}
+  }
+}
