@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "turnloom"
-version = "0.3.0"
-description = "A terminal coding agent with recoverable context and per-task cost estimates"
+version = "0.4.0"
+description = "A coding agent with a visual workbench, recoverable context and per-task cost estimates"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -26,4 +26,7 @@ turnloom-compare = "turnloom.compare:main"
 packages = ["turnloom"]
 
 [tool.setuptools.package-data]
-turnloom = ["personas/*.md", "personas/LICENSE", "data/providers.json", "data/LICENSE.models-dev"]
+turnloom = ["personas/*.md", "personas/LICENSE", "data/providers.json", "data/LICENSE.models-dev", "studio_assets/*"]
+
+[project.gui-scripts]
+turnloom-studio = "turnloom.studio:main"

@@ -1,0 +1,152 @@
+.loom {
+  flex: none;
+  border-top: 1px solid #45615b;
+  background: #1a2a2d;
+  color: #dcece7;
+}
+.loomhead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #334a46;
+}
+.loomhead > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.loomhead svg {
+  color: #95dac3;
+}
+.loomhead small {
+  color: #bacac3;
+  font-size: 11px;
+}
+.loomhead button {
+  margin-left: auto;
+}
+.loomgrid {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.9fr) minmax(120px, 1.8fr);
+  gap: 8px 24px;
+  padding: 16px 18px 13px;
+  background:
+    radial-gradient(ellipse at 86% 90%, #294142 0%, transparent 57%),
+    linear-gradient(115deg, #1c2d2d, #19252b);
+}
+.loomstat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.loomstat strong {
+  font:
+    500 clamp(30px, 3.2vw, 49px) / 1 "Segoe UI",
+    sans-serif;
+  letter-spacing: -2.5px;
+  color: #d7f3e8;
+  font-variant-numeric: tabular-nums;
+}
+.loomstat em {
+  font-weight: 400;
+  color: #89c6b5;
+  font-size: 0.55em;
+  font-style: normal;
+  letter-spacing: 0;
+}
+.loomstat > span {
+  font-size: 12px;
+  margin-top: 5px;
+}
+.loomstat > div,
+.axis,
+.refs span,
+.readback small,
+.readback .row > span {
+  font:
+    10px/1.4 "Cascadia Code",
+    Consolas,
+    monospace;
+  color: #a2b8b3;
+}
+.loomstat > div {
+  margin-top: 8px;
+}
+.chart {
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(25% - 1px),
+    #a7d2bd15 calc(25% - 1px),
+    #a7d2bd15 25%
+  );
+}
+.axis {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-size: 9px;
+}
+.chart svg {
+  display: block;
+  width: 100%;
+  height: 80px;
+  margin: 4px 0;
+}
+.refs {
+  grid-column: 1/-1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+.refs button {
+  border: 1px solid #47635b;
+  border-radius: 4px;
+  padding: 3px 6px;
+  gap: 5px;
+  color: #c4dfd5;
+  font:
+    11px/1.3 Consolas,
+    monospace;
+}
+.refs small {
+  font-size: 11px;
+  color: #a6b7b2;
+}
+.readback {
+  width: min(610px, 93vw);
+}
+.readback pre {
+  background: #141b20;
+  color: #b7d9c9;
+  white-space: pre-wrap;
+  overflow: auto;
+  max-height: 45vh;
+  padding: 14px;
+  font-size: 12px;
+}
+.intro {
+  position: relative;
+}
+.woven {
+  box-shadow:
+    6px 5px 0 -2px #28383d,
+    12px 9px 0 -4px #35413f;
+}
+@media (max-height: 620px) {
+  .loomgrid {
+    padding: 8px 14px;
+  }
+  .chart svg {
+    height: 43px;
+  }
+  .loomstat strong {
+    font-size: 27px;
+  }
+}

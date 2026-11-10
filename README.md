@@ -1,10 +1,27 @@
 ![Turnloom — a coding agent with recoverable context](docs/banner.svg)
 
-Turnloom is a Python terminal application for coding with a tool-capable Chat Completions model. Choose a specialist, approve commands as you work, then inspect the session receipt. The model can recover excerpts from older tool results after those results leave its prompt.
+Turnloom is a local coding workbench for people who want to see what their agent keeps in context. Open a repository, choose a specialist and model, and review commands beside the file you're editing. When a long tool result leaves the prompt, you and the agent can still read it from the session archive.
 
 [Quick start](#quick-start) · [Agent loop](docs/design.md) · [Experiments](docs/experiments.md) · [Contributing](CONTRIBUTING.md)
 
 ## Quick start
+
+On Windows, double-click **Open Turnloom Studio.cmd** in the checkout and choose a workspace folder. The launcher uses Python 3.11+ and installs Studio into a local virtual environment on first launch. On other platforms, or from an existing Python environment, run:
+
+```sh
+python -m pip install .
+turnloom-studio --workspace .
+```
+
+Studio opens in your browser. Choose the model control in the top bar to connect a provider. Open a file, select a persona in the agent panel, and send a task. Use **Close Studio** in the footer to stop the local server.
+
+![Turnloom Studio with the workspace editor, Context Loom and agent panel](docs/studio-preview.png)
+
+**Read the Context Loom from left to right.** Each ribbon starts at the size of a tool result and ends at the size retained in the prompt. Click a reference to read the archived output without spending a model turn. The initial view is labeled **Sample run**. After you send a task, the inspector follows your session. Its percentage measures characters removed from tool results. The session receipt reports model usage separately.
+
+The editor uses CodeMirror 6. The agent panel uses Cline's conversation header, command output and approval components, connected to Turnloom's own agent loop. [CodeMirror](https://github.com/codemirror/dev) · [Cline UI](https://github.com/cline/cline/tree/92b9f722a16d2a03c1153e12f9a0e759455f509d/sdk/packages/ui)
+
+### Terminal
 
 From the repository root, with Python 3.11 or newer:
 

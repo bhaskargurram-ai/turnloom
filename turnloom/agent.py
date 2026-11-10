@@ -75,6 +75,7 @@ class Config:
     fold_history: bool = True
     approve: Callable[[str], bool] | None = None
     mcp: Any = None
+    on_tool_result: Callable[[str, str], None] | None = None
 
 
 @dataclass
@@ -281,6 +282,8 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
                 else:
                     result = json.dumps({"error": f"Unknown tool: {tool_name}"})
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": result})
+                if config.on_tool_result:
+                    config.on_tool_result(tool_name, result)
                 write_event(config.transcript, {"type": "tool", "step": steps, "id": call["id"], "result": json.loads(result)})
         except (RuntimeError, ValueError, IndexError, TypeError, KeyError, OSError) as error:
             errors.append(str(error))
