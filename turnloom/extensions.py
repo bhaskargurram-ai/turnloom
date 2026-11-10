@@ -49,8 +49,8 @@ async def connect(spec, workspace):
 
 
 class McpTools:
-    def __init__(self, path, workspace):
-        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    def __init__(self, path, workspace, *, servers=None):
+        data = {"mcpServers": servers} if servers is not None else json.loads(path.read_text(encoding="utf-8-sig"))
         self.servers = data.get("mcpServers") if isinstance(data, dict) else None
         if not isinstance(self.servers, dict) or not self.servers:
             raise ValueError("MCP config requires a nonempty mcpServers object.")
@@ -63,7 +63,8 @@ class McpTools:
                 values = spec.get(field, [])
                 if not isinstance(values, list) or not all(isinstance(item, str) for item in values):
                     raise ValueError(f"{name}.{field} must be an array of strings")
-            spec["args"] = [value.replace("${configDir}", str(path.resolve().parent)) for value in spec.get("args", [])]
+            if path is not None:
+                spec["args"] = [value.replace("${configDir}", str(path.resolve().parent)) for value in spec.get("args", [])]
         self.workspace = workspace
         self.sessions = {}
         self.catalogs = {}

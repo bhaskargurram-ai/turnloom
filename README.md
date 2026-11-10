@@ -9,11 +9,17 @@ Turnloom is a local coding workbench for people who want to see what their agent
 On Windows, double-click **Open Turnloom Studio.cmd** in the checkout and choose a workspace folder. The launcher uses Python 3.11+ and installs Studio into a local virtual environment on first launch. On other platforms, or from an existing Python environment, run:
 
 ```sh
-python -m pip install .
+python -m pip install ".[studio]"
 turnloom-studio --workspace .
 ```
 
 Studio opens in your browser. Choose the model control in the top bar to connect a provider. Open a file, select a persona in the agent panel, and send a task. Use **Close Studio** in the footer to stop the local server.
+
+For a code review, select the project directory as your workspace. Studio gives the model directory listings, numbered file excerpts and literal search using ripgrep. These reads send workspace data to the selected inference provider. Shell commands require approval. Expand the **tool actions** row to see each operation, its output and any failures. **Stop turn** dismisses a pending approval immediately. A model request or command already in flight can finish before the turn stops. [ripgrep](https://github.com/BurntSushi/ripgrep)
+
+Studio allows up to 12 model steps and 18 executed tool calls per turn. A third identical operation or a rejection ends tool use and requests a written summary of the available evidence. The limits count each tool in a batch separately.
+
+For document tasks, check **VerifyDoc via Unwind** before sending. The agent can discover VerifyDoc’s extraction tool, verify fields against source text and inspect the Unwind ledger. Both packages run locally over MCP. Studio shows the arguments for approval before an MCP call. The ledger lives at `.turnloom/unwind.db` in the workspace. This integration covers the document server. Shell commands run separately and require their own approvals. [VerifyDoc](https://github.com/bhaskargurram-ai/verifydoc) · [Unwind](https://github.com/bhaskargurram-ai/unwind)
 
 ![Turnloom Studio with the workspace editor, Context Loom and agent panel](docs/studio-preview.png)
 

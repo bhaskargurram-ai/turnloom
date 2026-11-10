@@ -3,9 +3,16 @@
 import argparse
 import hashlib
 import json
+import os
 import secrets
+import shutil
+import subprocess
+import sys
+import sysconfig
+import tempfile
 import threading
 import webbrowser
+from contextlib import nullcontext
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from pathlib import Path
@@ -15,10 +22,27 @@ from turnloom import providers
 from turnloom.agent import Config, run_agent
 from turnloom.cli import SPECIALISTS, instructions
 from turnloom.context import Observations
+from turnloom.extensions import McpTools
 
 
 IGNORE = {".git", ".turnloom", ".venv", "node_modules", "__pycache__", ".ssh", ".aws"}
 LIMIT = 512 * 1024
+
+
+def companion_tools(workspace):
+    scripts = sysconfig.get_path("scripts")
+    proxy = shutil.which("unwind", path=scripts)
+    upstream = shutil.which("verifydoc-mcp", path=scripts)
+    if not proxy or not upstream:
+        raise ValueError("Install turnloom[studio] and restart to enable Unwind and VerifyDoc.")
+    ledger = workspace / ".turnloom" / "unwind.db"
+    ledger.parent.mkdir(exist_ok=True)
+    if os.name == "nt":
+        spec = {"command": str(Path(sys.executable).with_name("python.exe")),
+                "args": ["-I", "-m", "turnloom.unwind_stdio", str(ledger), upstream]}
+    else:
+        spec = {"command": proxy, "args": ["run", "--db", str(ledger), "--", upstream]}
+    return McpTools(None, workspace, servers={"verifydoc": spec})
 
 
 class StudioArchive(Observations):
@@ -77,11 +101,13 @@ class Workbench:
         self.lock = threading.Condition()
         self.busy = False
         self.messages = []
+        self.snapshot_number = 0
         self.history = []
         self.archive = StudioArchive()
         self.sample = sample_archive()
         self.pending = None
         self.decision = False
+        self.stop = threading.Event()
         self.trace = self.root / ".turnloom" / (uuid4().hex + ".jsonl")
         self.catalog = {}
         self.provider = None
@@ -127,15 +153,61 @@ class Workbench:
 
     def approve(self, command):
         with self.lock:
+            if self.stop.is_set():
+                return False
             self.pending = {"command": command, "id": uuid4().hex}
             self.decision = False
             self.lock.wait_for(lambda: self.pending is None, timeout=180)
             self.pending = None
             return self.decision
 
-    def tool_result(self, name, result):
+    def inspect(self, params):
+        action = params["action"]
+        path = self.path(params.get("path", "."))
+        relative = path.relative_to(self.root)
+        if any(part.startswith(".") for part in relative.parts):
+            raise ValueError("Use an approved command to inspect hidden files.")
+        if action == "list":
+            items = [e for e in self.edit("tree", {"path": str(relative)}) if not e["name"].startswith(".")]
+            return {"entries": [e["name"] + ("/" if e["dir"] else "") for e in items[:120]], "total": len(items)}
+        if action == "read":
+            line = max(1, int(params.get("line", 1)))
+            lines = self.edit("read", {"path": str(relative)})["text"].splitlines()
+            numbered = (f"{index}: {text}" for index, text in enumerate(lines[line-1:line+79], line))
+            return {"line": line, "total_lines": len(lines), "text": "\n".join(numbered)[:10000]}
+        if action == "search":
+            rg = shutil.which("rg", path=sysconfig.get_path("scripts")) or shutil.which("rg")
+            if not rg:
+                raise ValueError("Install ripgrep for workspace search, or use list and read.")
+            query = params["query"]
+            if not isinstance(query, str) or not query.strip() or len(query) > 512:
+                raise ValueError("Enter a search string of 1 to 512 characters.")
+            args = [rg, "--no-config", "--fixed-strings", "--files-with-matches", "--max-filesize", "512K"]
+            for folder in sorted(IGNORE | {"dist", "build"}):
+                args.extend(["--glob", "!" + folder + "/**", "--glob", "!**/" + folder + "/**"])
+            with tempfile.TemporaryFile() as output:
+                try:
+                    result = subprocess.run([*args, "--", query, str(relative)], cwd=self.root, stdout=output,
+                                            stderr=subprocess.DEVNULL, timeout=8)
+                except subprocess.TimeoutExpired as error:
+                    raise ValueError("Search timed out. Select a narrower directory.") from error
+                if result.returncode not in (0, 1):
+                    raise ValueError("ripgrep could not search this path.")
+                output.seek(0)
+                return {"paths": output.read(8000).decode("utf-8", "replace").splitlines()[:100]}
+        raise ValueError("Unknown workspace operation.")
+
+    def tool_result(self, name, arguments, result):
+        try:
+            params = json.loads(arguments)
+        except ValueError:
+            params = {}
+        params = params if isinstance(params, dict) else {}
+        outcome = json.loads(result)
+        label = params.get("command") or " ".join(str(params[k]) for k in ("action", "path", "query", "server", "name") if k in params) or name
+        failed = isinstance(outcome, dict) and bool(outcome.get("error") or outcome.get("isError") or outcome.get("exit_code"))
         with self.lock:
-            self.messages.append({"role": "tool", "text": result[:6000], "name": name})
+            self.messages.append({"role": "tool", "text": result[:6000], "name": name, "label": str(label)[:240], "failed": failed})
 
     def start(self, data):
         task = data["task"].strip()
@@ -145,27 +217,38 @@ class Workbench:
         with self.lock:
             if self.busy:
                 raise ValueError("An agent turn is already running.")
+            tools = companion_tools(self.root) if data.get("companions") is True else nullcontext()
+            self.stop.clear()
             if self.persona != role:
                 self.history.clear()
                 self.archive = StudioArchive()
             self.persona = role
             conn = self.connection
             config = Config(conn.endpoint, conn.model, conn.key, self.root, transcript=self.trace,
-                            system_prompt=instructions(role, None), approve=self.approve,
-                            input_rate=conn.input_rate, output_rate=conn.output_rate, on_tool_result=self.tool_result)
+                            system_prompt=instructions(role, None) + f"\nYour workspace root is {self.root.name!r}. "
+                            "For inspection use workspace list, read, and search first. Paths are relative to the root. "
+                            f"The shell runs {'Windows cmd.exe' if os.name == 'nt' else '/bin/sh'}. "
+                            "After a failed operation choose another approach. For a broad review, sample a few relevant files, "
+                            "then report concrete findings with file and line evidence and clearly state the coverage.",
+                            approve=self.approve, workspace_tool=self.inspect, max_steps=12, tool_limit=18,
+                            stop_requested=self.stop.is_set, input_rate=conn.input_rate, output_rate=conn.output_rate,
+                            on_tool_event=self.tool_result)
             self.messages.append({"role": "user", "text": task})
             self.busy = True
         def worker():
             try:
-                result = run_agent(task, config, self.history, self.archive)
-                message = {"role": "assistant", "text": result.answer or " ".join(result.errors) or result.status,
-                           "status": result.status, "usage": result.usage, "cost": result.estimated_usd if
+                with tools as config.mcp:
+                    result = run_agent(task, config, self.history, self.archive)
+                message = {"role": "assistant", "text": result.answer or " ".join(result.errors) or
+                           ("Turn stopped by operator." if result.status == "stopped" else result.status),
+                           "status": result.status, "note": result.errors[-1] if result.status == "partial" else "",
+                           "usage": result.usage, "cost": result.estimated_usd if
                            (conn.input_rate or conn.output_rate or conn.free) else None}
             except Exception as error:
                 message = {"role": "error", "text": str(error)}
             with self.lock:
                 self.messages.append(message)
-                if message.get("status") != "completed":
+                if message.get("status") not in ("completed", "partial"):
                     self.history.clear()
                     self.archive = StudioArchive()
                 self.busy = False
@@ -182,12 +265,26 @@ class Workbench:
                 return self.edit(action, data)
         if action == "state":
             with self.lock:
+                offset = int(data.get("since", 0))
+                if not 0 <= offset <= len(self.messages):
+                    offset = 0
+                self.snapshot_number += 1
                 return {"workspace": self.root.name, "model": self.connection.model if self.connection else "",
-                        "busy": self.busy, "pending": self.pending, "messages": self.messages.copy(),
+                        "busy": self.busy, "stopping": self.busy and self.stop.is_set(),
+                        "pending": self.pending, "messages": self.messages[offset:],
+                        "offset": offset, "snapshot": self.snapshot_number,
                         "loom": self.archive.snapshot() if self.messages else self.sample.snapshot(),
                         "sample": not self.messages}
         if action == "run":
             return self.start(data)
+        if action == "stop":
+            with self.lock:
+                if self.busy:
+                    self.stop.set()
+                    self.pending = None
+                    self.decision = False
+                    self.lock.notify_all()
+            return True
         if action == "decision":
             with self.lock:
                 if not self.pending or self.pending["id"] != data["id"]:
@@ -272,6 +369,8 @@ def make_server(root):
                 if not 0 < length <= LIMIT * 4 or not self.path.startswith("/api/"):
                     raise ValueError("Invalid request.")
                 data = json.loads(self.rfile.read(length))
+                if not isinstance(data, dict):
+                    raise ValueError("Expected a JSON object.")
                 if self.path == "/api/close":
                     if bench.busy:
                         raise ValueError("Wait for the current turn to finish.")
@@ -280,6 +379,8 @@ def make_server(root):
                 else:
                     result = bench.dispatch(self.path[5:], data)
                 self.reply(200, json.dumps(result).encode(), "application/json")
+            except ConnectionError:
+                return
             except (ValueError, OSError, RuntimeError, KeyError, TypeError) as error:
                 self.reply(400, json.dumps({"error": str(error)}).encode(), "application/json")
 
@@ -310,3 +411,7 @@ def main():
         except KeyboardInterrupt:
             pass
     return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

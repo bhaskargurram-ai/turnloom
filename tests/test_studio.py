@@ -2,12 +2,14 @@ import json
 import tempfile
 import threading
 import unittest
+from importlib.util import find_spec
 from http.client import HTTPConnection
 from pathlib import Path
 from unittest.mock import patch
 
 from turnloom import providers
-from turnloom.studio import Workbench, make_server
+from turnloom.studio import Workbench, companion_tools, make_server
+from turnloom.agent import Config, run_agent
 
 
 class StudioTests(unittest.TestCase):
@@ -31,6 +33,58 @@ class StudioTests(unittest.TestCase):
             self.bench.dispatch("save", changes)
         with self.assertRaisesRegex(ValueError, "outside the workspace"):
             self.bench.dispatch("tree", {"path": ".."})
+
+    def test_repo_read_includes_lines_and_blocks_hidden_files(self):
+        (self.root / "app.py").write_text("a\nb\n")
+        (self.root / ".env").write_text("private")
+        listing = self.bench.inspect({"action": "list"})
+        self.assertEqual(listing["entries"], ["app.py"])
+        self.assertEqual(self.bench.inspect({"action": "read", "path": "app.py", "line": 2})["text"], "2: b")
+        with self.assertRaisesRegex(ValueError, "hidden"):
+            self.bench.inspect({"action": "read", "path": ".env"})
+
+    def test_identical_tool_batch_is_bounded_and_summarized(self):
+        config = Config("local", "fixture", "", self.root, workspace_tool=self.bench.inspect, tool_limit=18)
+        calls = [{"id": str(i), "function": {"name": "workspace", "arguments": '{"action":"list"}'}} for i in range(63)]
+        with patch("turnloom.agent.api_request", side_effect=[
+            {"choices": [{"message": {"tool_calls": calls}}]},
+            {"choices": [{"message": {"content": "No files found."}}]},
+        ]) as request, patch.object(config, "workspace_tool", wraps=config.workspace_tool) as inspect:
+            result = run_agent("Review code", config)
+            self.assertEqual(inspect.call_count, 2)
+            self.assertFalse(request.call_args.kwargs["allow_tools"])
+            self.assertEqual(result.answer, "No files found.")
+
+    def test_stop_wakes_pending_approval(self):
+        self.bench.busy = True
+        with self.bench.lock:
+            result = []
+            waiter = threading.Thread(target=lambda: result.append(self.bench.approve("unused")))
+            waiter.start()
+        import time
+        for _ in range(100):
+            if self.bench.dispatch("state", {})["pending"]:
+                break
+            time.sleep(.01)
+        self.assertIsNotNone(self.bench.dispatch("state", {})["pending"])
+        self.bench.dispatch("stop", {})
+        waiter.join(2)
+        self.assertEqual(result, [False])
+        self.assertIsNone(self.bench.dispatch("state", {})["pending"])
+
+    @unittest.skipUnless(find_spec("verifydoc") and find_spec("unwind"), "requires the studio extra")
+    def test_real_verifydoc_extraction_through_unwind(self):
+        with companion_tools(self.root) as tools:
+            def call(operation, **params):
+                return tools.dispatch(operation, json.dumps({"server": "verifydoc", **params}), lambda _: True, 60)
+            entries = call("mcp_search", query="verify_extraction")
+            self.assertIn("verify_extraction", [t["name"] for t in entries["tools"]])
+            self.assertGreater(call("mcp_search", query="unwind.history")["count"], 0)
+            result = call("mcp_call", name="verify_extraction", arguments={"document": "Total: 42",
+                          "schema": json.dumps({"type": "object", "properties": {"total": {"type": "number"}}})})
+            self.assertFalse(result.get("error") or result.get("isError"), result)
+            self.assertIn("n_accepted", json.dumps(result))
+        self.assertTrue((self.root / ".turnloom" / "unwind.db").exists())
 
     def test_sample_reference_reads_from_its_own_archive(self):
         state = self.bench.dispatch("state", {})

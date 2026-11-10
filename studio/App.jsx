@@ -456,6 +456,45 @@ function Settings({ close, finish }) {
     </div>
   );
 }
+function activityGroups(messages) {
+  const groups = [];
+  for (const message of messages) {
+    if (message.role !== "tool") {
+      groups.push(message);
+    } else if (groups.at(-1)?.role === "activity") {
+      groups.at(-1).items.push(message);
+    } else {
+      groups.push({ role: "activity", items: [message] });
+    }
+  }
+  return groups;
+}
+
+function Activity({ items }) {
+  const [expanded, setExpanded] = useState(false);
+  const failed = items.filter((item) => item.failed).length;
+  return (
+    <details
+      className="activity"
+      onToggle={(e) => setExpanded(e.currentTarget.open)}
+    >
+      <summary>
+        {items.length} tool {items.length === 1 ? "action" : "actions"}
+        {failed > 0 && <span> · {failed} unsuccessful</span>}
+      </summary>
+      {expanded &&
+        items.map((item, i) => (
+          <details key={i} className="activity-item">
+            <summary>
+              {item.failed ? "× " : "✓ "}
+              {item.label || item.name}
+            </summary>
+            <AgentCommandOutput isRunning={false} output={item.text} />
+          </details>
+        ))}
+    </details>
+  );
+}
 function App() {
   const [state, setState] = useState({
       workspace: "Workspace",
@@ -470,15 +509,30 @@ function App() {
     [task, setTask] = useState(""),
     [persona, setPersona] = useState("builder"),
     [attach, setAttach] = useState(false),
+    [companions, setCompanions] = useState(false),
     [sending, setSending] = useState(false),
     [mobile, setMobile] = useState("agent"),
     [closed, setClosed] = useState(false);
   const content = useRef(""),
+    transcript = useRef({ snapshot: 0, messages: [] }),
     last = useRef(null),
     reading = useRef(0),
     scroll = useRef(null);
   const report = (e) => setError(e.message || String(e));
-  async function open(path, force = false) {
+  async function refresh() {
+    const snap = await api("state", {
+      since: transcript.current.messages.length,
+    });
+    const prior = transcript.current;
+    if (snap.snapshot <= prior.snapshot) return;
+    const messages = [
+      ...prior.messages.slice(0, snap.offset),
+      ...snap.messages,
+    ];
+    transcript.current = { ...snap, messages };
+    setState(transcript.current);
+  }
+  async function open(path, force = false, navigate = true) {
     if (!force && dirty && !window.confirm("Discard your unsaved edits?"))
       return;
     const id = ++reading.current;
@@ -487,7 +541,7 @@ function App() {
     content.current = data.text;
     setFile({ ...data, path });
     setDirty(false);
-    setMobile("editor");
+    if (navigate) setMobile("editor");
   }
   async function tree() {
     const list = await api("tree", { path: "." });
@@ -511,7 +565,7 @@ function App() {
         const first =
           list.find((n) => n.name === "README.md") ||
           list.find((n) => !n.dir && /\.(py|js|md|txt)$/.test(n.name));
-        if (first) return open(first.path, true);
+        if (first) return open(first.path, true, false);
       })
       .catch(report);
   }, []);
@@ -521,8 +575,7 @@ function App() {
       timer;
     async function poll() {
       try {
-        const snap = await api("state");
-        if (live) setState(snap);
+        if (live) await refresh();
       } catch (e) {
         if (live) report(e);
       } finally {
@@ -538,7 +591,7 @@ function App() {
   useEffect(() => {
     if (last.current && !state.busy) {
       tree().catch(report);
-      if (file && !dirty) open(file.path, true).catch(report);
+      if (file && !dirty) open(file.path, true, false).catch(report);
     }
     last.current = state.busy;
   }, [state.busy]);
@@ -575,12 +628,13 @@ function App() {
     try {
       await api("run", {
         persona,
+        companions,
         task:
           task.trim() +
           (attach && file ? "\nActive file on disk: " + file.path : ""),
       });
       setTask("");
-      setState(await api("state"));
+      await refresh();
     } catch (e) {
       report(e);
     } finally {
@@ -590,7 +644,7 @@ function App() {
   async function decide(approve) {
     try {
       await api("decision", { id: state.pending.id, approve });
-      setState(await api("state"));
+      await refresh();
     } catch (e) {
       report(e);
     }
@@ -748,33 +802,33 @@ function App() {
                 </button>
               </div>
             )}
-            {state.messages.map((m, i) => (
-              <article className={"msg " + m.role} key={i}>
-                <small>
-                  {m.role === "user"
-                    ? "YOU"
-                    : m.role === "assistant"
-                      ? "TURNLOOM"
-                      : m.role.toUpperCase()}
-                </small>
-                {m.role === "tool" ? (
-                  <details>
-                    <summary>{m.name} result</summary>
-                    <AgentCommandOutput isRunning={false} output={m.text} />
-                  </details>
-                ) : (
-                  <Markdown
-                    skipHtml
-                    components={{
-                      img: () => null,
-                      a: ({ children }) => <span>{children}</span>,
-                    }}
-                  >
-                    {m.text}
-                  </Markdown>
-                )}
-              </article>
-            ))}
+            {activityGroups(state.messages).map((m, i) =>
+              m.role === "activity" ? (
+                <Activity key={i} items={m.items} />
+              ) : (
+                <article className={"msg " + m.role} key={i}>
+                  <small>
+                    {m.role === "user"
+                      ? "YOU"
+                      : m.role === "assistant"
+                        ? "TURNLOOM"
+                        : m.role.toUpperCase()}
+                  </small>
+                  {
+                    <Markdown
+                      skipHtml
+                      components={{
+                        img: () => null,
+                        a: ({ children }) => <span>{children}</span>,
+                      }}
+                    >
+                      {m.text}
+                    </Markdown>
+                  }
+                  {m.note && <small>{m.note}</small>}
+                </article>
+              ),
+            )}
             {state.busy && !state.pending && (
               <p className="working">
                 <CircleDot size={14} /> Agent working…
@@ -790,6 +844,15 @@ function App() {
             )}
           </div>
           <div className="compose">
+            <label className="companions">
+              <input
+                type="checkbox"
+                checked={companions}
+                disabled={state.busy}
+                onChange={(e) => setCompanions(e.target.checked)}
+              />
+              VerifyDoc via Unwind
+            </label>
             <textarea
               aria-label="Message to agent"
               placeholder="Ask Turnloom to work on this project…"
@@ -808,14 +871,30 @@ function App() {
                 <Link2 size={14} />
                 {attach ? "File attached" : "Attach file"}
               </button>
-              <button
-                className="send"
-                aria-label="Send message"
-                disabled={!task.trim() || state.busy || sending}
-                onClick={send}
-              >
-                <ArrowUp size={19} />
-              </button>
+              {state.busy ? (
+                <button
+                  disabled={state.stopping}
+                  onClick={async () => {
+                    try {
+                      await api("stop");
+                      await refresh();
+                    } catch (e) {
+                      report(e);
+                    }
+                  }}
+                >
+                  {state.stopping ? "Stopping…" : "Stop turn"}
+                </button>
+              ) : (
+                <button
+                  className="send"
+                  aria-label="Send message"
+                  disabled={!task.trim() || state.busy || sending}
+                  onClick={send}
+                >
+                  <ArrowUp size={19} />
+                </button>
+              )}
             </div>
           </div>
         </section>
@@ -826,15 +905,21 @@ function App() {
           Local workspace
         </span>
         <span>
-          {usage
-            ? (
-                usage.usage.prompt_tokens + usage.usage.completion_tokens
-              ).toLocaleString() +
-              " tokens · " +
-              (usage.cost == null
-                ? "cost unavailable"
-                : "$" + usage.cost.toFixed(5))
-            : "Ready"}
+          {state.busy
+            ? state.stopping
+              ? "Stopping after current operation"
+              : state.pending
+                ? "Awaiting approval"
+                : "Working"
+            : usage
+              ? (
+                  usage.usage.prompt_tokens + usage.usage.completion_tokens
+                ).toLocaleString() +
+                " tokens · " +
+                (usage.cost == null
+                  ? "cost unavailable"
+                  : "$" + usage.cost.toFixed(5))
+              : "Ready"}
         </span>
         <button
           disabled={state.busy}
@@ -862,7 +947,7 @@ function App() {
           close={() => setSettings(false)}
           finish={() => {
             setSettings(false);
-            api("state").then(setState).catch(report);
+            refresh().catch(report);
           }}
         />
       )}

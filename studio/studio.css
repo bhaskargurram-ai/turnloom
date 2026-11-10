@@ -558,3 +558,25 @@ footer button {
     margin-top: 20px;
   }
 }
+.activity,
+.companions {
+  color: var(--muted, #b3c3c6);
+  font-size: 0.85rem;
+}
+.activity {
+  padding: 10px 0;
+  border-bottom: 1px solid #344243;
+}
+.activity summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.activity-item {
+  padding: 6px 0 2px 12px;
+}
+.companions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
