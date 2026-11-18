@@ -29,7 +29,8 @@ class RosterTests(unittest.TestCase):
         self.assertEqual([row["id"] for row in rows[:2]], ["builder", "debugger"])
         self.assertEqual(roster.find("reviewer")["id"], "engineering-code-reviewer")
         self.assertIn("Code Reviewer", roster.body("reviewer"))
-        self.assertEqual(roster.body("builder"), "")
+        self.assertIn("Role: builder", roster.body("builder"))
+        self.assertIn("Role: debugger", roster.body("debugger"))
         with self.assertRaisesRegex(ValueError, "Unknown persona"):
             roster.find("nobody")
 
@@ -78,7 +79,8 @@ class AgentTests(unittest.TestCase):
     def test_reply_allowance_respects_a_strict_window(self):
         config = Config("x", "m", "", Path("."), context_tokens=4000, max_reply_tokens=3000)
         messages = [{"role": "user", "content": "a" * 8000}]
-        self.assertLess(reply_allowance(messages, config), 1100)
+        self.assertLess(reply_allowance(messages, config), 1300)
+        self.assertLess(reply_allowance(messages, config, scale=1.5), reply_allowance(messages, config))
         self.assertEqual(reply_allowance([{"role": "user", "content": "a"}], config), 3000)
 
     def test_steps_report_cached_tokens_and_cost(self):
@@ -96,7 +98,7 @@ class AtifTests(unittest.TestCase):
     def test_transcript_becomes_paired_steps_with_totals(self):
         with tempfile.TemporaryDirectory() as folder:
             trace = Path(folder, "run.jsonl")
-            config = Config("local", "fixture", "", Path(folder), transcript=trace)
+            config = Config("local", "fixture", "", Path(folder), transcript=trace, auto_approve=True)
             with patch("turnloom.agent.api_request", side_effect=[
                     reply(None, [("shell", {"command": "echo hi"})], prompt=50, completion=5),
                     reply("Printed hi.", prompt=80, completion=7, cached=20)]):
@@ -247,7 +249,8 @@ class GatewayTests(unittest.TestCase):
         sent = completion.call_args.kwargs
         self.assertEqual((sent["model"], sent["api_key"]), ("anthropic/claude-haiku-4-5", "k"))
         self.assertEqual(sent["messages"][0]["content"][0]["cache_control"], {"type": "ephemeral"})
-        self.assertEqual([tool["function"]["name"] for tool in sent["tools"]], ["shell", "recall"])
+        self.assertEqual([tool["function"]["name"] for tool in sent["tools"]],
+                         ["list_files", "read_file", "search_files", "edit_file", "write_file", "shell", "recall"])
 
 
 class StudioLayerTests(unittest.TestCase):
@@ -272,7 +275,7 @@ class StudioLayerTests(unittest.TestCase):
     def test_turn_feeds_the_meter_ledger_and_usage_view(self):
         self.bench.dispatch("settings", {"budget": 1.5, "keep": 2, "servers": []})
         with patch("turnloom.agent.api_request", side_effect=[
-                reply(None, [("workspace", {"action": "list"})], prompt=1000, completion=50, cached=400),
+                reply(None, [("list_files", {})], prompt=1000, completion=50, cached=400),
                 reply("Empty workspace.", prompt=1200, completion=60)]) as request:
             self.bench.dispatch("run", {"task": "Look around", "persona": "reviewer"})
             self.wait()
@@ -291,14 +294,16 @@ class StudioLayerTests(unittest.TestCase):
         self.assertAlmostEqual(usage["session"]["cost"], (600 * 1 + 400 * 0.1 + 50 * 4 + 1200 * 1 + 60 * 4) / 1e6)
         self.assertEqual(json.loads((self.root / ".turnloom" / "studio.json").read_text())["budget"], 1.5)
         self.bench.dispatch("reset", {})
-        self.assertTrue(self.bench.dispatch("state", {})["sample"])
+        fresh = self.bench.dispatch("state", {})
+        self.assertEqual((fresh["messages"], fresh["loom"], fresh["meter"]["steps"]), ([], [], 0))
 
-    @unittest.skipUnless(find_spec("langgraph"), "requires the team extra")
-    def test_team_mode_runs_each_stage_with_its_persona(self):
+    def check_team_mode(self):
         self.bench.dispatch("settings", {"mode": "team", "servers": []})
         prompts = []
-        def answer(config, messages, deadline, allow_tools=True):
+        modes = []
+        def answer(config, messages, deadline, allow_tools=True, on_text=None):
             prompts.append(messages[0]["content"])
+            modes.append(config.read_only)
             return reply(f"stage {len(prompts)} report")
         with patch("turnloom.agent.api_request", side_effect=answer):
             self.bench.dispatch("run", {"task": "Ship it", "persona": "builder"})
@@ -309,7 +314,16 @@ class StudioLayerTests(unittest.TestCase):
         self.assertIn("Code Reviewer", prompts[2])
         stages = [message.get("stage") for message in state["messages"] if message["role"] == "assistant"]
         self.assertEqual(stages, ["plan", "build", "review", None])
+        self.assertEqual(modes, [True, False, True])
         self.assertEqual(self.bench.dispatch("usage", {})["totals"]["calls"], 3)
+
+    @unittest.skipUnless(find_spec("langgraph"), "requires the team extra")
+    def test_team_mode_runs_each_stage_with_its_persona(self):
+        self.check_team_mode()
+
+    def test_team_mode_runs_without_langgraph(self):
+        with patch.dict("sys.modules", {"langgraph": None, "langgraph.graph": None}):
+            self.check_team_mode()
 
     def test_changes_compare_the_working_tree_with_the_last_commit(self):
         def git(*arguments):

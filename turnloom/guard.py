@@ -128,8 +128,9 @@ def verify(workspace):
 class Gate:
     """One Provio gateway process for a workspace.
 
-    ``approve`` asks the operator and returns a bool. ``confirm`` keeps the operator in the loop
-    for allowed calls too. ``notify`` receives the verdict just before the operator is asked.
+    ``approve(kind, detail)`` asks the operator and returns a bool; without one, an ask verdict is
+    refused. ``confirm`` keeps the operator in the loop for allowed calls too. ``notify`` receives the
+    verdict just before the operator is asked.
     """
 
     def __init__(self, workspace, approve=None, confirm=True, session=None, notify=None):
@@ -167,14 +168,19 @@ class Gate:
         if self.notify:
             self.notify(self.summary(request.decision))
         arguments = request.call.args
-        text = arguments.get("command") or f"{request.call.tool} {json.dumps(dict(arguments), ensure_ascii=False)}"
-        return Approval(bool(self.approve(str(text))), approver="human:turnloom-operator")
+        if arguments.get("command"):
+            kind, text = "shell", arguments["command"]
+        elif request.call.tool == "fs.write":
+            kind, text = "edit", f"Edit {arguments.get('path') or 'a file'}\nThe policy asks before this file is changed."
+        else:
+            kind, text = "mcp", f"{request.call.tool} {json.dumps(dict(arguments), ensure_ascii=False)}"
+        return Approval(bool(self.approve(kind, str(text))), approver="human:turnloom-operator")
 
     def run(self, tool, arguments, execute, server=None):
-        """Decide, then run ``execute(approve)`` and record it. Returns the tool's JSON result text.
+        """Decide, then run ``execute(ask)`` and record it. Returns the tool's JSON result text.
 
-        ``execute`` receives the approval callback it should use: None when the policy or the
-        operator has already settled the question, the operator prompt when confirmation is on.
+        ``execute`` receives the approval question it should use: one that always agrees when the policy
+        or the operator has already settled the matter, the operator's prompt when confirmation is on.
         """
         from provio_sdk import ProvioApprovalRejected, ProvioError, Server
         from provio_sdk.guard import refusal_text
@@ -182,7 +188,8 @@ class Gate:
 
         def guarded():
             # Reaching here means allow, redact, or an ask the operator granted.
-            return execute(None if self.local.asked or not self.confirm else self.approve)
+            settled = self.local.asked or not self.confirm or self.approve is None
+            return execute((lambda kind, detail: True) if settled else self.approve)
 
         try:
             result = self.provio.execute(tool, arguments, guarded,

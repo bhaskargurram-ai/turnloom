@@ -1,0 +1,12 @@
+.git
+.venv
+.turnloom
+studio
+tests
+docs
+examples
+build
+dist
+**/__pycache__
+*.egg-info
+results

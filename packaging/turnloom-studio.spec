@@ -1,6 +1,6 @@
 # PyInstaller spec for the Turnloom Studio desktop app.
 #
-#     python -m pip install -e ".[studio,full,desktop]"
+#     python -m pip install -e ".[build-app]"
 #     python -m PyInstaller packaging/turnloom-studio.spec --noconfirm
 #
 # Produces dist/Turnloom Studio/ with two executables that share one runtime:

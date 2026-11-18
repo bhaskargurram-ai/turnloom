@@ -6,6 +6,7 @@ import math
 import os
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -46,6 +47,8 @@ def profile():
         record = json.loads(profile_path().read_text(encoding="utf-8"))
     except FileNotFoundError:
         return None
+    except ValueError:
+        record = None
     if not isinstance(record, dict) or not known(record.get("provider")) or not isinstance(record.get("model"), str):
         raise ValueError("Invalid saved connection. Run turnloom connect to replace it.")
     return record
@@ -90,11 +93,17 @@ def secret(provider, required=True):
 
 
 def fetch(url, key=""):
-    request = urllib.request.Request(url, headers={"User-Agent": "Turnloom/0.3", "Accept": "application/json"})
+    from turnloom import __version__
+    request = urllib.request.Request(url, headers={"User-Agent": "Turnloom/" + __version__, "Accept": "application/json"})
     if key:
         request.add_unredirected_header("Authorization", "Bearer " + key)
     with urllib.request.urlopen(request, timeout=20) as response:
         return json.load(response)
+
+
+def window(value):
+    """A context length in tokens, or None when the catalog does not report a usable one."""
+    return value if isinstance(value, int) and not isinstance(value, bool) and 1000 <= value <= 100_000_000 else None
 
 
 def rate(value, scale=1):
@@ -105,24 +114,48 @@ def rate(value, scale=1):
     return number if number >= 0 and math.isfinite(number) else None
 
 
+def catalog():
+    """The public Models.dev catalog, cached for a day beside the saved connection."""
+    cache = profile_path().with_name("models-dev.json")
+    try:
+        if time.time() - cache.stat().st_mtime < 86400:
+            return json.loads(cache.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pass
+    data = fetch("https://models.dev/api.json")
+    if not isinstance(data, dict):
+        raise ValueError("Models.dev returned an unexpected catalog.")
+    try:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(data), encoding="utf-8")
+    except OSError:
+        pass
+    return data
+
+
 def models(provider, key=""):
     if provider.startswith(gateway.PREFIX):
         return gateway.models(provider)
-    endpoint = PROVIDERS[provider][1]
+    name, endpoint, variable = PROVIDERS[provider]
     try:
         data = fetch(endpoint + "/models", key)
     except urllib.error.HTTPError as error:
-        if error.code not in (404, 405) or not PROVIDERS[provider][2]:
-            raise ValueError(f"{provider} model discovery returned HTTP {error.code}. Check the provider credential and access.") from error
-        catalog = fetch("https://models.dev/api.json")
-        entries = catalog.get(provider, {}).get("models", {}).values()
+        if error.code not in (404, 405) or not variable:
+            raise ValueError(f"{name} model discovery returned HTTP {error.code}. Check the provider credential and access.") from error
+        entries = catalog().get(provider, {}).get("models", {}).values()
         return [{"model": item["id"], "input": rate(item.get("cost", {}).get("input")),
                  "output": rate(item.get("cost", {}).get("output")), "tier": listed_tier(item),
-                 "tools": True, "source": "models.dev snapshot"}
+                 "tools": True, "source": "models.dev catalog", "context": window((item.get("limit") or {}).get("context")),
+                 "cache_read": rate(item.get("cost", {}).get("cache_read"))}
                 for item in entries if item.get("tool_call")]
+    except urllib.error.URLError as error:
+        hint = "Start the local server and try again." if not variable else "Check your network connection."
+        raise ValueError(f"Could not reach {name} at {endpoint}. {hint} ({error.reason})") from error
+    except ValueError as error:
+        raise ValueError(f"{name} returned a model list that is not JSON.") from error
     rows = data.get("data") if isinstance(data, dict) else None
     if not isinstance(rows, list):
-        raise ValueError(f"{provider} returned an unsupported model-list format.")
+        raise ValueError(f"{name} returned an unsupported model-list format.")
     result = []
     for item in rows:
         if not isinstance(item, dict) or not isinstance(item.get("id"), str):
@@ -136,7 +169,8 @@ def models(provider, key=""):
                 free = route.get("is_free")
                 tier = "free" if free is True else "paid" if free is False else "unknown"
                 result.append({"model": item["id"] + ":" + route["provider"], "input": prompt, "output": completion,
-                               "tier": tier, "tools": route.get("supports_tools"), "source": "live catalog"})
+                               "tier": tier, "tools": route.get("supports_tools"), "source": "live catalog",
+                               "context": window(route.get("context_length"))})
             continue
         parameters = item.get("supported_parameters")
         if isinstance(parameters, list) and "tools" not in parameters:
@@ -152,7 +186,7 @@ def models(provider, key=""):
             tier = "free" if all(rate(value) == 0 for value in pricing.values()) else "paid"
         result.append({"model": item["id"], "input": prompt, "output": completion, "tier": tier,
                        "tools": True if isinstance(parameters, list) else None, "source": "live catalog",
-                       "context": item.get("context_length") if isinstance(item.get("context_length"), int) else None,
+                       "context": window(item.get("context_length") or item.get("context_window")),
                        "cache_read": rate(pricing.get("input_cache_read"), 1e6) if advertised else None})
     return sorted(result, key=lambda item: item["model"].casefold())
 
@@ -230,30 +264,33 @@ def command(args):
     if args.action == "connect" and provider != "openrouter" and variable and not key:
         if not sys.stdin.isatty():
             raise ValueError(f"Set {variable} to connect noninteractively.")
+        vault()
         print(f"{name} uses {endpoint}. Enter its API key to save it in the OS credential store.")
         key = getpass.getpass(f"{variable}: ").strip()
         if not key:
             raise ValueError("No key supplied.")
         entered = True
     rows = models(provider, key)
-    catalog = {}
-    if args.open_weights or (variable and provider not in ("openrouter", "huggingface")):
+    listing = {}
+    if args.open_weights or (variable and provider not in ("openrouter", "huggingface") and not provider.startswith(gateway.PREFIX)):
         try:
-            catalog = fetch("https://models.dev/api.json")
+            listing = catalog()
         except (OSError, ValueError):
             if args.open_weights:
                 raise ValueError("Open-weight metadata is unavailable. Retry the catalog request.")
-    details = catalog.get(provider, {}).get("models", {})
+    details = listing.get(provider, {}).get("models", {})
     for row in rows:
         item = details.get(row["model"], {})
         if row["tools"] is None:
             row["tools"] = item.get("tool_call")
         if row["tier"] == "unknown" and listed_tier(item) == "paid":
             row.update(tier="paid", input=rate(item["cost"].get("input")), output=rate(item["cost"].get("output")))
+        if not row.get("context"):
+            row["context"] = window((item.get("limit") or {}).get("context"))
     rows = [row for row in rows if row["tools"] is not False and args.search.casefold() in row["model"].casefold()
             and (args.tier == "all" or args.tier == row["tier"])]
     if args.open_weights:
-        weights = {item["id"].casefold() for ident, entry in catalog.items() for item in entry["models"].values()
+        weights = {item["id"].casefold() for ident, entry in listing.items() for item in entry["models"].values()
                    if item.get("open_weights") is True and (ident == provider or "/" in item["id"])}
         rows = [row for row in rows if row["model"].casefold() in weights
                 or row["model"].split(":", 1)[0].casefold() in weights]
@@ -321,13 +358,30 @@ class Connection:
     provider: str = ""
 
 
+def setting(name):
+    """Read TURNLOOM_<NAME>, accepting the HARNESS_<NAME> spelling used before 0.7."""
+    return os.environ.get("TURNLOOM_" + name) or os.environ.get("HARNESS_" + name) or ""
+
+
+def custom_endpoint():
+    """The (endpoint, model) pair from the environment, which takes precedence over the saved profile."""
+    endpoint, model = setting("ENDPOINT"), setting("MODEL")
+    if not endpoint and not model:
+        return None
+    if not endpoint or not model:
+        raise ValueError("Custom inference requires both TURNLOOM_ENDPOINT and TURNLOOM_MODEL.")
+    return endpoint, model
+
+
 def resolve(endpoint=None, model=None, key=None, lookup=False):
-    endpoint = endpoint or os.environ.get("HARNESS_ENDPOINT")
-    model = model or os.environ.get("HARNESS_MODEL")
     if endpoint or model:
         if not endpoint or not model:
-            raise ValueError("Custom inference requires both HARNESS_MODEL and HARNESS_ENDPOINT.")
-        return Connection(endpoint, model, key if key is not None else os.environ.get("HARNESS_API_KEY", ""))
+            raise ValueError("Custom inference requires both a model and an endpoint.")
+        custom = (endpoint, model)
+    else:
+        custom = custom_endpoint()
+    if custom:
+        return Connection(custom[0], custom[1], key if key is not None else setting("API_KEY"))
     record = profile()
     if not record:
         raise ValueError("Choose your provider and model with turnloom connect.")
@@ -346,4 +400,4 @@ def connection(provider, row, key, lookup=True):
         cache = rate(listed.get("cache_read"))
     return Connection(info(provider)[1], row["model"], key, rate(row.get("input")) or 0, rate(row.get("output")) or 0,
                       row.get("tier") == "free" and not rate(row.get("input")) and not rate(row.get("output")),
-                      cache, int(context) if isinstance(context, (int, float)) else 0, provider)
+                      cache, window(int(context)) or 0 if isinstance(context, (int, float)) else 0, provider)

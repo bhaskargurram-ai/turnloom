@@ -57,7 +57,7 @@ def _index():
         if not provider or key.startswith("ft:"):
             continue
         model = key if key.startswith(provider + "/") else provider + "/" + key
-        def per_million(name):
+        def per_million(name, item=item):
             value = item.get(name)
             return round(value * 1e6, 6) if isinstance(value, (int, float)) else None
         prompt, completion = per_million("input_cost_per_token"), per_million("output_cost_per_token")

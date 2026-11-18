@@ -1,0 +1,20 @@
+name: Feature request
+description: A change that would make Turnloom more useful to you
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you were trying to do and where Turnloom got in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like instead
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today
+      description: A workaround, another tool, or nothing.

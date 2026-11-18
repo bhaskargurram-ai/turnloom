@@ -19,7 +19,7 @@ Use the workspace name in the title bar, or **Open another workspace** in the co
 From the repository root on the platform you are building for:
 
 ```powershell
-python -m pip install -e ".[studio,full,desktop]"
+python -m pip install -e ".[build-app]"
 npm ci --prefix studio
 npm run build --prefix studio
 python -m PyInstaller packaging/turnloom-studio.spec --noconfirm

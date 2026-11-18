@@ -18,7 +18,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from uuid import uuid4
 
-from turnloom import gateway, meter
+from turnloom import __version__, gateway, meter
 from turnloom.context import Observations
 
 RECALL = "turnloom_recall"
@@ -53,7 +53,7 @@ class Layer:
         if not url.endswith("/chat/completions"):
             url += "/chat/completions"
         request = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), method="POST",
-                                         headers={"Content-Type": "application/json", "User-Agent": "Turnloom-Proxy"})
+                                         headers={"Content-Type": "application/json", "User-Agent": "Turnloom-Proxy/" + __version__})
         if connection.key:
             request.add_unredirected_header("Authorization", "Bearer " + connection.key)
         try:

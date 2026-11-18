@@ -1,4 +1,4 @@
-"""Run repeatable local trials and report benchmark-macro scores."""
+"""Run repeatable local trials on pristine task copies and report benchmark-macro scores."""
 
 from __future__ import annotations
 
@@ -7,29 +7,26 @@ import json
 import os
 import random
 import shutil
-import subprocess
+import sys
 import tempfile
 from collections import defaultdict
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
-from turnloom.agent import SYSTEM_PROMPT, Config, run_agent
+from turnloom import roster
+from turnloom.agent import FAIR_PLAY, Config, execute, run_agent
 from turnloom.cli import instructions
 from turnloom.extensions import McpTools
 from turnloom.team import run_team
-from turnloom.providers import resolve
-
+from turnloom.providers import resolve, setting
 
 def score_command(command: str, workspace: Path, timeout: int) -> bool:
-    try:
-        result = subprocess.run(
-            command, shell=True, cwd=workspace, capture_output=True,
-            text=True, errors="replace", timeout=timeout,
-        )
-        return result.returncode == 0
-    except subprocess.TimeoutExpired:
-        return False
+    """Run a task's check. `{python}` stands for this interpreter. The whole process tree ends at the timeout."""
+    outcome, stdout, stderr = execute(command.replace("{python}", f'"{sys.executable}"'), workspace, None, timeout)
+    stdout.close()
+    stderr.close()
+    return outcome.get("exit_code") == 0
 
 
 def macro_score(rows: list[dict[str, Any]]) -> float:
@@ -55,23 +52,29 @@ def bootstrap_interval(rows: list[dict[str, Any]], samples: int = 2000, seed: in
     for _ in range(samples):
         benchmark_scores = []
         for task_map in by_benchmark.values():
-            task_scores = [sum(attempts) / len(attempts) for attempts in task_map.values()]
-            benchmark_scores.append(sum(generator.choices(task_scores, k=len(task_scores))) / len(task_scores))
+            # Resample tasks, then attempts within each drawn task, so both sources of variance show.
+            tasks = generator.choices(list(task_map.values()), k=len(task_map))
+            scores = [sum(generator.choices(attempts, k=len(attempts))) / len(attempts) for attempts in tasks]
+            benchmark_scores.append(sum(scores) / len(scores))
         draws.append(sum(benchmark_scores) / len(benchmark_scores))
     draws.sort()
     return draws[int(samples * 0.025)], draws[min(samples - 1, int(samples * 0.975))]
 
 
-def validate_manifest(cases: list[dict[str, Any]]) -> None:
+def validate_manifest(cases: list[dict[str, Any]], base: Path = Path(".")) -> None:
+    """Check each case and resolve its workspace relative to the manifest's folder."""
     seen = set()
     for case in cases:
+        if not isinstance(case, dict):
+            raise ValueError("Each case must be a JSON object.")
         for key in ("benchmark", "id", "task", "workspace", "check"):
-            if not case.get(key):
+            if not isinstance(case.get(key), str) or not case[key]:
                 raise ValueError(f"Case is missing {key}: {case}")
         identity = (case["benchmark"], case["id"])
         if identity in seen:
             raise ValueError(f"Duplicate case: {identity}")
         seen.add(identity)
+        case["workspace"] = str((base / case["workspace"]).resolve())
         if not Path(case["workspace"]).is_dir():
             raise ValueError(f"Case workspace does not exist: {case['workspace']}")
 
@@ -81,16 +84,17 @@ def main() -> int:
     parser.add_argument("manifest", type=Path)
     parser.add_argument("--results", type=Path, default=Path("results"))
     parser.add_argument("--attempts", type=int, default=3)
-    parser.add_argument("--model", default=os.environ.get("HARNESS_MODEL"))
-    parser.add_argument("--endpoint", default=os.environ.get("HARNESS_ENDPOINT"))
-    parser.add_argument("--api-key", default=os.environ.get("HARNESS_API_KEY"))
+    parser.add_argument("--model", default=setting("MODEL") or None)
+    parser.add_argument("--endpoint", default=setting("ENDPOINT") or None)
+    parser.add_argument("--api-key", default=os.environ.get("TURNLOOM_API_KEY", os.environ.get("HARNESS_API_KEY")))
     parser.add_argument("--deadline-seconds", type=int, default=1800)
     parser.add_argument("--max-steps", type=int, default=0)
     parser.add_argument("--context-tokens", type=int, default=128000)
     parser.add_argument("--max-reply-tokens", type=int, default=8192)
     parser.add_argument("--reasoning-effort")
-    parser.add_argument("--system-prompt-file", type=Path)
-    parser.add_argument("--persona", default="builder")
+    parser.add_argument("--persona-file", "--system-prompt-file", dest="persona_file", type=Path,
+                        help="Additional trusted Markdown instructions appended to the persona")
+    parser.add_argument("--persona", default="builder", help="A persona id from turnloom personas")
     parser.add_argument("--team", action="store_true")
     parser.add_argument("--mcp", type=Path, help="Trusted MCP configuration for each trial")
     parser.add_argument("--no-fold", action="store_true")
@@ -108,10 +112,15 @@ def main() -> int:
         arguments.output_usd_per_million = connection.output_rate
     if arguments.attempts < 1:
         parser.error("--attempts must be positive")
-    cases = json.loads(arguments.manifest.read_text(encoding="utf-8"))
-    if not isinstance(cases, list):
-        parser.error("Manifest must be a JSON array")
-    validate_manifest(cases)
+    try:
+        cases = json.loads(arguments.manifest.read_text(encoding="utf-8"))
+        if not isinstance(cases, list) or not cases:
+            raise ValueError("Manifest must be a nonempty JSON array")
+        validate_manifest(cases, arguments.manifest.resolve().parent)
+        roster.find(arguments.persona)
+        prompt = instructions(arguments.persona, arguments.persona_file) + FAIR_PLAY
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
     for case in cases:
         if arguments.results.resolve().is_relative_to(Path(case["workspace"]).resolve()):
             parser.error("Place results outside every pristine task workspace.")
@@ -120,7 +129,9 @@ def main() -> int:
     arguments.results.mkdir(parents=True, exist_ok=True)
     rows = []
     trial_path = arguments.results / "trials.jsonl"
-    trial_path.touch(exist_ok=False)
+    if trial_path.exists():
+        parser.error(f"{trial_path} already exists. Choose a new --results directory for each run.")
+    trial_path.touch()
     for case in cases:
         for attempt in range(1, arguments.attempts + 1):
             with tempfile.TemporaryDirectory(prefix="harness-trial-", dir=arguments.results) as temporary:
@@ -137,8 +148,9 @@ def main() -> int:
                     reasoning_effort=arguments.reasoning_effort,
                     transcript=transcript,
                     output_chars=arguments.output_chars,
-                    system_prompt=instructions(arguments.persona, arguments.system_prompt_file),
+                    system_prompt=prompt,
                     fold_history=not arguments.no_fold,
+                    auto_approve=True,
                 )
                 with McpTools(arguments.mcp, workspace.resolve()) if arguments.mcp else nullcontext() as connections:
                     config.mcp = connections
@@ -163,7 +175,7 @@ def main() -> int:
     lower, upper = bootstrap_interval(rows)
     summary = {
         "macro_score": macro_score(rows), "ci_95": [lower, upper],
-        "trials": len(rows), "estimated_cost_usd": round(sum(row["estimated_cost_usd"] for row in rows), 6),
+        "trials": len(rows), "passed": sum(row["passed"] for row in rows), "estimated_cost_usd": round(sum(row["estimated_cost_usd"] for row in rows), 6),
         "benchmarks": {
             name: macro_score([row for row in rows if row["benchmark"] == name])
             for name in sorted({row["benchmark"] for row in rows})

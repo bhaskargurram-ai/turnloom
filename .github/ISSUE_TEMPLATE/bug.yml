@@ -1,0 +1,34 @@
+name: Bug report
+description: Something Turnloom did wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what you saw instead. Paste the exact error text.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The smallest sequence that shows the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of turnloom doctor
+      description: It contains no keys. Remove the workspace path if it is private.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Provider and model
+      placeholder: openrouter / qwen/qwen3-coder
+  - type: markdown
+    attributes:
+      value: Session traces under `.turnloom/` contain your code and command output. Remove anything private before attaching one. Report security problems privately as described in SECURITY.md.

@@ -1,9 +1,9 @@
 [
   {
     "benchmark": "local-smoke",
-    "id": "example-fix",
-    "task": "Fix the bug in this workspace and run its focused tests.",
-    "workspace": "/absolute/path/to/pristine/example-repo",
-    "check": "python -m pytest -q tests/test_example.py"
+    "id": "slugify-case",
+    "task": "The tests in test_slugify.py fail. Fix slugify.py so they pass without changing the tests.",
+    "workspace": "tasks/slugify",
+    "check": "{python} -m unittest -q test_slugify"
   }
 ]

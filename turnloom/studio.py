@@ -9,7 +9,6 @@ import shutil
 import sqlite3
 import subprocess
 import sys
-import sysconfig
 import tempfile
 import threading
 import time
@@ -21,24 +20,30 @@ from pathlib import Path
 from uuid import uuid4
 
 from turnloom import __version__, gateway, guard, meter, providers, roster
-from turnloom.agent import Config, run_agent
-from turnloom.cli import instructions
+from turnloom.agent import ARCHIVE_NOTE, Config, load_history, run_agent
+from turnloom.cli import events, instructions, traces
 from turnloom.context import Observations
 from turnloom.extensions import McpTools
+from turnloom.tools import IGNORE, Workspace, canonical, unified, uses_crlf, write_atomic
 
 
-IGNORE = {".git", ".turnloom", ".venv", "node_modules", "__pycache__", ".ssh", ".aws"}
 LIMIT = 512 * 1024
-KINDS = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml",
-         ".png": "image/png", ".ico": "image/x-icon", ".txt": "text/plain; charset=utf-8", ".woff2": "font/woff2"}
+STEPS, TOOLS = 40, 80
+IDLE_SECONDS = 15 * 60
+KINDS = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+         ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".txt": "text/plain; charset=utf-8",
+         ".woff2": "font/woff2"}
+REVIEW = ("\n\nFor a broad review, sample the most relevant files, report concrete findings with file and line evidence, "
+          "and state what you covered.")
 DEFAULTS = {"budget": 0.0, "fold": True, "keep": 3, "reply": 8192, "effort": "", "mode": "solo", "auto_approve": False,
-            "cache": True, "servers": [], "gate": "confirm",
-            "team": [{"name": "plan", "persona": "engineering-software-architect",
-                      "instruction": "Inspect the task and identify the changes and checks needed. Leave files unchanged."},
-                     {"name": "build", "persona": "builder",
+            "auto_edit": False, "cache": True, "servers": [], "gate": "confirm",
+            "team": [{"name": "plan", "persona": "engineering-software-architect", "read_only": True,
+                      "instruction": "Inspect the task and the code, then list the changes and checks needed."},
+                     {"name": "build", "persona": "builder", "read_only": False,
                       "instruction": "Implement the task in the shared workspace and verify the result."},
-                     {"name": "review", "persona": "engineering-code-reviewer",
-                      "instruction": "Inspect the actual changes and check the original requirements. Report findings and verification."}]}
+                     {"name": "review", "persona": "engineering-code-reviewer", "read_only": True,
+                      "instruction": "Read the files that changed and check them against the original requirements. "
+                                     "Report findings and what remains unverified."}]}
 SCHEMAS = {
     "Invoice": {"type": "object", "properties": {
         "invoice_number": {"type": "string"}, "invoice_date": {"type": "string"}, "vendor": {"type": "string"},
@@ -76,13 +81,49 @@ def through_unwind(ledger, spec=None):
 
 def companion_tools(workspace):
     if not companions_installed():
-        raise ValueError("Install turnloom[studio] and restart to enable Unwind and VerifyDoc.")
+        raise ValueError("Install turnloom[documents] and restart to enable Unwind and VerifyDoc.")
     ledger = workspace / ".turnloom" / "unwind.db"
     ledger.parent.mkdir(exist_ok=True)
     return McpTools(None, workspace, servers={"verifydoc": through_unwind(ledger)}, startup_timeout=90)
 
 
+def label_for(name, arguments):
+    try:
+        params = json.loads(arguments)
+    except ValueError:
+        params = {}
+    params = params if isinstance(params, dict) else {}
+    if params.get("command"):
+        return str(params["command"])
+    detail = " ".join(str(params[key]) for key in ("path", "glob", "query", "reference", "server", "name") if params.get(key))
+    return (name + " " + detail).strip()
+
+
+def readable(outcome, limit=8000):
+    """Turn a tool result into text an operator can read, instead of one line of JSON."""
+    if not isinstance(outcome, dict):
+        text = json.dumps(outcome, ensure_ascii=False, indent=2)
+    elif "stdout" in outcome or "stderr" in outcome:
+        head = outcome.get("error") or f"exit code {outcome.get('exit_code')}"
+        parts = [head] + [outcome[key].rstrip() for key in ("stdout", "stderr") if outcome.get(key)]
+        text = "\n".join(parts)
+    elif isinstance(outcome.get("error"), str):
+        text = outcome["error"]
+    elif isinstance(outcome.get("diff"), str):
+        text = outcome["diff"]
+    elif isinstance(outcome.get("text"), str):
+        text = outcome["text"]
+    elif any(isinstance(outcome.get(key), list) for key in ("matches", "entries", "paths")):
+        rows = next(outcome[key] for key in ("matches", "entries", "paths") if isinstance(outcome.get(key), list))
+        text = "\n".join(row if isinstance(row, str) else json.dumps(row, ensure_ascii=False) for row in rows) or "No results."
+    else:
+        text = json.dumps(outcome, ensure_ascii=False, indent=2)
+    return text if len(text) <= limit else text[:limit] + f"\n… {len(text) - limit:,} more characters. Open the session trace for the rest."
+
+
 class StudioArchive(Observations):
+    """An observation store that also reports, per tool result, how much text the prompt still carries."""
+
     def __init__(self):
         super().__init__()
         self.lock = threading.RLock()
@@ -91,8 +132,7 @@ class StudioArchive(Observations):
     def fold(self, messages, keep=3, tool="recall"):
         with self.lock:
             removed = super().fold(messages, keep, tool)
-            names = {call["id"]: call["function"]["name"] for message in messages
-                     for call in (message.get("tool_calls") or [])}
+            calls = {call["id"]: call["function"] for message in messages for call in (message.get("tool_calls") or [])}
             rows = []
             for message in messages:
                 if message["role"] != "tool":
@@ -102,52 +142,47 @@ class StudioArchive(Observations):
                     item = json.loads(content)
                 except ValueError:
                     item = {}
-                ref = item.get("reference") if isinstance(item, dict) and item.get("tool") == "recall" else None
+                ref = item.get("reference") if isinstance(item, dict) else None
                 if not isinstance(ref, str) or ref not in self.records:
                     ref = None
-                size = len(self.records[ref]) if ref else len(content)
-                rows.append({"id": message["tool_call_id"], "tool": names.get(message["tool_call_id"], "tool"),
+                size = max(len(self.records[ref]), len(content)) if ref else len(content)
+                function = calls.get(message["tool_call_id"]) or {}
+                name = function.get("name") or "tool"
+                rows.append({"id": f"{len(rows)}:{message['tool_call_id']}", "tool": name,
+                             "label": label_for(name, function.get("arguments") or "{}")[:160],
                              "before": size, "after": len(content), "reference": ref})
             self.rows = rows
             return removed
 
     def snapshot(self):
         with self.lock:
-            return self.rows.copy()
-
-
-def sample_archive():
-    archive = StudioArchive()
-    logs = [("tests", "\n".join(f"PASS parser case {index:03d} · 4 assertions" for index in range(160))),
-            ("build", "\n".join(f"Compiled module {index:03d} in 12 ms" for index in range(100))),
-            ("search", "\n".join(f"src/parser.py:{index}: token matched" for index in range(35))),
-            ("status", "Working tree clean"), ("lint", "No issues found"), ("verify", "6 suites passed")]
-    messages = []
-    for name, output in logs:
-        messages.extend([{"role": "assistant", "tool_calls": [{"id": name, "function": {"name": name}}]},
-                         {"role": "tool", "tool_call_id": name, "content": output}])
-    archive.fold(messages)
-    return archive
+            archived = [{"id": reference, "tool": "exchange", "label": "earlier exchange", "before": size, "after": 0,
+                         "reference": reference} for reference, size in self.exchanges if reference in self.records]
+            return archived + self.rows
 
 
 class Workbench:
     def __init__(self, root):
-        self.root = root.resolve(strict=True)
-        if not self.root.is_dir():
-            raise ValueError("Choose a workspace directory.")
+        self.files = Workspace(root)
+        self.root = self.files.root
         self.lock = threading.Condition()
+        self.revision = 0
+        self.snapshot_number = 0
         self.busy = False
         self.messages = []
-        self.snapshot_number = 0
         self.history = []
         self.archive = StudioArchive()
-        self.sample = sample_archive()
         self.pending = None
         self.decision = False
         self.risk = None
         self.verdict = None
         self.stop = threading.Event()
-        self.trace = self.root / ".turnloom" / (uuid4().hex + ".jsonl")
+        self.trace = self.new_trace()
+        self.draft = ""
+        self.running = ""
+        self.notified = 0.0
+        self.always = set()
+        self.session_key = ""
         self.catalog = {}
         self.persona = "builder"
         self.ledger = meter.Ledger(self.root)
@@ -155,7 +190,6 @@ class Workbench:
         self.context = {}
         self.stages = []
         self.mcp = None
-        self.mcp_error = ""
         self.unwound = set()
         self.settings = json.loads(json.dumps(DEFAULTS))
         try:
@@ -179,42 +213,73 @@ class Workbench:
         with self.lock:
             if self.connection is basic and detailed and detailed.model == basic.model:
                 self.connection = detailed
+                self.touch()
+
+    def new_trace(self):
+        return self.root / ".turnloom" / (uuid4().hex + ".jsonl")
+
+    def touch(self):
+        """Publish a state change to every waiting browser request. Call with the lock held."""
+        self.revision += 1
+        self.lock.notify_all()
+
+    def idle(self):
+        if self.busy:
+            raise ValueError("Wait for the current turn to finish.")
 
     # ---- workspace files -------------------------------------------------
 
     def path(self, name):
-        relative = Path(name)
-        if relative.is_absolute() or any(part in IGNORE or part == ".." for part in relative.parts):
-            raise ValueError("Path outside the workspace view.")
-        path = (self.root / relative).resolve(strict=True)
-        if not path.is_relative_to(self.root) or any(part in IGNORE for part in path.relative_to(self.root).parts):
-            raise ValueError("Path outside the workspace view.")
-        return path
+        return self.files.resolve(name, operator=True)
 
     def edit(self, action, data):
-        path = self.path(data["path"])
         if action == "tree":
-            entries = sorted((p for p in path.iterdir() if p.name not in IGNORE and not p.is_symlink()),
-                             key=lambda p: (not p.is_dir(), p.name.casefold()))
-            return [{"name": p.name, "dir": p.is_dir(), "path": p.relative_to(self.root).as_posix()} for p in entries]
+            return self.files.entries(data["path"], operator=True)
+        path = self.path(data["path"])
         if not path.is_file() or path.stat().st_size > LIMIT:
             raise ValueError("The editor supports UTF-8 text files up to 512 KiB.")
         raw = path.read_bytes()
         if b"\x00" in raw:
             raise ValueError("This file contains binary data.")
         version = hashlib.sha256(raw).hexdigest()
-        if action == "save":
-            if version != data["version"]:
-                raise ValueError("The file changed on disk. Reload it before saving.")
-            content = data["text"].replace("\r\n", "\n")
-            if b"\r\n" in raw:
-                content = content.replace("\n", "\r\n")
-            raw = content.encode("utf-8")
-            if len(raw) > LIMIT:
-                raise ValueError("File exceeds the editor limit.")
-            path.write_bytes(raw)
-            version = hashlib.sha256(raw).hexdigest()
-        return {"text": raw.decode("utf-8"), "version": version}
+        try:
+            if action == "save":
+                if version != data["version"]:
+                    raise ValueError("The file changed on disk. Reload it before saving.")
+                if not isinstance(data["text"], str):
+                    raise ValueError("text must be a string.")
+                content = data["text"].replace("\r\n", "\n")
+                if uses_crlf(raw.decode("utf-8")):
+                    content = content.replace("\n", "\r\n")
+                raw = content.encode("utf-8")
+                if len(raw) > LIMIT:
+                    raise ValueError("File exceeds the editor limit.")
+                write_atomic(path, raw)
+                version = hashlib.sha256(raw).hexdigest()
+            return {"text": raw.decode("utf-8"), "version": version}
+        except UnicodeDecodeError as error:
+            raise ValueError("The editor supports UTF-8 text files up to 512 KiB.") from error
+
+    def manage(self, action, data):
+        """Create, rename or delete one file on the operator's request."""
+        if action == "create":
+            path = self.files.resolve(data["path"], exists=False, operator=True)
+            if path.exists():
+                raise ValueError("A file or folder with that name already exists.")
+            write_atomic(path, b"")
+            return {"path": self.files.name(path)}
+        path = self.path(data["path"])
+        if not path.is_file():
+            raise ValueError("Only files can be renamed or deleted here.")
+        if action == "delete":
+            path.unlink()
+            return True
+        target = self.files.resolve(data["to"], exists=False, operator=True)
+        if target.exists():
+            raise ValueError("A file or folder with that name already exists.")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        path.rename(target)
+        return {"path": self.files.name(target)}
 
     def git(self, *arguments):
         executable = shutil.which("git")
@@ -238,39 +303,55 @@ class Workbench:
             code, name = entry[:2], entry[3:]
             if code[0] in "RC":
                 index += 1
-            if not any(part in IGNORE for part in Path(name).parts):
+            if not any(canonical(part) in IGNORE for part in Path(name).parts):
                 rows.append({"path": name, "status": "added" if "?" in code or "A" in code else
                              "deleted" if "D" in code else "renamed" if "R" in code else "modified"})
         return {"repository": True, "files": rows[:400]}
 
     def change(self, name):
-        relative = Path(name)
-        if relative.is_absolute() or any(part in IGNORE or part == ".." for part in relative.parts):
-            raise ValueError("Path outside the workspace view.")
-        shown = self.git("show", "HEAD:" + relative.as_posix())
+        """One file's committed and current text for the side-by-side review."""
+        target = self.files.resolve(name, exists=False, operator=True)
+        relative = self.files.name(target)
+        shown = self.git("show", "HEAD:" + relative)
         original = shown.stdout if shown.returncode == 0 else b""
-        target = self.root / relative
-        modified = target.read_bytes() if target.is_file() and target.resolve().is_relative_to(self.root) else b""
+        modified = target.read_bytes() if target.is_file() else b""
         if max(len(original), len(modified)) > LIMIT or b"\x00" in original or b"\x00" in modified:
             raise ValueError("This change is binary or larger than the 512 KiB review limit.")
-        return {"path": relative.as_posix(), "original": original.decode("utf-8", "replace").replace("\r\n", "\n"),
+        return {"path": relative, "original": original.decode("utf-8", "replace").replace("\r\n", "\n"),
                 "modified": modified.decode("utf-8", "replace").replace("\r\n", "\n")}
+
+    def edits(self):
+        """Files the agent's own tools edited in the latest turn, net per file."""
+        if not self.messages:
+            return []
+        _, changed = self.files.pending(self.files.turn)
+        rows = []
+        for item in changed:
+            diff = unified(item["before"] or "", item["after"], item["path"], 200000).splitlines()
+            rows.append({"path": item["path"], "created": item["before"] is None,
+                         "added": sum(line.startswith("+") and not line.startswith("+++") for line in diff),
+                         "removed": sum(line.startswith("-") and not line.startswith("---") for line in diff)})
+        return rows
 
     # ---- approvals -------------------------------------------------------
 
-    def approve(self, command):
+    def approve(self, kind, detail):
         with self.lock:
             if self.stop.is_set():
                 return False
-            if self.settings["auto_approve"]:
+            settings = self.settings
+            if settings["auto_approve"] or (kind == "edit" and settings["auto_edit"]) or (kind, detail) in self.always:
                 self.risk = self.verdict = None
                 return True
-            self.pending = {"command": command, "id": uuid4().hex, "kind": "mcp" if command.startswith("MCP ") else "shell",
-                            "risk": self.risk, "policy": self.verdict}
+            title, _, body = detail.partition("\n") if kind == "edit" else ("", "", detail)
+            request = {"id": uuid4().hex, "kind": kind, "title": title, "detail": body,
+                       "risk": self.risk, "policy": self.verdict}
             self.risk = self.verdict = None
+            self.pending = request
             self.decision = False
-            self.lock.wait_for(lambda: self.pending is None, timeout=180)
-            self.pending = None
+            self.touch()
+            # No timer: the request stays open until the operator answers or stops the turn.
+            self.lock.wait_for(lambda: self.pending is not request)
             return self.decision
 
     def assess(self, server, name, arguments):
@@ -302,43 +383,6 @@ class Workbench:
             return {**state, "text": text, "records": [], "counts": {}, "total": 0, "chain": None}
         return {**state, "text": text, **guard.ledger(self.root), "chain": guard.verify(self.root)}
 
-    def inspect(self, params):
-        action = params["action"]
-        path = self.path(params.get("path", "."))
-        relative = path.relative_to(self.root)
-        if any(part.startswith(".") for part in relative.parts):
-            raise ValueError("Use an approved command to inspect hidden files.")
-        if action == "list":
-            items = [e for e in self.edit("tree", {"path": str(relative)}) if not e["name"].startswith(".")]
-            return {"entries": [e["name"] + ("/" if e["dir"] else "") for e in items[:120]], "total": len(items)}
-        if action == "read":
-            line = max(1, int(params.get("line", 1)))
-            lines = self.edit("read", {"path": str(relative)})["text"].splitlines()
-            numbered = (f"{index}: {text}" for index, text in enumerate(lines[line-1:line+79], line))
-            return {"line": line, "total_lines": len(lines), "text": "\n".join(numbered)[:10000]}
-        if action == "search":
-            rg = shutil.which("rg", path=getattr(sys, "_MEIPASS", None) or sysconfig.get_path("scripts")) or shutil.which("rg")
-            if not rg:
-                raise ValueError("Install ripgrep for workspace search, or use list and read.")
-            query = params["query"]
-            if not isinstance(query, str) or not query.strip() or len(query) > 512:
-                raise ValueError("Enter a search string of 1 to 512 characters.")
-            args = [rg, "--no-config", "--fixed-strings", "--files-with-matches", "--max-filesize", "512K"]
-            for folder in sorted(IGNORE | {"dist", "build"}):
-                args.extend(["--glob", "!" + folder + "/**", "--glob", "!**/" + folder + "/**"])
-            with tempfile.TemporaryFile() as output:
-                try:
-                    result = subprocess.run([*args, "--", query, str(relative)], cwd=self.root, stdout=output,
-                                            stderr=subprocess.DEVNULL, timeout=8,
-                                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-                except subprocess.TimeoutExpired as error:
-                    raise ValueError("Search timed out. Select a narrower directory.") from error
-                if result.returncode not in (0, 1):
-                    raise ValueError("ripgrep could not search this path.")
-                output.seek(0)
-                return {"paths": output.read(8000).decode("utf-8", "replace").splitlines()[:100]}
-        raise ValueError("Unknown workspace operation.")
-
     # ---- MCP servers, VerifyDoc and Unwind --------------------------------
 
     def server_specs(self):
@@ -360,8 +404,9 @@ class Workbench:
                 raise ValueError(f"Invalid MCP server: {name}")
             spec = dict(spec)
             guarded = spec.pop("unwind", False) is True
-            spec["args"] = [str(value).replace("${configDir}", str(path.parent)) for value in spec.get("args", [])]
-            if guarded and find_spec("unwind"):
+            if "command" in spec:
+                spec["args"] = [str(value).replace("${configDir}", str(path.parent)) for value in spec.get("args", [])]
+            if guarded and "command" in spec and find_spec("unwind"):
                 specs[name] = through_unwind(ledger, spec)
                 unwound.add(name)
             else:
@@ -374,7 +419,7 @@ class Workbench:
             if self.mcp is None:
                 specs, unwound = self.server_specs()
                 if not specs:
-                    raise ValueError("No MCP servers. Install turnloom[studio] or add .turnloom/mcp.json to the workspace.")
+                    raise ValueError("No MCP servers. Install turnloom[documents] or add .turnloom/mcp.json to the workspace.")
                 (self.root / ".turnloom").mkdir(exist_ok=True)
                 manager = McpTools(None, self.root, servers=specs, startup_timeout=90)
                 manager.__enter__()
@@ -386,6 +431,7 @@ class Workbench:
     def close(self):
         with self.lock:
             manager, self.mcp = self.mcp, None
+            self.touch()
         if manager:
             try:
                 manager.__exit__(None, None, None)
@@ -421,9 +467,13 @@ class Workbench:
             specs, unwound = (self.mcp.servers, self.unwound) if self.mcp else self.server_specs()
         except (ValueError, OSError) as error:
             return {"error": str(error), "servers": [], "companions": companions_installed()}
+        def summary(spec):
+            if "url" in spec:
+                return spec["url"]
+            return (Path(spec["command"]).name + " " + " ".join(spec.get("args", [])))[:160]
         return {"companions": companions_installed(), "config": ".turnloom/mcp.json", "servers": [
-            {"name": name, "command": Path(spec["command"]).name + " " + " ".join(spec.get("args", []))[:160],
-             "enabled": name in self.settings["servers"], "unwind": name in unwound, "bundled": name == "verifydoc",
+            {"name": name, "command": summary(spec), "enabled": name in self.settings["servers"],
+             "unwind": name in unwound, "bundled": name == "verifydoc",
              "running": bool(self.mcp and name in self.mcp.sessions)} for name, spec in specs.items()]}
 
     def verify(self, data):
@@ -469,7 +519,10 @@ class Workbench:
             connection.close()
         entries, stats = [], {}
         for (payload,) in rows:
-            item = json.loads(payload)
+            try:
+                item = json.loads(payload)
+            except ValueError:
+                continue
             plan = item.get("plan") or {}
             status = item.get("status") or "active"
             stats[status] = stats.get(status, 0) + 1
@@ -482,8 +535,7 @@ class Workbench:
         return {"entries": entries, "stats": stats, "live": bool(self.mcp and self.mcp.sessions)}
 
     def unwind_call(self, name, arguments):
-        if self.busy:
-            raise ValueError("Wait for the current turn to finish.")
+        self.idle()
         manager = self.tools()
         server = next((key for key in manager.servers if key in self.unwound), None)
         if not server:
@@ -501,7 +553,7 @@ class Workbench:
             settings["keep"] = min(20, max(1, int(data["keep"])))
         if "reply" in data:
             settings["reply"] = min(400_000, max(256, int(data["reply"])))
-        for key in ("fold", "auto_approve", "cache"):
+        for key in ("fold", "auto_approve", "auto_edit", "cache"):
             if key in data:
                 settings[key] = data[key] is True
         if data.get("effort") in ("", "minimal", "low", "medium", "high"):
@@ -519,14 +571,15 @@ class Workbench:
                 roster.find(stage["persona"], self.root)
                 if not name or any(name == other["name"] for other in team):
                     raise ValueError("Give each team stage a unique name.")
-                team.append({"name": name, "persona": stage["persona"], "instruction": str(stage["instruction"]).strip()[:2000]})
+                team.append({"name": name, "persona": stage["persona"], "read_only": stage.get("read_only") is True,
+                             "instruction": str(stage["instruction"]).strip()[:2000]})
             if not team:
                 raise ValueError("A team needs at least one stage.")
             settings["team"] = team
         if persist:
             target = self.root / ".turnloom" / "studio.json"
             target.parent.mkdir(exist_ok=True)
-            target.write_text(json.dumps(settings, indent=1), encoding="utf-8")
+            write_atomic(target, json.dumps(settings, indent=1).encode("utf-8"))
         return settings
 
     def priced(self):
@@ -550,6 +603,7 @@ class Workbench:
             self.steps.append(row)
             if parts:
                 self.context = parts
+            self.touch()
         self.ledger.add(model=conn.model, persona=persona, session=self.trace.stem,
                         **{key: row[key] for key in ("prompt_tokens", "completion_tokens", "cached_tokens", "cost", "saved_tokens")},
                         saved_cost=saved * conn.input_rate / 1e6 if self.priced() else 0)
@@ -582,32 +636,48 @@ class Workbench:
 
     # ---- agent turns -------------------------------------------------------
 
-    def tool_result(self, name, arguments, result):
-        try:
-            params = json.loads(arguments)
-        except ValueError:
-            params = {}
-        params = params if isinstance(params, dict) else {}
-        outcome = json.loads(result)
-        label = params.get("command") or " ".join(str(params[k]) for k in ("action", "path", "query", "server", "name") if k in params) or name
-        failed = isinstance(outcome, dict) and bool(outcome.get("error") or outcome.get("isError") or outcome.get("exit_code"))
-        blocked = outcome.get("rule") or "policy" if isinstance(outcome, dict) and outcome.get("blocked_by") == "provio" else ""
+    def on_text(self, delta):
         with self.lock:
-            self.messages.append({"role": "tool", "text": result[:6000], "name": name, "label": str(label)[:240],
-                                  "failed": failed, "blocked": blocked})
+            self.draft += delta
+            if time.monotonic() - self.notified > 0.08:
+                self.notified = time.monotonic()
+                self.touch()
+
+    def tool_started(self, name, arguments):
+        with self.lock:
+            if self.draft.strip():
+                self.messages.append({"role": "assistant", "text": self.draft, "interim": True})
+            self.draft = ""
+            self.running = label_for(name, arguments)[:240]
+            self.touch()
+
+    def tool_result(self, name, arguments, result):
+        outcome = json.loads(result)
+        outcome = outcome if isinstance(outcome, dict) else {}
+        failed = bool(outcome.get("error") or outcome.get("isError") or outcome.get("exit_code"))
+        blocked = (outcome.get("rule") or "policy") if outcome.get("blocked_by") == "provio" else ""
+        message = {"role": "tool", "text": readable(outcome), "name": name, "label": label_for(name, arguments)[:240],
+                   "failed": failed, "blocked": blocked}
+        if outcome.get("diff"):
+            message.update(diff=True, label=f"{name} {outcome['path']} (+{outcome['added']} −{outcome['removed']})")
+        with self.lock:
+            self.messages.append(message)
+            self.running = ""
+            self.touch()
 
     def prompt(self, role):
-        return (instructions(role, None, self.root) + f"\nYour workspace root is {self.root.name!r}. "
-                "For inspection use workspace list, read, and search first. Paths are relative to the root. "
-                f"The shell runs {'Windows cmd.exe' if os.name == 'nt' else '/bin/sh'}. "
-                "After a failed operation choose another approach. For a broad review, sample a few relevant files, "
-                "then report concrete findings with file and line evidence and clearly state the coverage.")
+        return instructions(role, None, self.root) + REVIEW
 
     def start(self, data):
-        task = data["task"].strip()
+        task = data["task"]
+        if not isinstance(task, str):
+            raise ValueError("Enter a task of up to 32,000 characters.")
+        task = task.strip()
         role = roster.find(data["persona"], self.root)["id"]
-        if not task or len(task) > 32000 or not self.connection:
-            raise ValueError("Connect a model and enter a task.")
+        if not self.connection:
+            raise ValueError("Connect a model before sending a task.")
+        if not task or len(task) > 32000:
+            raise ValueError("Enter a task of up to 32,000 characters.")
         with self.lock:
             if self.busy:
                 raise ValueError("An agent turn is already running.")
@@ -629,27 +699,31 @@ class Workbench:
                 gate = guard.Gate(self.root, approve=self.approve, confirm=settings["gate"] == "confirm",
                                   session=self.trace.stem, notify=self.note_verdict)
             self.stop.clear()
-            if self.persona != role or team:
+            if team:
                 self.history.clear()
-                self.archive = StudioArchive()
             self.persona = role
             conn = self.connection
             priced = self.priced()
             current = {"persona": role}
             config = Config(conn.endpoint, conn.model, conn.key, self.root, transcript=self.trace,
-                            system_prompt=self.prompt(role), approve=self.approve, workspace_tool=self.inspect,
-                            max_steps=12, tool_limit=18, stop_requested=self.stop.is_set,
+                            system_prompt=self.prompt(role), approve=self.approve, files=self.files,
+                            max_steps=STEPS, tool_limit=TOOLS, stop_requested=self.stop.is_set, deadline_seconds=4 * 3600,
                             input_rate=conn.input_rate, output_rate=conn.output_rate, cache_rate=conn.cache_rate,
-                            on_tool_event=self.tool_result, mcp=tools, gate=gate, context_tokens=self.window(),
+                            on_text=self.on_text, on_tool_start=self.tool_started, on_tool_event=self.tool_result,
+                            mcp=tools, gate=gate, context_tokens=self.window(), read_only=data.get("readOnly") is True,
                             max_reply_tokens=min(settings["reply"], self.window() // 2),
                             reasoning_effort=settings["effort"] or None, fold_history=settings["fold"],
                             fold_keep=settings["keep"], cache_prompt=settings["cache"],
                             budget_usd=settings["budget"] if priced and (conn.free or (conn.input_rate and conn.output_rate)) else 0,
                             on_step=lambda event: self.record_step(event, current["persona"]))
+            if self.history and self.history[0]["role"] == "system":
+                self.history[0]["content"] = config.system_prompt
             self.messages.append({"role": "user", "text": task})
             self.stages = [{"name": stage["name"], "persona": stage["persona"], "status": "queued"}
                            for stage in settings["team"]] if team else []
             self.busy = True
+            self.draft = self.running = ""
+            self.touch()
 
         def on_stage(name, status, result):
             with self.lock:
@@ -658,15 +732,19 @@ class Workbench:
                         stage["status"] = status
                         current["persona"] = stage["persona"]
                         if result is not None:
+                            self.draft = ""
                             self.messages.append({"role": "assistant", "text": result.answer or " ".join(result.errors) or status,
                                                   "status": status, "stage": name, "persona": stage["persona"],
                                                   "usage": result.usage, "cost": result.estimated_usd if priced else None})
+                self.touch()
 
         def run():
+            message = {"role": "error", "text": "The turn ended unexpectedly."}
             try:
                 if team:
                     from turnloom.team import run_team
-                    stages = [(stage["name"], stage["instruction"], self.prompt(stage["persona"])) for stage in settings["team"]]
+                    stages = [{"name": stage["name"], "instruction": stage["instruction"], "prompt": self.prompt(stage["persona"]),
+                               "read_only": stage.get("read_only") is True} for stage in settings["team"]]
                     result = run_team(task, config, stages, on_stage, self.archive)
                     message = {"role": "assistant", "status": result.status, "usage": result.usage, "summary": True,
                                "text": f"Team finished: {result.status}." if result.status == "completed" else
@@ -678,31 +756,89 @@ class Workbench:
                                ("Turn stopped by operator." if result.status == "stopped" else result.status),
                                "status": result.status, "note": result.errors[-1] if result.status == "partial" else "",
                                "usage": result.usage, "cost": result.estimated_usd if priced else None, "persona": role}
-            except Exception as error:
-                message = {"role": "error", "text": str(error)}
-            if gate:
-                try:
-                    gate.close()
-                except Exception:
-                    pass
-            with self.lock:
-                self.messages.append(message)
-                if message.get("status") not in ("completed", "partial") or team:
-                    self.history.clear()
-                    if not team:
-                        self.archive = StudioArchive()
-                self.busy = False
+                if result.status not in ("completed", "partial", "stopped"):
+                    message["role"] = "error"
+            except BaseException as error:
+                message = {"role": "error", "text": f"{type(error).__name__}: {error}"}
+            finally:
+                if gate:
+                    try:
+                        gate.close()
+                    except Exception:
+                        pass
+                # Whatever happened, the workbench must come back to idle.
+                with self.lock:
+                    self.messages.append(message)
+                    if team:
+                        self.history.clear()
+                    self.busy = False
+                    self.pending = None
+                    self.draft = self.running = ""
+                    self.touch()
         threading.Thread(target=run, daemon=True).start()
         return True
 
     def reset(self):
+        """Start an empty session in the same workspace."""
         with self.lock:
-            if self.busy:
-                raise ValueError("Wait for the current turn to finish.")
-            self.messages, self.history, self.steps, self.context, self.stages = [], [], [], {}, []
-            self.archive = StudioArchive()
-            self.trace = self.root / ".turnloom" / (uuid4().hex + ".jsonl")
+            self.idle()
+            self.clear()
+            self.trace = self.new_trace()
+            self.touch()
         return True
+
+    def clear(self):
+        self.messages, self.steps, self.context, self.stages = [], [], {}, []
+        self.history.clear()
+        self.archive = StudioArchive()
+        self.files.changes = []
+        self.always.clear()
+        self.draft = self.running = ""
+
+    def sessions(self):
+        rows = []
+        for path in traces(self.root)[:40]:
+            task, turns = "", 0
+            for event in events(path):
+                if event.get("type") == "start":
+                    task = task or event.get("task", "")
+                elif event.get("type") == "end":
+                    turns += 1
+            if task:
+                rows.append({"id": path.stem, "task": " ".join(task.split())[:120], "turns": turns,
+                             "time": path.stat().st_mtime, "current": path == self.trace})
+        return rows
+
+    def resume(self, ident):
+        path = next((item for item in traces(self.root) if item.stem == ident), None)
+        if path is None:
+            raise ValueError("That session is no longer available.")
+        history = load_history(path, self.prompt(self.persona))
+        feed, names = [], {}
+        for event in events(path):
+            kind = event.get("type")
+            if kind == "start":
+                feed.append({"role": "user", "text": event["task"]})
+            elif kind == "assistant":
+                for call in event["message"].get("tool_calls") or []:
+                    names[call["id"]] = (call["function"]["name"], call["function"]["arguments"])
+            elif kind == "tool":
+                name, arguments = names.get(event["id"], (event.get("name", "tool"), "{}"))
+                outcome = event["result"] if isinstance(event["result"], dict) else {}
+                failed = bool(outcome.get("error") or outcome.get("isError") or outcome.get("exit_code"))
+                feed.append({"role": "tool", "name": name, "label": label_for(name, arguments)[:240], "failed": failed,
+                             "text": readable(event["result"]), "diff": bool(outcome.get("diff")), "blocked": ""})
+            elif kind == "end":
+                result = event["result"]
+                failed = result["status"] not in ("completed", "partial", "stopped")
+                feed.append({"role": "error" if failed else "assistant", "status": result["status"],
+                             "usage": result.get("usage"), "cost": None,
+                             "text": result.get("answer") or " ".join(result.get("errors") or []) or result["status"]})
+        self.clear()
+        self.history.extend(history)
+        self.messages = feed
+        self.trace = path
+        self.archive.fold(self.history, self.settings["keep"])
 
     def describe(self):
         conn = self.connection
@@ -710,39 +846,55 @@ class Workbench:
             return None
         return {"model": conn.model, "provider": conn.provider, "input": conn.input_rate, "output": conn.output_rate,
                 "cache": conn.cache_rate, "context": conn.context, "free": conn.free, "priced": self.priced(),
-                "gateway": conn.endpoint.startswith(gateway.SCHEME)}
+                "gateway": conn.endpoint.startswith(gateway.SCHEME), "sessionKey": bool(self.session_key)}
+
+    def state(self, data):
+        with self.lock:
+            if data.get("wait") is True and data.get("revision") == self.revision:
+                self.lock.wait_for(lambda: self.revision != data["revision"], timeout=25)
+            offset = data.get("since", 0)
+            if not isinstance(offset, int) or isinstance(offset, bool) or not 0 <= offset <= len(self.messages) \
+                    or data.get("session") not in (None, self.trace.stem):
+                offset = 0
+            self.snapshot_number += 1
+            totals = {key: sum(step[key] or 0 for step in self.steps)
+                      for key in ("prompt_tokens", "completion_tokens", "cached_tokens", "cost", "saved_tokens")}
+            last = self.steps[-1] if self.steps else None
+            return {"workspace": self.root.name, "model": self.connection.model if self.connection else "",
+                    "connection": self.describe(), "version": __version__,
+                    "busy": self.busy, "stopping": self.busy and self.stop.is_set(),
+                    "pending": self.pending, "messages": self.messages[offset:],
+                    "offset": offset, "snapshot": self.snapshot_number, "revision": self.revision,
+                    "session": self.trace.stem, "trace": f".turnloom/{self.trace.name}",
+                    "draft": self.draft, "running": self.running,
+                    "loom": self.archive.snapshot(), "edits": self.edits(),
+                    "persona": self.persona, "settings": self.settings,
+                    "stages": self.stages, "companions": companions_installed(), "gate": self.gate_state(),
+                    "limits": {"steps": STEPS, "tools": TOOLS},
+                    "meter": {**totals, "steps": len(self.steps), "priced": self.priced(), "window": self.window(),
+                              "prompt": last["prompt_tokens"] if last else 0, "context": self.context,
+                              "spark": [step["prompt_tokens"] for step in self.steps[-40:]]}}
 
     def dispatch(self, action, data):
         if action == "recall":
-            archive = self.sample if data.get("sample") is True else self.archive
+            archive = self.archive
             with archive.lock:
-                return json.loads(archive.recall(json.dumps(data)))
+                found = json.loads(archive.recall(json.dumps(data)))
+            if found.get("error"):
+                raise ValueError("That archived result is no longer held in memory. Resume the session to rebuild it.")
+            return found
         if action in ("tree", "read", "save"):
             with self.lock:
                 return self.edit(action, data)
-        if action == "state":
+        if action in ("create", "rename", "delete"):
             with self.lock:
-                offset = int(data.get("since", 0))
-                if not 0 <= offset <= len(self.messages):
-                    offset = 0
-                self.snapshot_number += 1
-                totals = {key: sum(step[key] or 0 for step in self.steps)
-                          for key in ("prompt_tokens", "completion_tokens", "cached_tokens", "cost", "saved_tokens")}
-                last = self.steps[-1] if self.steps else None
-                return {"workspace": self.root.name, "model": self.connection.model if self.connection else "",
-                        "connection": self.describe(), "version": __version__,
-                        "busy": self.busy, "stopping": self.busy and self.stop.is_set(),
-                        "pending": self.pending, "messages": self.messages[offset:],
-                        "offset": offset, "snapshot": self.snapshot_number,
-                        "loom": self.archive.snapshot() if self.messages else self.sample.snapshot(),
-                        "sample": not self.messages, "persona": self.persona, "settings": self.settings,
-                        "stages": self.stages, "companions": companions_installed(), "gate": self.gate_state(),
-                        "meter": {**totals, "steps": len(self.steps), "priced": self.priced(), "window": self.window(),
-                                  "prompt": last["prompt_tokens"] if last else 0, "context": self.context,
-                                  "spark": [step["prompt_tokens"] for step in self.steps[-40:]]}}
+                self.idle()
+                return self.manage(action, data)
+        if action == "state":
+            return self.state(data)
         if action == "run":
             return self.start(data)
-        if action == "reset":
+        if action in ("reset", "new"):
             return self.reset()
         if action == "stop":
             with self.lock:
@@ -750,15 +902,53 @@ class Workbench:
                     self.stop.set()
                     self.pending = None
                     self.decision = False
-                    self.lock.notify_all()
+                    self.touch()
             return True
         if action == "decision":
             with self.lock:
                 if not self.pending or self.pending["id"] != data["id"]:
                     raise ValueError("Approval has expired.")
                 self.decision = data["approve"] is True
+                if self.decision and data.get("always") is True:
+                    if self.pending["kind"] == "edit":
+                        self.settings["auto_edit"] = True
+                    else:
+                        self.always.add((self.pending["kind"], self.pending["detail"]))
                 self.pending = None
-                self.lock.notify_all()
+                self.touch()
+            return True
+        if action == "edit_diff":
+            with self.lock:
+                _, changed = self.files.pending(self.files.turn)
+                item = next((item for item in changed if item["path"] == data["path"]), None)
+                if item is None:
+                    raise ValueError("No recorded edit for that file.")
+                return {"path": item["path"], "original": (item["before"] or "").replace("\r\n", "\n"),
+                        "modified": item["after"].replace("\r\n", "\n"), "created": item["before"] is None,
+                        "diff": unified(item["before"] or "", item["after"], item["path"], 200000)}
+        if action == "revert":
+            with self.lock:
+                self.idle()
+                outcome = self.files.undo(self.files.turn)
+                parts = []
+                if outcome["restored"]:
+                    parts.append("Restored " + ", ".join(outcome["restored"]) + ".")
+                if outcome["conflicts"]:
+                    parts.append("Kept " + ", ".join(outcome["conflicts"]) + " because it changed after the agent's edit.")
+                self.messages.append({"role": "note", "text": " ".join(parts) or "No edits to restore."})
+                if outcome["restored"] and self.history:
+                    self.history.append({"role": "user", "content": "The operator reverted your edits to: "
+                                         + ", ".join(outcome["restored"]) + ". Those files are back to their earlier content."})
+                    self.history.append({"role": "assistant", "content": "Understood. I will read those files again before relying on them."})
+                self.touch()
+                return outcome
+        if action in ("sessions", "resume"):
+            with self.lock:
+                if action == "sessions":
+                    return self.sessions()
+                self.idle()
+                self.resume(data["id"])
+                self.touch()
             return True
         if action == "personas":
             return {"source": roster.upstream()["source"], "commit": roster.upstream()["commit"],
@@ -766,13 +956,13 @@ class Workbench:
                     ("id", "name", "description", "division", "emoji", "color", "vibe")} for row in roster.catalog(self.root)]}
         if action == "persona":
             row = roster.find(data["id"], self.root)
-            return {"id": row["id"], "name": row["name"], "text": roster.body(row["id"], self.root)[:40000] or
-                    "Turnloom's base instructions: read the task, inspect before editing, make the smallest correct change, verify."}
+            return {"id": row["id"], "name": row["name"], "text": roster.body(row["id"], self.root)[:40000]}
         if action == "settings":
             with self.lock:
-                if self.busy:
-                    raise ValueError("Wait for the current turn to finish.")
-                return self.configure(data)
+                self.idle()
+                settings = self.configure(data)
+                self.touch()
+                return settings
         if action == "usage":
             return self.usage()
         if action == "policy":
@@ -793,8 +983,7 @@ class Workbench:
                 raise ValueError("Unknown server.")
             return self.mcp.tools(data["name"])
         if action == "schemas":
-            adapters = ["text-search"]
-            return {"schemas": SCHEMAS, "adapters": adapters, "installed": companions_installed()}
+            return {"schemas": SCHEMAS, "adapters": ["text-search"], "installed": companions_installed()}
         if action == "verify":
             return self.verify(data)
         if action == "ledger":
@@ -806,12 +995,16 @@ class Workbench:
             return self.unwind_call("unwind.checkpoint", {"label": str(data.get("label") or "")[:80]})
         if action == "providers":
             rows = [{"id": key, "name": providers.PROVIDERS[key][0], "requiresKey": bool(providers.PROVIDERS[key][2]),
+                     "endpoint": providers.PROVIDERS[key][1], "variable": providers.PROVIDERS[key][2],
+                     "saved": bool(providers.PROVIDERS[key][2]) and bool(providers.secret(key, required=False)),
                      "group": "Popular" if key in providers.POPULAR else "OpenAI-compatible"}
                     for key in dict.fromkeys(providers.POPULAR + sorted(providers.PROVIDERS))]
             if gateway.available():
                 for key, name, count in gateway.providers():
                     variable = gateway.key_variable(key)
                     rows.append({"id": key, "name": name, "requiresKey": bool(variable), "group": "Native APIs via LiteLLM",
+                                 "endpoint": gateway.SCHEME + key.removeprefix(gateway.PREFIX), "variable": variable,
+                                 "saved": bool(variable) and bool(providers.secret(key, required=False)),
                                  "models": count, "environment": gateway.requirements(key)})
             return rows
         if action in ("models", "connect"):
@@ -838,6 +1031,11 @@ class Workbench:
                 with self.lock:
                     self.catalog[provider] = {row["model"]: row for row in rows}
                 return rows
+            with self.lock:
+                self.idle()
+                row = self.catalog.get(provider, {}).get(data["model"])
+                if not row:
+                    raise ValueError("Refresh models and choose one.")
             if provider == "openrouter" and data.get("browser") and not key:
                 from turnloom.openrouter import login
                 key = login()
@@ -846,41 +1044,52 @@ class Workbench:
             if provider == "openrouter":
                 providers.fetch(endpoint + "/key", key)
             with self.lock:
-                if self.busy:
-                    raise ValueError("Wait for the current turn to finish.")
-                row = self.catalog.get(provider, {}).get(data["model"])
-                if not row:
-                    raise ValueError("Refresh models and choose one.")
+                self.idle()
+                self.session_key = ""
                 if key and (data.get("key") or data.get("browser")):
-                    providers.vault().set_password("turnloom:" + provider, "api-key", key)
+                    try:
+                        providers.vault().set_password("turnloom:" + provider, "api-key", key)
+                    except Exception:
+                        # No OS credential store: hold the key in memory until Studio closes.
+                        self.session_key = key
                 providers.store_profile({"provider": provider, **row})
-                self.connection = providers.connection(provider, row, key)
-                self.history.clear()
-                self.archive = StudioArchive()
+                self.connection = providers.connection(provider, row, self.session_key or key)
+                if self.history and self.history[0]["role"] == "system":
+                    self.history[0]["content"] = self.history[0]["content"].split(ARCHIVE_NOTE)[0]
+                self.touch()
             return True
         raise ValueError("Unknown action.")
 
 
 def choose_folder():
-    import tkinter as tk
-    from tkinter.filedialog import askdirectory
-    window = tk.Tk()
-    window.withdraw()
-    window.attributes("-topmost", True)
-    chosen = askdirectory(title="Open workspace in Turnloom Studio", mustexist=True)
-    window.destroy()
-    return chosen or None
+    """Ask for a workspace in a native dialog. Without a display toolkit, use the current directory."""
+    try:
+        import tkinter as tk
+        from tkinter.filedialog import askdirectory
+        window = tk.Tk()
+        window.withdraw()
+        window.attributes("-topmost", True)
+        chosen = askdirectory(title="Open workspace in Turnloom Studio", mustexist=True)
+        window.destroy()
+        return chosen or None
+    except Exception:
+        return str(Path.cwd())
 
 
-def make_server(root, chooser=None, desktop=False):
-    holder = {"bench": Workbench(root)}
+def make_server(root, chooser=None, desktop=False, port=0):
+    holder = {"bench": Workbench(root), "seen": time.monotonic()}
     token = secrets.token_urlsafe(32)
     assets = files("turnloom").joinpath("studio_assets")
     names = {item.name for item in assets.iterdir() if Path(item.name).suffix in KINDS}
 
     class Handler(BaseHTTPRequestHandler):
+        timeout = 30
+
         def log_message(self, *args):
             pass
+
+        def hosts(self):
+            return {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"}
 
         def reply(self, code, body, kind):
             self.send_response(code)
@@ -889,41 +1098,69 @@ def make_server(root, chooser=None, desktop=False):
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'none'")
+            self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+            self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+            self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; "
+                             "img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; "
+                             "form-action 'none'; frame-ancestors 'none'; base-uri 'none'")
             self.end_headers()
             self.wfile.write(body)
 
+        def fail(self, code, text):
+            self.reply(code, json.dumps({"error": text}).encode(), "application/json")
+
+        def refuse(self, code):
+            # Read a modest body before answering so the client receives the status instead of a reset.
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = -1
+            if 0 < length <= LIMIT * 4:
+                self.rfile.read(length)
+            elif length != 0:
+                self.close_connection = True
+            self.reply(code, b"", "text/plain")
+
         def do_GET(self):
-            name = self.path.split("?")[0].lstrip("/") or "index.html"
+            if self.headers.get("Host") not in self.hosts():
+                return self.refuse(403)
+            name = self.path.split("?", 1)[0].lstrip("/") or "index.html"
             if name not in names:
-                return self.send_error(404)
+                return self.refuse(404)
             self.reply(200, assets.joinpath(name).read_bytes(), KINDS[Path(name).suffix])
 
         def do_POST(self):
-            host = f"127.0.0.1:{self.server.server_port}"
-            if (self.headers.get("Host") != host or self.headers.get("Origin") not in (None, "http://" + host)
-                or not secrets.compare_digest(self.headers.get("Authorization", "").encode(), ("Bearer " + token).encode())):
-                return self.send_error(403)
+            origins = {None} | {"http://" + host for host in self.hosts()}
+            if (self.headers.get("Host") not in self.hosts() or self.headers.get("Origin") not in origins
+                    or not secrets.compare_digest(self.headers.get("Authorization", "").encode(), ("Bearer " + token).encode())):
+                return self.refuse(403)
             bench = holder["bench"]
             try:
                 length = int(self.headers.get("Content-Length", "0"))
                 if not 0 < length <= LIMIT * 4 or not self.path.startswith("/api/"):
+                    self.close_connection = True
                     raise ValueError("Invalid request.")
                 data = json.loads(self.rfile.read(length))
                 if not isinstance(data, dict):
                     raise ValueError("Expected a JSON object.")
+                holder["seen"] = time.monotonic()
                 if self.path == "/api/close":
-                    if bench.busy:
-                        raise ValueError("Wait for the current turn to finish.")
+                    # Closing ends a running turn: its command is killed and its model request abandoned.
+                    with bench.lock:
+                        bench.stop.set()
+                        bench.pending = None
+                        bench.touch()
+                        bench.lock.wait_for(lambda: not bench.busy, timeout=5)
                     threading.Thread(target=self.server.shutdown, daemon=True).start()
                     result = True
                 elif self.path == "/api/workspace":
-                    if bench.busy:
-                        raise ValueError("Wait for the current turn to finish.")
+                    with bench.lock:
+                        bench.idle()
                     chosen = (chooser or choose_folder)()
                     if chosen:
                         replacement = Workbench(Path(chosen))
                         replacement.connection = bench.connection
+                        replacement.session_key = bench.session_key
                         holder["bench"] = replacement
                         bench.close()
                     result = {"changed": bool(chosen)}
@@ -932,10 +1169,20 @@ def make_server(root, chooser=None, desktop=False):
                     if self.path == "/api/state":
                         result["desktop"] = desktop
                 self.reply(200, json.dumps(result).encode(), "application/json")
-            except ConnectionError:
+            except (ConnectionError, TimeoutError):
                 return
-            except (ValueError, OSError, RuntimeError, KeyError, TypeError) as error:
-                self.reply(400, json.dumps({"error": str(error)}).encode(), "application/json")
+            except KeyError as error:
+                self.fail(400, "Missing field: " + str(error.args[0] if error.args else error))
+            except FileNotFoundError:
+                self.fail(400, "That file no longer exists. Refresh the explorer.")
+            except PermissionError:
+                self.fail(400, "The operating system denied access to that file.")
+            except OSError as error:
+                self.fail(400, error.strerror or type(error).__name__)
+            except (ValueError, RuntimeError, TypeError) as error:
+                self.fail(400, str(error) or type(error).__name__)
+            except Exception as error:
+                self.fail(500, f"Studio hit an unexpected {type(error).__name__}. The session is still running.")
 
     class Server(ThreadingHTTPServer):
         daemon_threads = True
@@ -944,30 +1191,92 @@ def make_server(root, chooser=None, desktop=False):
             super().server_close()
             holder["bench"].close()
 
-    server = Server(("127.0.0.1", 0), Handler)
+    server = Server(("127.0.0.1", port), Handler)
     server.holder = holder
     return server, f"http://127.0.0.1:{server.server_port}/#{token}"
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Launch Turnloom Studio")
-    parser.add_argument("--workspace", type=Path)
-    parser.add_argument("--browser", action="store_true", help="Open in the default browser instead of an app window")
-    args = parser.parse_args()
-    if not args.browser:
+def watch_idle(server, limit=IDLE_SECONDS, interval=30):
+    """Stop a server nobody is using: no browser request for `limit` seconds and no turn running."""
+    def idle():
+        return not server.holder["bench"].busy and time.monotonic() - server.holder["seen"] > limit
+
+    def loop():
+        strikes = 0
+        while strikes < 2:
+            time.sleep(interval)
+            # Two checks in a row, so a laptop waking from sleep gets time to reconnect.
+            strikes = strikes + 1 if idle() else 0
+        server.shutdown()
+    threading.Thread(target=loop, daemon=True).start()
+
+
+def open_browser(url):
+    """Open the session without putting its token on the browser's command line, where other users could read it."""
+    handle, name = tempfile.mkstemp(prefix="turnloom-studio-", suffix=".html")
+    with os.fdopen(handle, "w", encoding="utf-8") as page:
+        page.write('<!doctype html><meta charset="utf-8"><title>Turnloom Studio</title>'
+                   f'<meta http-equiv="refresh" content="0;url={url}"><p>Opening Turnloom Studio…</p>')
+    opened = webbrowser.open(Path(name).as_uri())
+    threading.Timer(30, lambda: Path(name).unlink(missing_ok=True)).start()
+    return opened
+
+
+def report(text):
+    """Tell the operator about a startup failure, in a dialog when there is no console to print to."""
+    if sys.stderr:
+        print(text, file=sys.stderr)
+        return
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+        window = tk.Tk()
+        window.withdraw()
+        messagebox.showerror("Turnloom Studio", text)
+        window.destroy()
+    except Exception:
+        pass
+
+
+def launch(workspace=None, port=0, mode="window"):
+    """Start Studio. ``mode`` is "window" (native window, falling back to a browser), "browser" or "none"."""
+    if mode == "window":
         from turnloom import desktop
-        return desktop.launch(args.workspace)
-    root = args.workspace or choose_folder()
+        try:
+            return desktop.launch(workspace)
+        except (OSError, ValueError) as error:
+            report(f"Studio could not start: {error}")
+            return 1
+    root = workspace or choose_folder()
     if not root:
         return 0
-    server, url = make_server(Path(root))
+    try:
+        server, url = make_server(Path(root), port=port)
+    except (OSError, ValueError) as error:
+        report(f"Studio could not start: {error}")
+        return 1
     with server:
-        webbrowser.open(url)
+        if sys.stdout:
+            print(f"Turnloom Studio {__version__} for {root}\n{url}\nIt stops when you choose Close Studio, press Ctrl+C, "
+                  f"or leave it unused for {IDLE_SECONDS // 60} minutes.", flush=True)
+        if mode == "browser":
+            open_browser(url)
+        watch_idle(server)
         try:
             server.serve_forever()
         except KeyboardInterrupt:
             pass
     return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="turnloom-studio", description="Launch Turnloom Studio")
+    parser.add_argument("--workspace", type=Path, help="Project directory. Omit to choose one in a dialog")
+    parser.add_argument("--browser", action="store_true", help="Open in the default browser instead of an app window")
+    parser.add_argument("--no-open", action="store_true", help="Print the session URL and open nothing, for remote shells")
+    parser.add_argument("--port", type=int, default=0, help="Loopback port for --browser and --no-open, default a free one")
+    args = parser.parse_args()
+    return launch(args.workspace, args.port, "none" if args.no_open else "browser" if args.browser else "window")
 
 
 if __name__ == "__main__":

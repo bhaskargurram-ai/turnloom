@@ -14,7 +14,11 @@ NATIVE = [
      "description": "Reproduces the symptom, isolates the first failing boundary, then verifies the fix.",
      "vibe": "No fix without a reproduction.", "file": None},
 ]
-DEBUGGER = "Reproduce the symptom, isolate its first failing boundary, then verify the fix against the reproduction."
+BUILDER = ("Role: builder. Implement the request end to end. Match the conventions of the surrounding code, keep the "
+           "diff focused on the task, add or update a test when behavior changes, and run the relevant checks before reporting.")
+DEBUGGER = ("Role: debugger. Reproduce the symptom first and keep the reproduction. Narrow it to the first boundary where "
+            "actual and expected behavior diverge, state the cause in one sentence before changing code, fix that cause "
+            "rather than its symptom, and verify the fix against the reproduction.")
 ALIASES = {"reviewer": "engineering-code-reviewer", "architect": "engineering-software-architect"}
 FEATURED = ["builder", "debugger", "engineering-code-reviewer", "engineering-software-architect",
             "security-appsec-engineer", "engineering-senior-developer", "engineering-frontend-developer",
@@ -75,10 +79,10 @@ def find(role, workspace=None):
 
 
 def body(role, workspace=None):
-    """The instructions a persona adds to the base prompt, or an empty string for Builder."""
+    """The instructions a persona adds to the base prompt."""
     row = find(role, workspace)
-    if row["id"] == "debugger":
-        return DEBUGGER
+    if row["id"] in ("builder", "debugger"):
+        return BUILDER if row["id"] == "builder" else DEBUGGER
     if not row["file"]:
         return ""
     if row["division"] == "custom":

@@ -1,0 +1,9 @@
+include LICENSE CHANGELOG.md SECURITY.md CONTRIBUTING.md AGENTS.md action.yml Dockerfile
+graft docs
+graft examples
+graft tests
+graft scripts
+graft studio
+prune studio/node_modules
+prune examples/toolkit/node_modules
+global-exclude __pycache__ *.py[cod]

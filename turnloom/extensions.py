@@ -1,4 +1,4 @@
-"""Operator-selected Agent Skills and stdio MCP servers."""
+"""Agent Skills and operator-selected MCP servers over stdio or streamable HTTP."""
 
 import json
 import os
@@ -6,14 +6,28 @@ import re
 import threading
 from contextlib import ExitStack, asynccontextmanager
 from datetime import timedelta
-from pathlib import Path
+
+SKILL_FOLDERS = (".agents/skills", ".claude/skills")
+
+
+def front_matter(lines, path):
+    """Parse SKILL.md metadata with PyYAML when installed, else as plain `key: value` lines."""
+    try:
+        import yaml
+    except ImportError:
+        meta = {}
+        for line in lines:
+            key, separator, value = line.partition(":")
+            if separator and key.strip() and not line[:1].isspace():
+                meta[key.strip()] = value.strip().strip("\"'")
+        return meta
+    try:
+        return yaml.safe_load("\n".join(lines))
+    except yaml.YAMLError as error:
+        raise ValueError(f"Invalid YAML in {path}") from error
 
 
 def skills(root):
-    try:
-        import yaml
-    except ImportError as error:
-        raise ValueError("Install Turnloom with the skills extra.") from error
     if not root.is_dir():
         raise ValueError(f"Missing skills directory: {root}")
     catalog = {}
@@ -25,26 +39,56 @@ def skills(root):
         if not lines or lines[0] != "---" or "---" not in lines[1:]:
             raise ValueError(f"Missing skill front matter: {path}")
         end = lines.index("---", 1)
-        try:
-            meta = yaml.safe_load("\n".join(lines[1:end]))
-        except yaml.YAMLError as error:
-            raise ValueError(f"Invalid YAML in {path}") from error
-        if not isinstance(meta, dict) or meta.get("name") != path.parent.name or not isinstance(meta.get("description"), str):
+        meta = front_matter(lines[1:end], path)
+        if not isinstance(meta, dict) or meta.get("name") != path.parent.name or not isinstance(meta.get("description"), str) \
+                or not meta["description"]:
             raise ValueError(f"Invalid skill name or description: {path}")
         catalog[meta["name"]] = (meta["description"], path.resolve(), "\n".join(lines[end + 1:]))
     return catalog
 
 
+def project_skills(workspace):
+    """Describe skills checked into the project so the model can read one when a task calls for it."""
+    rows = []
+    for folder in SKILL_FOLDERS:
+        root = workspace / folder
+        if not root.is_dir():
+            continue
+        try:
+            found = skills(root)
+        except (ValueError, OSError):
+            continue
+        for name, (description, _, _) in found.items():
+            rows.append(f"- {name}: {' '.join(description.split())[:300]} ({folder}/{name}/SKILL.md)")
+    if not rows:
+        return ""
+    return ("Project skills\nThese instructions ship with the project. When a task matches one, read its SKILL.md "
+            "with read_file before starting.\n" + "\n".join(rows[:40]))
+
+
 @asynccontextmanager
 async def connect(spec, workspace, startup_timeout=20):
     from mcp import ClientSession, StdioServerParameters
-    from mcp.client.stdio import stdio_client
 
+    wait = timedelta(seconds=startup_timeout)
+    if "url" in spec:
+        from mcp.client.streamable_http import streamablehttp_client
+        headers = {}
+        if spec.get("bearer_env"):
+            token = os.environ.get(spec["bearer_env"])
+            if not token:
+                raise ValueError(f"Set {spec['bearer_env']} to authenticate with this server.")
+            headers["Authorization"] = "Bearer " + token
+        async with streamablehttp_client(spec["url"], headers=headers or None) as (read, write, _):
+            async with ClientSession(read, write, read_timeout_seconds=wait) as session:
+                await session.initialize()
+                yield session
+        return
+    from mcp.client.stdio import stdio_client
     env = {name: os.environ[name] for name in spec.get("pass_env", []) if name in os.environ}
-    params = StdioServerParameters(command=spec["command"], args=spec.get("args", []),
-                                   cwd=str(workspace), env=env)
+    params = StdioServerParameters(command=spec["command"], args=spec.get("args", []), cwd=str(workspace), env=env)
     async with stdio_client(params) as streams:
-        async with ClientSession(*streams, read_timeout_seconds=timedelta(seconds=startup_timeout)) as session:
+        async with ClientSession(*streams, read_timeout_seconds=wait) as session:
             await session.initialize()
             yield session
 
@@ -52,13 +96,21 @@ async def connect(spec, workspace, startup_timeout=20):
 class McpTools:
     def __init__(self, path, workspace, *, servers=None, startup_timeout=20):
         self.startup_timeout = startup_timeout
-        data = {"mcpServers": servers} if servers is not None else json.loads(path.read_text(encoding="utf-8-sig"))
+        try:
+            data = {"mcpServers": servers} if servers is not None else json.loads(path.read_text(encoding="utf-8-sig"))
+        except ValueError as error:
+            raise ValueError(f"MCP config is not valid JSON: {path}") from error
         self.servers = data.get("mcpServers") if isinstance(data, dict) else None
         if not isinstance(self.servers, dict) or not self.servers:
             raise ValueError("MCP config requires a nonempty mcpServers object.")
         for name, spec in self.servers.items():
             if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name) or not isinstance(spec, dict):
                 raise ValueError(f"Invalid MCP server: {name}")
+            if "url" in spec:
+                if set(spec) - {"url", "bearer_env"} or not isinstance(spec["url"], str) \
+                        or not re.match(r"https?://", spec["url"]) or not isinstance(spec.get("bearer_env", ""), str):
+                    raise ValueError(f"Invalid HTTP configuration for {name}. Use url and optionally bearer_env.")
+                continue
             if set(spec) - {"command", "args", "pass_env"} or not isinstance(spec.get("command"), str) or not spec["command"]:
                 raise ValueError(f"Invalid stdio configuration for {name}")
             for field in ("args", "pass_env"):
@@ -78,9 +130,8 @@ class McpTools:
     def __enter__(self):
         try:
             from anyio.from_thread import start_blocking_portal
-            import mcp
         except ImportError as error:
-            raise ValueError("Install Turnloom with the mcp extra.") from error
+            raise ValueError("Install Turnloom with the mcp extra: pip install 'turnloom[mcp]'") from error
         self.portal = self.stack.enter_context(start_blocking_portal())
         return self
 
@@ -93,7 +144,8 @@ class McpTools:
             return {"type": "function", "function": {"name": name, "description": description,
                     "parameters": {"type": "object", "properties": properties, "required": list(properties)}}}
         return [
-            tool("mcp_search", "Search a configured server's tools by name or description. Empty query lists the first matches.",
+            tool("mcp_search", "List a configured server's tools. Returns every matching tool name and the input "
+                 "schemas of the five best matches. An empty query lists all tools.",
                  {"server": server, "query": {"type": "string"}}),
             tool("mcp_call", "Call a discovered server tool with arguments matching its input schema.",
                  {"server": server, "name": {"type": "string"}, "arguments": {"type": "object"}}),
@@ -101,15 +153,17 @@ class McpTools:
 
     def session(self, server):
         if server not in self.sessions:
-            manager = self.portal.wrap_async_context_manager(connect(self.servers[server], self.workspace, self.startup_timeout))
+            manager = self.portal.wrap_async_context_manager(
+                connect(self.servers[server], self.workspace, self.startup_timeout))
             self.sessions[server] = self.stack.enter_context(manager)
+        if server not in self.catalogs:
+            self.catalogs[server] = self.portal.call(self._list, self.sessions[server])
         return self.sessions[server]
 
     def tools(self, server):
         """Every tool a server advertises, starting the server on first use."""
         with self.lock:
-            if server not in self.catalogs:
-                self.catalogs[server] = self.portal.call(self._list, self.session(server))
+            self.session(server)
             return [{"name": item.name, "description": (item.description or "")[:700], "inputSchema": item.inputSchema}
                     for item in self.catalogs[server]]
 
@@ -119,49 +173,61 @@ class McpTools:
             try:
                 result = self.portal.call(self.session(server).call_tool, name, arguments, timedelta(seconds=timeout))
             except Exception as error:
+                self.forget(server, error)
                 return {"error": f"{type(error).__name__}: {error}"}
             return {"isError": result.isError, "content": [part.text if part.type == "text" else
                     {"type": part.type} for part in result.content], "structuredContent": result.structuredContent}
+
+    def forget(self, server, error):
+        """Drop a broken connection so the next call starts the server again."""
+        if server in self.sessions and not isinstance(error, (ValueError, TypeError)):
+            self.sessions.pop(server, None)
+            self.catalogs.pop(server, None)
 
     def dispatch(self, operation, raw, approve, remaining=30):
         with self.lock:
             return self._dispatch(operation, raw, approve, remaining)
 
     def _dispatch(self, operation, raw, approve, remaining):
+        server = None
         try:
             params = json.loads(raw)
             server = params["server"]
+            if server not in self.servers:
+                return {"error": "Unknown server. Configured servers: " + ", ".join(self.servers)}
             if server not in self.enabled:
                 return {"error": f"Server {server} is not enabled for this turn"}
-            if operation == "mcp_call" and approve and self.before_approval:
+            if remaining <= 0:
+                return {"error": "Task deadline expired"}
+            if operation == "mcp_search":
+                self.session(server)
+                query = str(params.get("query") or "").casefold()
+                matches = [item for item in self.catalogs[server] if query in
+                           (item.name + " " + (item.description or "")).casefold()]
+                matches.sort(key=lambda item: (item.name.casefold() != query, query not in item.name.casefold(), item.name))
+                return {"count": len(matches), "names": [item.name for item in matches][:200], "tools": [
+                    {"name": item.name, "description": (item.description or "")[:700], "inputSchema": item.inputSchema}
+                    for item in matches[:5]]}
+            if not isinstance(params.get("arguments"), dict):
+                return {"error": "arguments must be an object"}
+            if params["name"] not in {item.name for item in self.catalogs.get(server, [])}:
+                return {"error": "Search this server before calling a tool"}
+            if approve and self.before_approval:
                 try:
                     self.before_approval(server, params["name"], params["arguments"])
                 except Exception:
                     pass
-            if operation == "mcp_call" and approve and not approve(f"MCP {server} / {params['name']} {json.dumps(params['arguments'])}"):
+            if approve and not approve(
+                    "mcp", f"MCP {server} / {params['name']} {json.dumps(params['arguments'], ensure_ascii=False)}"):
                 return {"error": "Operator declined the tool call"}
-            if remaining <= 0:
-                return {"error": "Task deadline expired"}
-            session = self.session(server)
-            if operation == "mcp_search":
-                if server not in self.catalogs:
-                    self.catalogs[server] = self.portal.call(self._list, session)
-                query = params["query"].casefold()
-                matches = [item for item in self.catalogs[server] if query in
-                           (item.name + " " + (item.description or "")).casefold()]
-                matches.sort(key=lambda item: (item.name.casefold() != query, query not in item.name.casefold(), item.name))
-                return {"count": len(matches), "tools": [
-                    {"name": item.name, "description": (item.description or "")[:700], "inputSchema": item.inputSchema}
-                    for item in matches[:5]]}
-            if params["name"] not in {item.name for item in self.catalogs.get(server, [])}:
-                return {"error": "Search this server before calling a tool"}
-            if not isinstance(params["arguments"], dict):
-                return {"error": "arguments must be an object"}
-            result = self.portal.call(session.call_tool, params["name"], params["arguments"],
-                                      timedelta(seconds=min(remaining, 30)))
+            result = self.portal.call(self.session(server).call_tool, params["name"], params["arguments"],
+                                      timedelta(seconds=max(1, min(remaining, 300))))
             return {"isError": result.isError, "content": [part.text if part.type == "text" else
                     {"type": part.type} for part in result.content], "structuredContent": result.structuredContent}
+        except KeyError as error:
+            return {"error": f"Missing argument: {error.args[0]}"}
         except Exception as error:
+            self.forget(server, error)
             return {"error": f"{type(error).__name__}: {error}"}
 
     @staticmethod

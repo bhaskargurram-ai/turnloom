@@ -24,7 +24,12 @@ def login():
             nonlocal code
             url = urllib.parse.urlsplit(self.path)
             params = urllib.parse.parse_qs(url.query)
-            if url.path != "/callback" or not secrets.compare_digest(params.get("state", [""])[0].encode(), state.encode()):
+            if url.path != "/callback":
+                self.send_error(404)
+                return
+            if not secrets.compare_digest(params.get("state", [""])[0].encode(), state.encode()):
+                # OpenRouter omits state when the user declines, so stop waiting.
+                code = code or ""
                 self.send_error(400)
                 return
             code = params.get("code", [""])[0]
@@ -32,7 +37,7 @@ def login():
             self.send_header("Content-Type", "text/plain")
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
-            self.wfile.write(b"Return to Turnloom in your terminal.")
+            self.wfile.write(b"Signed in. You can close this tab and return to Turnloom.")
 
         def log_message(self, *args):
             pass

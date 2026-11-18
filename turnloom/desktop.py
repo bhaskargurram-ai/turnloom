@@ -11,11 +11,10 @@ import shutil
 import subprocess
 import sys
 import threading
-import webbrowser
 from importlib.resources import files
 from pathlib import Path
 
-from turnloom.studio import choose_folder, make_server
+from turnloom.studio import choose_folder, make_server, open_browser
 
 TITLE = "Turnloom Studio"
 
@@ -83,7 +82,7 @@ def launch(workspace=None, argv=None):
                                         "--no-first-run", "--no-default-browser-check"])
             threading.Thread(target=lambda: (process.wait(), server.shutdown()), daemon=True).start()
         else:
-            webbrowser.open(url)
+            open_browser(url)
         thread.join()
         return 0
     finally:

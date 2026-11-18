@@ -1,0 +1,88 @@
+name: Turnloom
+description: Run a Turnloom coding-agent task in a workflow and expose its answer and receipt
+author: Turnloom contributors
+branding:
+  icon: layers
+  color: gray-dark
+
+inputs:
+  task:
+    description: What the agent should do
+    required: true
+  endpoint:
+    description: OpenAI-compatible base URL, for example https://openrouter.ai/api/v1
+    required: true
+  model:
+    description: Model ID at that endpoint
+    required: true
+  api-key:
+    description: Credential for the endpoint. Pass a secret
+    required: false
+    default: ""
+  mode:
+    description: read-only (explore and report), auto-edit (may edit files, no commands) or unattended (may edit and run commands)
+    required: false
+    default: read-only
+  persona:
+    description: builder, debugger, reviewer or architect
+    required: false
+    default: builder
+  workspace:
+    description: Directory the agent works in
+    required: false
+    default: .
+  max-steps:
+    description: Model calls allowed
+    required: false
+    default: "40"
+  deadline:
+    description: Seconds allowed
+    required: false
+    default: "900"
+  python-version:
+    description: Python used to run Turnloom
+    required: false
+    default: "3.12"
+  fail-on-incomplete:
+    description: Fail the step unless the task completes
+    required: false
+    default: "true"
+
+outputs:
+  status:
+    description: completed, partial, stopped, error, timeout, step_limit or budget_limit
+    value: ${{ steps.run.outputs.status }}
+  answer:
+    description: The agent's final answer
+    value: ${{ steps.run.outputs.answer }}
+  files-changed:
+    description: Newline-separated paths the agent edited
+    value: ${{ steps.run.outputs.files-changed }}
+  result-file:
+    description: Path of the full JSON result
+    value: ${{ steps.run.outputs.result-file }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install Turnloom
+      shell: bash
+      run: python -m pip install --quiet --disable-pip-version-check "${{ github.action_path }}"
+    - name: Run task
+      id: run
+      shell: bash
+      env:
+        TURNLOOM_ENDPOINT: ${{ inputs.endpoint }}
+        TURNLOOM_MODEL: ${{ inputs.model }}
+        TURNLOOM_API_KEY: ${{ inputs.api-key }}
+        TURNLOOM_TASK: ${{ inputs.task }}
+        TURNLOOM_MODE: ${{ inputs.mode }}
+        TURNLOOM_PERSONA: ${{ inputs.persona }}
+        TURNLOOM_WORKSPACE: ${{ inputs.workspace }}
+        TURNLOOM_MAX_STEPS: ${{ inputs.max-steps }}
+        TURNLOOM_DEADLINE: ${{ inputs.deadline }}
+        TURNLOOM_STRICT: ${{ inputs.fail-on-incomplete }}
+      run: python "${{ github.action_path }}/scripts/run_action.py"

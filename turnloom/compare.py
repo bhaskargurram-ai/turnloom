@@ -14,8 +14,11 @@ def read_trials(path: Path) -> dict[str, dict[str, list[float]]]:
     tasks: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
     with path.open(encoding="utf-8") as source:
         for line in source:
-            row = json.loads(line)
-            tasks[row["benchmark"]][row["task_id"]].append(float(row["passed"]))
+            if line.strip():
+                row = json.loads(line)
+                tasks[row["benchmark"]][row["task_id"]].append(float(row["passed"]))
+    if not tasks:
+        raise ValueError(f"No trials in {path}")
     return tasks
 
 
@@ -27,32 +30,43 @@ def paired_difference(
 ) -> dict[str, Any]:
     if set(baseline) != set(candidate):
         raise ValueError("Runs have different benchmark sets")
+    if not baseline:
+        raise ValueError("Runs contain no trials")
     benchmark_differences = {}
-    paired: dict[str, list[float]] = {}
+    paired: dict[str, list[tuple[list[float], list[float]]]] = {}
+
+    def mean(values):
+        return sum(values) / len(values)
+
     for benchmark in baseline:
         if set(baseline[benchmark]) != set(candidate[benchmark]):
             raise ValueError(f"Runs have different tasks in {benchmark}")
-        differences = []
+        pairs = []
         for task_id in baseline[benchmark]:
             first = baseline[benchmark][task_id]
             second = candidate[benchmark][task_id]
             if len(first) != len(second):
                 raise ValueError(f"Attempt count differs for {benchmark}/{task_id}")
-            differences.append(sum(second) / len(second) - sum(first) / len(first))
-        paired[benchmark] = differences
-        benchmark_differences[benchmark] = sum(differences) / len(differences)
-    difference = sum(benchmark_differences.values()) / len(benchmark_differences)
+            pairs.append((first, second))
+        paired[benchmark] = pairs
+        benchmark_differences[benchmark] = mean([mean(second) - mean(first) for first, second in pairs])
+    difference = mean(list(benchmark_differences.values()))
     generator = random.Random(seed)
     draws = []
     for _ in range(samples):
-        draw = [sum(generator.choices(values, k=len(values))) / len(values) for values in paired.values()]
-        draws.append(sum(draw) / len(draw))
+        draw = []
+        for pairs in paired.values():
+            # Resample tasks, then attempts within each side of a drawn task.
+            chosen = generator.choices(pairs, k=len(pairs))
+            draw.append(mean([mean(generator.choices(second, k=len(second))) - mean(generator.choices(first, k=len(first)))
+                              for first, second in chosen]))
+        draws.append(mean(draw))
     draws.sort()
     return {
         "macro_difference": difference,
         "ci_95": [draws[int(samples * 0.025)], draws[min(samples - 1, int(samples * 0.975))]],
         "benchmark_differences": benchmark_differences,
-        "tasks": sum(len(values) for values in paired.values()),
+        "tasks": sum(len(pairs) for pairs in paired.values()),
     }
 
 
@@ -61,7 +75,10 @@ def main() -> int:
     parser.add_argument("baseline", type=Path, help="Baseline trials.jsonl")
     parser.add_argument("candidate", type=Path, help="Candidate trials.jsonl")
     arguments = parser.parse_args()
-    report = paired_difference(read_trials(arguments.baseline), read_trials(arguments.candidate))
+    try:
+        report = paired_difference(read_trials(arguments.baseline), read_trials(arguments.candidate))
+    except (OSError, ValueError, KeyError) as error:
+        parser.error(f"Cannot compare these runs: {error}")
     print(json.dumps(report, indent=2))
     return 0
 

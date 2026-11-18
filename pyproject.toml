@@ -1,39 +1,83 @@
 [build-system]
-requires = ["setuptools>=77"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "turnloom"
-version = "0.6.0"
-description = "A coding agent with a visual workbench, recoverable context and per-task cost estimates"
+dynamic = ["version"]
+description = "A coding agent whose context you can inspect: folded tool output stays recoverable, edits are reviewable and reversible, and every call is metered"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+license-files = ["LICENSE", "turnloom/personas/LICENSE", "turnloom/data/LICENSE.models-dev", "turnloom/studio_assets/THIRD-PARTY.txt"]
+authors = [{ name = "Turnloom contributors" }]
+keywords = ["coding-agent", "llm", "agent", "cli", "mcp", "agent-client-protocol", "context-management", "developer-tools", "openrouter", "ollama"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Code Generators",
+]
 dependencies = ["keyring>=25,<27"]
 
+[project.urls]
+Homepage = "https://github.com/bhaskargurram-ai/turnloom"
+Repository = "https://github.com/bhaskargurram-ai/turnloom"
+Documentation = "https://github.com/bhaskargurram-ai/turnloom/tree/main/docs"
+Changelog = "https://github.com/bhaskargurram-ai/turnloom/blob/main/CHANGELOG.md"
+Issues = "https://github.com/bhaskargurram-ai/turnloom/issues"
+
 [project.optional-dependencies]
-studio = ["rollback-mcp==0.2.0", "verifydoc[mcp]==0.10.0", "mcp>=1.30,<2", "ripgrep==14.1.0", "pywebview>=6,<7",
-          "tiktoken>=0.9,<1", "provio-sdk>=0.1.5,<0.2"]
-llm = ["litellm>=1.80,<2"]
-guard = ["provio-sdk>=0.1.5,<0.2"]
-desktop = ["pywebview>=6,<7", "pyinstaller>=6.16,<7"]
 mcp = ["mcp>=1.30,<2"]
 skills = ["PyYAML>=6,<7"]
+search = ["ripgrep>=14.1,<16"]
+tokens = ["tiktoken>=0.9,<1"]
+llm = ["litellm>=1.80,<2"]
+guard = ["provio-sdk>=0.1.5,<0.2"]
 team = ["langgraph>=1.2,<2"]
-full = ["mcp>=1.30,<2", "PyYAML>=6,<7", "langgraph>=1.2,<2", "mcp-server-time==2026.10.10", "mcp-server-git==2026.10.10",
-        "litellm>=1.80,<2", "tiktoken>=0.9,<1", "provio-sdk>=0.1.5,<0.2"]
+desktop = ["pywebview>=6,<7"]
+documents = ["rollback-mcp==0.2.0", "verifydoc[mcp]==0.10.0", "mcp>=1.30,<2"]
+studio = ["turnloom[search,desktop,documents,guard,tokens]"]
+full = ["turnloom[mcp,skills,search,team,llm,guard,tokens]", "mcp-server-time>=2026.10.10", "mcp-server-git>=2026.10.10"]
+build-app = ["turnloom[studio,full]", "pyinstaller>=6.16,<7"]
 
 [project.scripts]
 turnloom = "turnloom.cli:main"
+turnloom-studio = "turnloom.studio:main"
+turnloom-agent = "turnloom.agent:main"
 turnloom-eval = "turnloom.evaluate:main"
 turnloom-compare = "turnloom.compare:main"
-turnloom-agent = "turnloom.agent:main"
+
+[project.gui-scripts]
+turnloom-studio-gui = "turnloom.studio:main"
 
 [tool.setuptools]
 packages = ["turnloom"]
+include-package-data = false
+
+[tool.setuptools.dynamic]
+version = { attr = "turnloom.__version__" }
 
 [tool.setuptools.package-data]
-turnloom = ["personas/*/*.md", "personas/catalog.json", "personas/LICENSE", "data/providers.json", "data/LICENSE.models-dev", "studio_assets/*"]
+turnloom = ["personas/*/*.md", "personas/catalog.json", "personas/LICENSE", "data/providers.json",
+            "data/LICENSE.models-dev", "studio_assets/*"]
 
-[project.gui-scripts]
-turnloom-studio = "turnloom.studio:main"
+[tool.ruff]
+line-length = 160
+target-version = "py311"
+extend-exclude = ["build", "studio", "turnloom/personas", "turnloom/studio_assets", "integrations"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "B", "UP", "RUF100"]
+ignore = ["B904", "UP007", "UP035"]

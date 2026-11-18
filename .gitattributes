@@ -1,3 +1,6 @@
 turnloom/studio_assets/studio.js -diff linguist-generated=true
 turnloom/studio_assets/studio.css -diff linguist-generated=true
 turnloom/studio_assets/THIRD-PARTY.txt linguist-generated=true
+*.cmd text eol=crlf
+*.sh text eol=lf
+Dockerfile text eol=lf

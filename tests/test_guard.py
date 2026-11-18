@@ -28,12 +28,11 @@ class GateTests(unittest.TestCase):
 
     def run_turn(self, calls, approve, confirm):
         asked = []
-        def operator(command):
-            asked.append(command)
+        def operator(kind, detail):
+            asked.append(detail)
             return approve
         with guard.Gate(self.root, approve=operator, confirm=confirm, session="test") as gate:
-            config = Config("local", "fixture", "", self.root, approve=operator, gate=gate,
-                            workspace_tool=lambda params: {"read": params.get("path")})
+            config = Config("local", "fixture", "", self.root, approve=operator, gate=gate)
             with patch("turnloom.agent.api_request", side_effect=[reply(None, calls), reply("done")]):
                 run_agent("task", config, history := [])
         results = [json.loads(message["content"]) for message in history if message["role"] == "tool"]
@@ -46,7 +45,7 @@ class GateTests(unittest.TestCase):
     def test_denied_calls_never_run_and_tell_the_model_why(self):
         (self.root / "marker.txt").write_text("keep")
         results, asked = self.run_turn([("shell", {"command": "rm -rf ~"}),
-                                        ("workspace", {"action": "read", "path": "../.ssh/id_rsa"})], True, False)
+                                        ("read_file", {"path": "../.ssh/id_rsa"})], True, False)
         self.assertEqual(asked, [])
         self.assertEqual([result["blocked_by"] for result in results], ["provio", "provio"])
         self.assertIn("floor-rm-home-or-root-denied", results[0]["error"])
@@ -68,9 +67,22 @@ class GateTests(unittest.TestCase):
 
     def test_unattended_run_refuses_ask_verdicts(self):
         with guard.Gate(self.root, approve=None, confirm=False) as gate:
-            result = json.loads(gate.run("bash", {"command": "git reset --hard"}, lambda approve: "ran"))
-            self.assertEqual(json.loads(gate.run("bash", {"command": "echo ok"}, lambda approve: json.dumps({"ran": True}))), {"ran": True})
+            result = json.loads(gate.run("bash", {"command": "git reset --hard"}, lambda ask: "ran"))
+            settled = gate.run("bash", {"command": "echo ok"}, lambda ask: json.dumps({"ran": ask("shell", "echo ok")}))
+            self.assertEqual(json.loads(settled), {"ran": True})
         self.assertEqual(result["blocked_by"], "provio")
+
+    def test_policy_gates_file_edits_and_reads_of_secrets(self):
+        (self.root / "notes.txt").write_text("one\n")
+        results, asked = self.run_turn([("edit_file", {"path": "notes.txt", "old_string": "one", "new_string": "two"}),
+                                        ("write_file", {"path": "../outside.txt", "content": "x"})], True, True)
+        self.assertEqual(results[0]["replacements"], 1)
+        self.assertEqual((self.root / "notes.txt").read_text(), "two\n")
+        self.assertIn("error", results[1])
+        self.assertFalse((self.root.parent / "outside.txt").exists())
+        self.assertTrue(any("notes.txt" in text for text in asked))
+        kinds = {row["tool"] for row in guard.ledger(self.root)["records"]}
+        self.assertIn("fs.write", kinds)
 
     def test_ledger_and_test_report_decisions(self):
         self.run_turn([("shell", {"command": "echo one"}), ("shell", {"command": "rm -rf /"})], True, False)

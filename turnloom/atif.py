@@ -6,7 +6,7 @@ token usage. https://github.com/harbor-framework/harbor/blob/main/rfcs/0001-traj
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from turnloom import __version__
@@ -15,7 +15,7 @@ SCHEMA = "ATIF-v1.8"
 
 
 def stamp(event):
-    return datetime.fromtimestamp(event.get("time") or 0, timezone.utc).isoformat(timespec="milliseconds")
+    return datetime.fromtimestamp(event.get("time") or 0, UTC).isoformat(timespec="milliseconds")
 
 
 def text(value):

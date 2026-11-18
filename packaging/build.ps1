@@ -3,7 +3,7 @@
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path -Parent $PSScriptRoot)
 
-python -m pip install -e ".[studio,full,desktop]"
+python -m pip install -e ".[build-app]"
 if ($LASTEXITCODE) { throw "Dependency installation failed." }
 
 npm ci --prefix studio --ignore-scripts
