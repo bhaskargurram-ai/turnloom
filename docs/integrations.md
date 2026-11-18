@@ -181,7 +181,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: turnloom
         uses: bhaskargurram-ai/turnloom@v0.7.0
         with:
