@@ -434,6 +434,7 @@ class TransportTests(unittest.TestCase):
     def setUp(self):
         Endpoint.script, Endpoint.seen = [], []
         agent.STREAM_UNSUPPORTED.clear()
+        self.addCleanup(agent.COMPLETION_TOKENS.intersection_update, set(agent.COMPLETION_TOKENS))
         self.server = HTTPServer(("127.0.0.1", 0), Endpoint)
         thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         thread.start()
@@ -515,6 +516,12 @@ class TransportTests(unittest.TestCase):
         self.ask()
         self.assertIn("max_completion_tokens", Endpoint.seen[1])
         self.assertNotIn("max_tokens", Endpoint.seen[1])
+        # The endpoint's answer is remembered: the next request asks the right way the first time.
+        Endpoint.script.append((200, {}, ok))
+        self.ask()
+        self.assertEqual(len(Endpoint.seen), 3)
+        self.assertIn("max_completion_tokens", Endpoint.seen[2])
+        self.assertNotIn("max_tokens", Endpoint.seen[2])
 
     def test_non_json_reply_is_reported_plainly(self):
         Endpoint.script.append((200, {"Content-Type": "text/html"}, b"<html>login</html>"))

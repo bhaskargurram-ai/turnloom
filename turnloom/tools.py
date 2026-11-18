@@ -20,6 +20,8 @@ SECRETS = (".env", ".env.*", "*.pem", "*.key", "*.p12", "*.pfx", "id_rsa*", "id_
            ".netrc", ".npmrc", ".pypirc", ".git-credentials", "credentials.json", "secrets.*")
 READ_LIMIT = 2 * 1024 * 1024
 PROTECTED = "Protected path. Ask the operator to approve a shell command if this file is needed."
+OUTSIDE = "Path outside the workspace. The file tools reach only files under the project root."
+SHELL_HINT = " Use the shell tool for other paths."
 
 
 def canonical(name):
@@ -176,9 +178,9 @@ class Workspace:
             raise ValueError("Provide a workspace-relative path.")
         relative = Path(name)
         if relative.is_absolute() or relative.drive or relative.root or ".." in relative.parts:
-            raise ValueError("Path outside the workspace.")
+            raise ValueError(OUTSIDE)
         if os.name == "nt" and any(":" in part for part in relative.parts):
-            raise ValueError("Path outside the workspace.")
+            raise ValueError(OUTSIDE)
         if any(self.hidden(part, operator) for part in relative.parts):
             raise ValueError(PROTECTED)
         target = self.root / relative
@@ -189,7 +191,7 @@ class Workspace:
             probe = probe.parent
         real = probe.resolve(strict=True)
         if not real.is_relative_to(self.root):
-            raise ValueError("Path outside the workspace.")
+            raise ValueError(OUTSIDE)
         final = real / target.relative_to(probe) if probe != target else real
         if any(self.hidden(part, operator) for part in final.relative_to(self.root).parts):
             raise ValueError(PROTECTED)
@@ -476,4 +478,5 @@ class Workspace:
         except KeyError as error:
             return {"error": f"Missing argument: {error.args[0]}"}
         except (ValueError, TypeError, OSError) as error:
-            return {"error": str(error)}
+            # A session with a shell is told where to turn, so the model does not retry the file tools or guess.
+            return {"error": str(error) + (SHELL_HINT if str(error) == OUTSIDE and not read_only else "")}

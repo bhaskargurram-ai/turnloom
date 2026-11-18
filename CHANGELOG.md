@@ -2,6 +2,20 @@
 
 Notable changes to Turnloom. Versions follow [Semantic Versioning](https://semver.org); before 1.0 a minor version may change behavior.
 
+## 0.7.1
+
+### Changed
+
+- A file tool asked for a path outside the workspace now says that the file tools reach only the project root and, in a session that has a shell, that the shell is the tool for other paths. Before, the bare refusal left the model retrying or guessing.
+
+### Fixed
+
+- An endpoint that refuses `max_tokens` and asks for `max_completion_tokens`, as OpenAI models do behind a gateway or proxy, is remembered for the rest of the process. Before, every model call was sent twice.
+
+### Project
+
+- A roadmap, a code of conduct and starter issues for contributors.
+
 ## 0.7.0
 
 The first public release. The agent gains real file tools, streaming, sessions that survive the process, and reversible edits. Studio is redesigned and rebuilt on those. Turnloom can now be driven from editors and from other agents.

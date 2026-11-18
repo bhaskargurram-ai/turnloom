@@ -63,6 +63,8 @@ RECALL = {"type": "function", "function": {
 ARCHIVE_NOTE = "\n\nEarlier exchanges were archived to free context. Use recall with these references to reread them: "
 DECLINED = ("Operator declined the command", "Operator declined the tool call", "Operator declined the edit")
 STREAM_UNSUPPORTED: set[str] = set()
+# Endpoints that refused max_tokens and asked for max_completion_tokens. Remembered so only the first request pays for it.
+COMPLETION_TOKENS: set[str] = {"https://api.openai.com/v1"}
 
 
 class Stopped(Exception):
@@ -243,7 +245,7 @@ def api_request(config: Config, messages: list[dict[str, Any]], deadline: float,
             raise TimeoutError("Agent deadline exceeded during model request")
         return gateway.complete(payload, config.api_key, min(remaining, 180))
     base = config.endpoint.rstrip("/")
-    if base == "https://api.openai.com/v1":
+    if base in COMPLETION_TOKENS:
         payload["max_completion_tokens"] = payload.pop("max_tokens")
     url = base if base.endswith("/chat/completions") else base + "/chat/completions"
     stream = on_text is not None and base not in STREAM_UNSUPPORTED
@@ -282,6 +284,7 @@ def api_request(config: Config, messages: list[dict[str, Any]], deadline: float,
             error.close()
             if error.code == 400 and "max_completion_tokens" in detail and "max_tokens" in payload:
                 payload["max_completion_tokens"] = payload.pop("max_tokens")
+                COMPLETION_TOKENS.add(base)
                 continue
             if stream and error.code in (400, 404, 422):
                 # The endpoint may have rejected the streaming options; ask again for a whole reply.

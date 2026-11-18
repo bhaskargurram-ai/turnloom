@@ -6,7 +6,7 @@ Turnloom is a coding agent for your terminal and desktop that shows you what it 
 
 It works with any OpenAI-compatible endpoint: hosted providers, OpenRouter, or a model on your own machine through Ollama, LM Studio, vLLM or llama.cpp. LiteLLM adds Anthropic, Bedrock, Vertex AI and Azure.
 
-[Install](#install) · [Studio](#studio) · [Terminal](#terminal) · [Staying in control](#staying-in-control) · [How context works](#how-context-works) · [Works with](#works-with) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
+[Install](#install) · [Studio](#studio) · [Terminal](#terminal) · [Staying in control](#staying-in-control) · [How context works](#how-context-works) · [Works with](#works-with) · [Security](https://github.com/bhaskargurram-ai/turnloom/blob/main/SECURITY.md) · [Changelog](https://github.com/bhaskargurram-ai/turnloom/blob/main/CHANGELOG.md)
 
 ## Install
 
@@ -20,7 +20,7 @@ turnloom chat           # start working in the current directory
 
 `uv tool install turnloom` and `pip install turnloom` work the same way, and `uvx turnloom chat` runs it without installing. On Windows you can instead clone the repository and double-click **Open Turnloom Studio.cmd**, which creates its own environment.
 
-`turnloom connect` lists providers and their models. Choose OpenRouter to sign in through your browser, choose Ollama or LM Studio to use a local model, or pick any other provider and paste its key once. Keys go to your operating system's credential store, never to a file. `turnloom doctor` checks the setup. [Provider guide](docs/providers.md)
+`turnloom connect` lists providers and their models. Choose OpenRouter to sign in through your browser, choose Ollama or LM Studio to use a local model, or pick any other provider and paste its key once. Keys go to your operating system's credential store, never to a file. `turnloom doctor` checks the setup. [Provider guide](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/providers.md)
 
 ## Studio
 
@@ -47,7 +47,7 @@ Studio is a workbench that opens in its own window, or in a browser tab with `--
 
 Sessions are saved in the workspace; start a new one or resume an earlier one. Press **Ctrl+K** for the command palette.
 
-Studio listens on 127.0.0.1 only and requires a per-launch token on every request. Details are in [SECURITY.md](SECURITY.md). To ship it as a standalone app folder, see [Desktop app](docs/desktop.md).
+Studio listens on 127.0.0.1 only and requires a per-launch token on every request. Details are in [SECURITY.md](https://github.com/bhaskargurram-ai/turnloom/blob/main/SECURITY.md). To ship it as a standalone app folder, see [Desktop app](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/desktop.md).
 
 ## Terminal
 
@@ -107,7 +107,7 @@ Long sessions fill the prompt with old tool output. Turnloom handles that withou
 
 The transcript of every session is a JSON Lines file under `.turnloom/` in the workspace, with a `.gitignore` that keeps traces out of version control. `--resume` rebuilds the conversation and its archive from that file. Studio and the proxy also append every model call to `.turnloom/usage.jsonl`.
 
-Use `--no-fold` to compare a run with folding against one without. The receipt reports folded characters, input and output tokens, and cached tokens when the provider reports them; cached input is priced at the provider's cache rate when it lists one. Folding rewrites earlier messages, so on providers with prompt caching it trades some cache hits for a smaller prompt. Measure on your own tasks before relying on it. [Design notes](docs/design.md) · [Measuring it yourself](docs/experiments.md)
+Use `--no-fold` to compare a run with folding against one without. The receipt reports folded characters, input and output tokens, and cached tokens when the provider reports them; cached input is priced at the provider's cache rate when it lists one. Folding rewrites earlier messages, so on providers with prompt caching it trades some cache hits for a smaller prompt. Measure on your own tasks before relying on it. [Design notes](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/design.md) · [Measuring it yourself](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/experiments.md)
 
 ## Works with
 
@@ -120,9 +120,9 @@ Use `--no-fold` to compare a run with folding against one without. The receipt r
 - **Native provider APIs.** With the `llm` extra, `turnloom connect litellm:anthropic` and its siblings reach providers that are not OpenAI-compatible, through [LiteLLM](https://github.com/BerriAI/litellm).
 - **CI and containers.** The repository is a GitHub Action (`uses: bhaskargurram-ai/turnloom@v0.7.0`), and `ghcr.io/bhaskargurram-ai/turnloom` is an image for isolated, unattended runs.
 - **Documents and undo for MCP.** [VerifyDoc](https://github.com/bhaskargurram-ai/verifydoc) scores extracted fields against their source. [Unwind](https://github.com/bhaskargurram-ai/unwind) classifies MCP calls by reversibility and can take them back.
-- **Benchmarks.** `turnloom-agent` is a headless entry point with a [Harbor](https://github.com/harbor-framework/harbor) adapter and ATIF export. Turnloom has not been run on a public leaderboard. [Status and how to run it](docs/leaderboard.md)
+- **Benchmarks.** `turnloom-agent` is a headless entry point with a [Harbor](https://github.com/harbor-framework/harbor) adapter and ATIF export. Turnloom has not been run on a public leaderboard. [Status and how to run it](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/leaderboard.md)
 
-Each of these is described with a working example in the [integration guide](docs/integrations.md).
+Each of these is described with a working example in the [integration guide](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/integrations.md).
 
 ## What Turnloom is not
 
@@ -130,15 +130,25 @@ It is a small agent: one loop, a handful of tools, no background services and no
 
 ## Documentation
 
-- [Design: the agent loop and the context store](docs/design.md)
-- [Providers, model discovery and credentials](docs/providers.md)
-- [Integrations: MCP, skills, proxy, CI, containers](docs/integrations.md)
-- [Desktop app](docs/desktop.md)
-- [Experiments: comparing two configurations](docs/experiments.md)
-- [Leaderboard status](docs/leaderboard.md)
-- [Security model and reporting](SECURITY.md)
-- [Contributing](CONTRIBUTING.md)
+- [Design: the agent loop and the context store](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/design.md)
+- [Providers, model discovery and credentials](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/providers.md)
+- [Integrations: MCP, skills, proxy, CI, containers](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/integrations.md)
+- [Desktop app](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/desktop.md)
+- [Experiments: comparing two configurations](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/experiments.md)
+- [Leaderboard status](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/leaderboard.md)
+- [Security model and reporting](https://github.com/bhaskargurram-ai/turnloom/blob/main/SECURITY.md)
+- [Roadmap](https://github.com/bhaskargurram-ai/turnloom/blob/main/ROADMAP.md)
+- [Contributing](https://github.com/bhaskargurram-ai/turnloom/blob/main/CONTRIBUTING.md)
+
+## Contributing
+
+Turnloom is small enough to read in an afternoon, and it is looking for people to improve it. The [roadmap](https://github.com/bhaskargurram-ai/turnloom/blob/main/ROADMAP.md) lists where help is wanted, each item with an issue you can pick up. Several need only a machine, an editor or a provider account the maintainer does not have.
+
+- New here? Start with a [good first issue](https://github.com/bhaskargurram-ai/turnloom/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+- Questions and ideas go in [Discussions](https://github.com/bhaskargurram-ai/turnloom/discussions).
+- [CONTRIBUTING.md](https://github.com/bhaskargurram-ai/turnloom/blob/main/CONTRIBUTING.md) covers setup and what a pull request needs. [AGENTS.md](https://github.com/bhaskargurram-ai/turnloom/blob/main/AGENTS.md) maps the code.
+- Everyone taking part is expected to follow the [code of conduct](https://github.com/bhaskargurram-ai/turnloom/blob/main/CODE_OF_CONDUCT.md).
 
 ## License
 
-Turnloom is released under the [MIT License](LICENSE). Vendored personas keep the [Agency Agents license](turnloom/personas/LICENSE). Provider presets derive from [Models.dev](https://models.dev) under [its license](turnloom/data/LICENSE.models-dev). Studio bundles open-source JavaScript packages listed in [THIRD-PARTY.txt](turnloom/studio_assets/THIRD-PARTY.txt).
+Turnloom is released under the [MIT License](https://github.com/bhaskargurram-ai/turnloom/blob/main/LICENSE). Vendored personas keep the [Agency Agents license](https://github.com/bhaskargurram-ai/turnloom/blob/main/turnloom/personas/LICENSE). Provider presets derive from [Models.dev](https://models.dev) under [its license](https://github.com/bhaskargurram-ai/turnloom/blob/main/turnloom/data/LICENSE.models-dev). Studio bundles open-source JavaScript packages listed in [THIRD-PARTY.txt](https://github.com/bhaskargurram-ai/turnloom/blob/main/turnloom/studio_assets/THIRD-PARTY.txt).

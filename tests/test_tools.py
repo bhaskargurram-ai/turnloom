@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from turnloom.tools import PROTECTED, Workspace, find_program, system_program, tolerant
+from turnloom.tools import OUTSIDE, PROTECTED, SHELL_HINT, Workspace, find_program, system_program, tolerant
 
 
 class WorkspaceToolTests(unittest.TestCase):
@@ -32,8 +32,10 @@ class WorkspaceToolTests(unittest.TestCase):
         for path in ["../x", "src/../../x", "/etc/passwd", "C:/Windows/win.ini", "\\Windows\\win.ini"]:
             with self.subTest(path=path):
                 self.assertIn(self.call("read_file", path=path)["error"],
-                              ("Path outside the workspace.", "No such file or directory: " + path))
+                              (OUTSIDE + SHELL_HINT, "No such file or directory: " + path))
                 self.assertNotIn("text", self.call("read_file", path=path))
+        # A read-only session has no shell, so it is not pointed at one.
+        self.assertEqual(self.files.dispatch("read_file", json.dumps({"path": "../x"}), read_only=True), {"error": OUTSIDE})
         for path in [".env", ".git/config", "src/id_rsa", "deploy/server.pem", ".Env"]:
             with self.subTest(path=path):
                 self.assertEqual(self.call("read_file", path=path), {"error": PROTECTED})
@@ -58,9 +60,9 @@ class WorkspaceToolTests(unittest.TestCase):
                 link.symlink_to(elsewhere, target_is_directory=True)
             except OSError:
                 self.skipTest("symlinks unavailable")
-            self.assertEqual(self.call("read_file", path="link/secret.txt"), {"error": "Path outside the workspace."})
+            self.assertEqual(self.call("read_file", path="link/secret.txt"), {"error": OUTSIDE + SHELL_HINT})
             self.assertEqual(self.call("write_file", path="link/new.txt", content="x"),
-                             {"error": "Path outside the workspace."})
+                             {"error": OUTSIDE + SHELL_HINT})
             self.assertFalse((Path(elsewhere) / "new.txt").exists())
             self.assertNotIn("link/", self.call("list_files")["entries"])
 
@@ -77,7 +79,7 @@ class WorkspaceToolTests(unittest.TestCase):
                 self.assertEqual(self.call("search_files", query="token")["matches"], [])
                 self.assertEqual(self.call("list_files", glob="**/*.txt")["paths"], [])
                 self.assertNotIn("vendor/", self.call("list_files")["entries"])
-                self.assertEqual(self.call("read_file", path="vendor/private.txt"), {"error": "Path outside the workspace."})
+                self.assertEqual(self.call("read_file", path="vendor/private.txt"), {"error": OUTSIDE + SHELL_HINT})
             finally:
                 os.rmdir(self.root / "vendor")
 
