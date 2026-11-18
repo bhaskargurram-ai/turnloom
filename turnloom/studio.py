@@ -445,6 +445,14 @@ class Workbench:
             self.mcp.enabled = {name for name, spec in self.mcp.servers.items() if self.trusted(name, spec)}
             return self.mcp
 
+    def servers_on(self):
+        """Names of the servers the agent can use on the next turn."""
+        try:
+            specs = self.mcp.servers if self.mcp else self.server_specs()[0]
+        except (ValueError, OSError):
+            return []
+        return [name for name, spec in specs.items() if self.trusted(name, spec)]
+
     def trusted(self, name, spec):
         """A server runs for the agent only if the operator switched on this exact definition of it."""
         return name in self.settings["servers"] and self.settings["trusted"].get(name) == digest(spec)
@@ -688,7 +696,7 @@ class Workbench:
         failed = bool(outcome.get("error") or outcome.get("isError") or outcome.get("exit_code"))
         blocked = (outcome.get("rule") or "policy") if outcome.get("blocked_by") == "provio" else ""
         message = {"role": "tool", "text": readable(outcome), "name": name, "label": label_for(name, arguments)[:240],
-                   "failed": failed, "blocked": blocked}
+                   "failed": failed, "blocked": blocked, "declined": outcome.get("declined") is True}
         if outcome.get("diff"):
             message.update(diff=True, label=f"{name} {outcome['path']} (+{outcome['added']} −{outcome['removed']})")
         with self.lock:
@@ -909,6 +917,7 @@ class Workbench:
                     "draft": self.draft, "running": self.running,
                     "loom": self.archive.snapshot(), "edits": self.edits(),
                     "always": {"edits": self.session_edits, "requests": len(self.always)},
+                    "servers_on": self.servers_on(),
                     "persona": self.persona, "settings": self.settings,
                     "stages": self.stages, "companions": companions_installed(), "gate": self.gate_state(),
                     "limits": {"steps": STEPS, "tools": TOOLS},
@@ -1011,6 +1020,8 @@ class Workbench:
             return self.policy()
         if action == "policy_create":
             guard.create_policy(self.root)
+            with self.lock:
+                self.touch()
             return self.policy()
         if action == "policy_test":
             return guard.test(self.root, data.get("tool") or "bash", data.get("value"))

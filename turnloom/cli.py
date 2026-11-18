@@ -242,7 +242,7 @@ def main(argv=None):
                 stream.reconfigure(errors="replace")
             else:
                 stream.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(prog="turnloom", description="A coding agent with recoverable context.")
+    parser = argparse.ArgumentParser(prog="turnloom", description="A coding agent whose context you can inspect.")
     parser.add_argument("--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="action", required=True)
     providers.register(commands)

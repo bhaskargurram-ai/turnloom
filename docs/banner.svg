@@ -1,11 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 168" role="img" aria-labelledby="title desc">
   <title id="title">Turnloom</title>
-  <desc id="desc">Interwoven mint and amber threads beside the Turnloom wordmark.</desc>
-  <rect width="960" height="168" rx="18" fill="#101f26"/>
-  <g fill="none" stroke-width="9" stroke-linecap="round">
-    <path d="M42 49h45q16 0 26 18l20 34q9 16 24 16h34 M42 69h32q15 0 25 17l20 34q10 17 25 17h47" stroke="#77dac3"/>
-    <path d="M42 115h37q15 0 26-22l15-32q12-25 30-25h41 M42 135h48q17 0 29-24l17-35q10-20 25-20h30" stroke="#edb980"/>
+  <desc id="desc">Nine threads run left to right. Five of them are drawn tight into a cord, the way Turnloom folds older tool output out of the prompt. Beside them, the Turnloom wordmark.</desc>
+  <rect width="960" height="168" fill="#f4f2ec"/>
+  <rect x="1" y="1" width="958" height="166" fill="none" stroke="#1c1b18" stroke-width="2"/>
+  <path d="M40 30v108M208 30v108" stroke="#1c1b18" stroke-width="2"/>
+  <path d="M96 30v108M152 30v108" stroke="#a8a396" stroke-width="1.5" stroke-dasharray="3 4"/>
+  <g fill="none" stroke-width="2.5" stroke-linejoin="round">
+    <g stroke="#1f3fbf">
+      <path d="M40 36H96L152 68H208"/>
+      <path d="M40 48H96L152 71H208"/>
+      <path d="M40 60H96L152 74H208"/>
+      <path d="M40 72H96L152 77H208"/>
+      <path d="M40 84H96L152 80H208"/>
+    </g>
+    <g stroke="#1c1b18">
+      <path d="M40 96H96L152 90H208"/>
+      <path d="M40 108H96L152 102H208"/>
+      <path d="M40 120H96L152 114H208"/>
+      <path d="M40 132H96L152 126H208"/>
+    </g>
   </g>
-  <text x="233" y="94" font-family="Inter,Arial,sans-serif" font-size="69" font-weight="700" fill="#f2f5ed">Turnloom</text>
-  <text x="238" y="129" font-family="monospace" font-size="18" fill="#aad2c7">A coding agent with recoverable context</text>
+  <text x="244" y="96" font-family="system-ui,'Segoe UI',Helvetica,Arial,sans-serif" font-size="66" font-weight="700" letter-spacing="-1" fill="#1c1b18">Turnloom</text>
+  <text x="247" y="128" font-family="ui-monospace,'Cascadia Mono',Consolas,Menlo,monospace" font-size="17" fill="#4d4a43">A coding agent whose context you can inspect</text>
 </svg>

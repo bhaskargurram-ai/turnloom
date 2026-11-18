@@ -1,479 +1,389 @@
-import React, { useEffect, useRef, useState } from "react";
+import "./src/theme.js";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Command } from "cmdk";
-import { Toaster, toast } from "sonner";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import {
-  Bot,
-  ChartNoAxesCombined,
-  Code2,
-  FileSearch,
-  FolderOpen,
-  GitCompareArrows,
-  History,
-  Layers3,
-  MessageSquarePlus,
-  Plug,
-  Power,
-  Search,
-  Settings2,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
-import { api, percent, tokens, usd, useLoad } from "./api.js";
-import { ChangesView, CodeView } from "./Workspace.jsx";
-import { CostView } from "./Cost.jsx";
-import { Avatar, PersonasView } from "./Personas.jsx";
-import { DocumentsView, LedgerView, ToolsView } from "./Tools.jsx";
-import { PolicyView } from "./Policy.jsx";
-import { Connect } from "./Connect.jsx";
-import { Chat } from "./Chat.jsx";
+import { api } from "./src/api.js";
+import { startPolling, stopPolling, switchWorkspace, useStudio } from "./src/store.js";
+import { applyTheme, nextTheme, storedTheme } from "./src/theme.js";
+import { Confirm } from "./src/Dialog.jsx";
+import { Cross, Mark } from "./src/icons.jsx";
+import { Code } from "./src/Code.jsx";
+import { Agent } from "./src/Agent.jsx";
+import { Changes } from "./src/Changes.jsx";
+import { Agents } from "./src/Agents.jsx";
+import { Cost } from "./src/Cost.jsx";
+import { Policy } from "./src/Policy.jsx";
+import { Tools } from "./src/Tools.jsx";
+import { Documents } from "./src/Documents.jsx";
+import { Ledger } from "./src/Ledger.jsx";
+import { Connection } from "./src/Connection.jsx";
+import { Palette } from "./src/Palette.jsx";
+import { Closed, Expired, Gone, Guard, NoSession } from "./src/Screens.jsx";
+import { VIEWS } from "./src/views.js";
+import { clock, compact, money, percent, useMedia } from "./src/util.js";
 import "./studio.css";
+import "./views.css";
 import "./loom.css";
 
-const VIEWS = [
-  ["code", "Code", Code2],
-  ["changes", "Changes", GitCompareArrows],
-  ["agents", "Agents", Bot],
-  ["cost", "Cost", ChartNoAxesCombined],
-  ["policy", "Policy", ShieldCheck],
-  ["tools", "Tools", Plug],
-  ["documents", "Documents", FileSearch],
-  ["ledger", "Undo ledger", History],
-];
+const PAGES = { changes: Changes, agents: Agents, cost: Cost, policy: Policy, tools: Tools, documents: Documents, ledger: Ledger };
 
-function Mark() {
+function Activity() {
+  const busy = useStudio((state) => state.busy);
+  const stopping = useStudio((state) => state.stopping);
+  const waiting = useStudio((state) => !!state.pending);
+  const since = useStudio((state) => state.busySince);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!busy) return;
+    const timer = setInterval(() => tick((value) => value + 1), 1000);
+    return () => clearInterval(timer);
+  }, [busy]);
+  if (!busy) return <span>Ready</span>;
   return (
-    <span className="mark">
-      <Layers3 size={21} />
+    <span className={waiting ? "attention" : ""}>
+      {stopping ? "Stopping" : waiting ? "Approval needed" : "Working"}{" "}
+      <span className="num">{clock(Date.now() - since)}</span>
     </span>
   );
 }
 
-function Ring({ value }) {
-  const r = 7,
-    c = 2 * Math.PI * r;
+/** The session's running totals, as a control that opens the Cost view. */
+function Meter({ onView }) {
+  const meter = useStudio((state) => state.meter);
+  if (!meter.steps) return null;
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-      <circle cx="9" cy="9" r={r} fill="none" stroke="#33404a" strokeWidth="2.5" />
-      <circle
-        cx="9"
-        cy="9"
-        r={r}
-        fill="none"
-        stroke={value > 0.85 ? "#ef8f8f" : value > 0.6 ? "#e3b783" : "#87dfc8"}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeDasharray={`${Math.min(1, value) * c} ${c}`}
-        transform="rotate(-90 9 9)"
-      />
-    </svg>
+    <button type="button" className="quiet meter-button" title="Open cost and tokens for this session" onClick={() => onView("cost")}>
+      <span className="num">{compact(meter.prompt_tokens + meter.completion_tokens)} tokens</span>
+      {meter.priced && <span className="num">{money(meter.cost)}</span>}
+      <span className="num">{percent(meter.prompt, meter.window)}% of context</span>
+    </button>
   );
 }
 
-function Palette({ open, setOpen, run, personas, nodes }) {
+function Workbench() {
+  const link = useStudio((state) => state.link);
+  const workspace = useStudio((state) => state.workspace);
+  const model = useStudio((state) => state.model);
+  const busy = useStudio((state) => state.busy);
+  const waiting = useStudio((state) => !!state.pending);
+  const session = useStudio((state) => state.session);
+  const trace = useStudio((state) => state.trace);
+  const version = useStudio((state) => state.version);
+  const sessionKey = useStudio((state) => !!state.connection?.sessionKey);
+  const gate = useStudio((state) => state.gate.active);
+  const desktop = useStudio((state) => state.desktop);
+  const epoch = useStudio((state) => state.epoch);
+  const limits = useStudio((state) => state.limits);
+  const [view, setView] = useState("code");
+  const [pane, setPane] = useState("agent");
+  const [visited, setVisited] = useState(() => new Set(["code"]));
+  const [openPath, setOpenPath] = useState(null);
+  const [dirty, setDirty] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [switching, setSwitching] = useState(""); // "" | "ask" | "waiting"
+  const [palette, setPalette] = useState(false);
+  const [notices, setNotices] = useState([]);
+  const [theme, setTheme] = useState(storedTheme);
+  const code = useRef(null);
+  const narrow = useMedia("(max-width: 759px)");
+  const gone = link === "gone";
+
+  // An error may name the view where it can be put right; the notice then offers to go there.
+  const report = useCallback((error, view) => {
+    if (error?.name === "AbortError") return;
+    const text = error?.message || String(error);
+    const transport = error?.status === 0;
+    setNotices((old) => [...old.filter((item) => item.text !== text), { text, transport, view }].slice(-3));
+  }, []);
+  const show = useCallback((name) => {
+    if (name === "agent") return setPane("agent");
+    setView(name);
+    setPane("view");
+    setVisited((old) => (old.has(name) ? old : new Set(old).add(name)));
+  }, []);
+  const openFile = useCallback(
+    (path) => {
+      show("code");
+      code.current.open(path);
+    },
+    [show],
+  );
+  const connect = useCallback(() => setConnecting(true), []);
+  const cycleTheme = useCallback(() => {
+    setTheme((old) => {
+      const next = nextTheme(old);
+      applyTheme(next);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const state = waiting ? "Approval needed · " : busy ? "Working · " : "";
+    document.title = state + (workspace ? workspace + " · " : "") + "Turnloom Studio";
+  }, [workspace, busy, waiting]);
+
+  // A transport failure is old news once the server answers again.
+  useEffect(() => {
+    if (link === "live") setNotices((old) => (old.some((item) => item.transport) ? old.filter((item) => !item.transport) : old));
+  }, [link]);
+
+  useEffect(() => {
+    if (sessionKey)
+      setNotices((old) => [
+        ...old,
+        {
+          text: "This computer has no credential store Turnloom can use, so the API key is held in memory only. Studio will ask for it again next time.",
+          info: true,
+        },
+      ]);
+  }, [sessionKey]);
+
+  useEffect(() => {
+    const onKey = (event) => {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        event.stopPropagation();
+        setPalette((old) => !old);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
+
+  async function close() {
+    setClosing(false);
+    try {
+      await api("close");
+      stopPolling("closed");
+    } catch (error) {
+      report(error);
+    }
+  }
+
+  const changeWorkspace = useCallback(async () => {
+    setSwitching("waiting");
+    try {
+      if (await switchWorkspace()) {
+        setNotices([]);
+        setView("code");
+        setVisited(new Set(["code"]));
+      }
+    } catch (error) {
+      report(error);
+    } finally {
+      setSwitching("");
+    }
+  }, [report]);
+  const askWorkspace = useCallback(() => (dirty ? setSwitching("ask") : changeWorkspace()), [dirty, changeWorkspace]);
+
   return (
-    <Command.Dialog
-      open={open}
-      onOpenChange={setOpen}
-      label="Command palette"
-      className="palette"
-      overlayClassName="scrim"
-    >
-      <Command.Input placeholder="Go to a view, pick a persona, open a file…" />
-      <Command.List>
-        <Command.Empty>Nothing matches.</Command.Empty>
-        <Command.Group heading="Go to">
-          {VIEWS.map(([key, label, Icon]) => (
-            <Command.Item key={key} value={"go " + label} onSelect={() => run({ view: key })}>
-              <Icon size={15} /> {label}
-            </Command.Item>
-          ))}
-        </Command.Group>
-        <Command.Group heading="Actions">
-          <Command.Item value="connect model provider" onSelect={() => run({ connect: true })}>
-            <Settings2 size={15} /> Connect a model
-          </Command.Item>
-          <Command.Item value="new chat reset" onSelect={() => run({ reset: true })}>
-            <MessageSquarePlus size={15} /> New chat
-          </Command.Item>
-          <Command.Item value="open workspace folder" onSelect={() => run({ workspace: true })}>
-            <FolderOpen size={15} /> Open another workspace
-          </Command.Item>
-          <Command.Item value="team pipeline mode" onSelect={() => run({ mode: "team" })}>
-            <Users size={15} /> Run as a team pipeline
-          </Command.Item>
-          <Command.Item value="solo one agent mode" onSelect={() => run({ mode: "solo" })}>
-            <Bot size={15} /> Run as one agent
-          </Command.Item>
-        </Command.Group>
-        <Command.Group heading="Files">
-          {nodes
-            .filter((n) => !n.dir)
-            .map((n) => (
-              <Command.Item key={n.path} value={"file " + n.path} onSelect={() => run({ file: n.path })}>
-                <Code2 size={15} /> {n.path}
-              </Command.Item>
+    <>
+      <div className="shell" data-pane={pane} inert={gone}>
+        <header className="top">
+          <p className="brand">
+            <Mark />
+            <span>Turnloom Studio</span>
+          </p>
+          <button
+            type="button"
+            className="quiet workspace"
+            disabled={busy || !!switching}
+            title={busy ? "Wait for the current turn to finish" : "Open another folder as the workspace"}
+            onClick={askWorkspace}
+          >
+            <span className="sr-only">Workspace: </span>
+            <span className="workspace-name">{workspace || "Workspace"}</span>
+            <span className="workspace-action">{switching === "waiting" ? "choosing a folder" : "Change"}</span>
+          </button>
+          <span className="spacer" />
+          <button type="button" className="palette-button" title="Search views, files, personas and commands" onClick={() => setPalette(true)}>
+            <span>
+              Search<span className="wide-only"> and commands</span>
+            </span>
+            <kbd>{/Mac|iPhone|iPad/.test(navigator.platform) ? "Cmd K" : "Ctrl K"}</kbd>
+          </button>
+          <button
+            type="button"
+            className={"model-button" + (model ? "" : " none")}
+            title={model ? "Change the provider or model" : "Choose a provider and model"}
+            onClick={connect}
+          >
+            <i className="lamp" aria-hidden="true" />
+            <span className="sr-only">Model connection: </span>
+            <span className="model-name">{model || "No model connected"}</span>
+            <span className="model-action">{model ? "Change" : "Connect"}</span>
+          </button>
+          <button type="button" className="quiet theme-button" title="Colour theme. Auto follows the system setting" onClick={cycleTheme}>
+            <span className="sr-only">Colour theme: </span>
+            {{ auto: "Auto", light: "Light", dark: "Dark" }[theme]}
+          </button>
+        </header>
+        <nav className="views" aria-label="Views">
+          <div className="view-tabs">
+            <button
+              type="button"
+              className="view-tab tab-agent"
+              aria-current={narrow && pane === "agent" ? "page" : undefined}
+              onClick={() => show("agent")}
+            >
+              Agent log
+              {waiting && <span className="tab-flag">approval</span>}
+            </button>
+            {VIEWS.map(([name, label]) => (
+              <button
+                type="button"
+                key={name}
+                className="view-tab"
+                aria-current={view === name && (!narrow || pane === "view") ? "page" : undefined}
+                onClick={() => show(name)}
+              >
+                {label}
+              </button>
             ))}
-        </Command.Group>
-        <Command.Group heading="Personas">
-          {personas.map((p) => (
-            <Command.Item key={p.id} value={`persona ${p.name} ${p.division}`} onSelect={() => run({ persona: p.id })}>
-              <Avatar persona={p} size={20} /> {p.name}
-              <small>{p.division}</small>
-            </Command.Item>
-          ))}
-        </Command.Group>
-      </Command.List>
-    </Command.Dialog>
+          </div>
+          <Meter onView={show} />
+        </nav>
+        {notices.length > 0 && (
+          <div className="notices">
+            {notices.map((notice) => (
+              <p className={"notice" + (notice.info ? " info" : "")} role={notice.info ? "status" : "alert"} key={notice.text}>
+                <span>{notice.text}</span>
+                {notice.view && (
+                  <button
+                    type="button"
+                    className="small"
+                    onClick={() => {
+                      show(notice.view);
+                      setNotices((old) => old.filter((item) => item !== notice));
+                    }}
+                  >
+                    Open the {VIEWS.find(([name]) => name === notice.view)?.[1]} view
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="quiet square"
+                  aria-label="Dismiss message"
+                  title="Dismiss"
+                  onClick={() => setNotices((old) => old.filter((item) => item !== notice))}
+                >
+                  <Cross />
+                </button>
+              </p>
+            ))}
+          </div>
+        )}
+        <main className="body">
+          <div className="view-pane">
+            <Code ref={code} hidden={view !== "code"} report={report} onPath={setOpenPath} onDirty={setDirty} />
+            {VIEWS.filter(([name]) => name !== "code" && visited.has(name)).map(([name]) => {
+              const Page = PAGES[name];
+              return (
+                <Page
+                  key={name + epoch}
+                  active={view === name}
+                  report={report}
+                  onOpen={openFile}
+                  onView={show}
+                  onConnect={connect}
+                  openPath={openPath}
+                />
+              );
+            })}
+          </div>
+          <Agent openPath={openPath} onConnect={connect} onOpen={openFile} onView={show} report={report} />
+        </main>
+        <footer className="status">
+          <span className={"link-state " + link}>
+            <i className="lamp" aria-hidden="true" />
+            {link === "live" ? "Connected to local server" : link === "starting" ? "Connecting" : "Reconnecting"}
+          </span>
+          <Activity />
+          <span className="wide-only session num" title={"Session " + session + "\nTranscript: " + trace}>
+            session {session.slice(0, 8)} <span className="dim">{trace}</span>
+          </span>
+          <span className="spacer" />
+          {limits && (
+            <span className="wide-only" title="The most one turn may use before the agent must write its answer">
+              per turn: {limits.steps} model steps, {limits.tools} tool calls
+            </span>
+          )}
+          {gate && <span className="wide-only">policy gate on</span>}
+          {sessionKey && (
+            <span className="wide-only attention" title="No OS credential store is available. The key is gone when Studio closes.">
+              key in memory only
+            </span>
+          )}
+          <span className="wide-only num dim">{version && "v" + version}</span>
+          {desktop ? (
+            <span className="dim">Close the window to stop Studio</span>
+          ) : (
+            <button type="button" className="quiet close-studio" onClick={() => setClosing(true)}>
+              Close Studio
+            </button>
+          )}
+        </footer>
+      </div>
+      {connecting && <Connection onClose={() => setConnecting(false)} />}
+      {palette && (
+        <Palette
+          onClose={() => setPalette(false)}
+          onView={show}
+          onOpen={openFile}
+          onConnect={connect}
+          onWorkspace={askWorkspace}
+          onTheme={cycleTheme}
+          onCloseStudio={desktop ? null : () => setClosing(true)}
+          report={report}
+        />
+      )}
+      {closing && (
+        <Confirm title="Close Studio" action="Close Studio" danger onClose={() => setClosing(false)} onConfirm={close}>
+          <p>This stops the local server for this workspace. Sessions stay on disk and can be resumed next time.</p>
+          {busy && (
+            <p>
+              <strong>A turn is running.</strong> Closing stops it now and ends any command it started.
+            </p>
+          )}
+          {dirty && (
+            <p>
+              <strong>{openPath} has unsaved edits.</strong> They will be lost.
+            </p>
+          )}
+        </Confirm>
+      )}
+      {switching === "ask" && (
+        <Confirm
+          title="Open another workspace"
+          action="Discard and choose a folder"
+          danger
+          onClose={() => setSwitching("")}
+          onConfirm={changeWorkspace}
+        >
+          <p>
+            <strong>{openPath} has unsaved edits.</strong> Opening another folder discards them.
+          </p>
+        </Confirm>
+      )}
+      {gone && <Gone unsaved={dirty ? openPath : null} text={() => code.current?.text() || ""} />}
+    </>
   );
 }
 
 function App() {
-  const [state, setState] = useState(null),
-    [nodes, setNodes] = useState([]),
-    [file, setFile] = useState(null),
-    [dirty, setDirty] = useState(false),
-    [connect, setConnect] = useState(false),
-    [palette, setPalette] = useState(false),
-    [view, setView] = useState("code"),
-    [persona, setPersona] = useState("builder"),
-    [mobile, setMobile] = useState("agent"),
-    [closed, setClosed] = useState(false);
-  const [gallery] = useLoad("personas", {}, state?.workspace || "");
-  const content = useRef(""),
-    transcript = useRef({ snapshot: 0, messages: [] }),
-    last = useRef(null),
-    reading = useRef(0);
-  const report = (e) => toast.error(e.message || String(e));
-  const personas = gallery?.personas || [];
-
-  async function refresh() {
-    const prior = transcript.current;
-    const snap = await api("state", { since: prior.messages.length });
-    if (snap.snapshot <= prior.snapshot && snap.workspace === prior.workspace)
-      return;
-    const fresh = snap.workspace !== prior.workspace;
-    const messages = fresh
-      ? snap.messages
-      : [...prior.messages.slice(0, snap.offset), ...snap.messages];
-    transcript.current = { ...snap, messages };
-    setState(transcript.current);
-  }
-  async function open(path, force = false, navigate = true) {
-    if (!force && dirty && !window.confirm("Discard your unsaved edits?"))
-      return;
-    const id = ++reading.current;
-    const data = await api("read", { path });
-    if (reading.current !== id) return;
-    content.current = data.text;
-    setFile({ ...data, path });
-    setDirty(false);
-    if (navigate) {
-      setView("code");
-      setMobile("view");
-    }
-  }
-  async function tree() {
-    const list = await api("tree", { path: "." });
-    setNodes(list);
-    return list;
-  }
-  async function save() {
-    if (!file || !dirty) return;
-    const data = await api("save", {
-      path: file.path,
-      version: file.version,
-      text: content.current,
-    });
-    content.current = data.text;
-    setFile({ ...data, path: file.path });
-    setDirty(false);
-  }
-  async function loadWorkspace() {
-    setFile(null);
-    const list = await tree();
-    const first =
-      list.find((n) => n.name === "README.md") ||
-      list.find((n) => !n.dir && /\.(py|js|md|txt)$/.test(n.name));
-    if (first) await open(first.path, true, false);
-  }
-  async function switchWorkspace() {
-    if (dirty && !window.confirm("Discard your unsaved edits?")) return;
-    const result = await api("workspace");
-    if (!result.changed) return;
-    transcript.current = { snapshot: 0, messages: [] };
-    setDirty(false);
-    await refresh();
-    await loadWorkspace();
-  }
+  const link = useStudio((state) => state.link);
   useEffect(() => {
-    loadWorkspace().catch(report);
+    startPolling();
+    return () => stopPolling();
   }, []);
-  useEffect(() => {
-    if (closed) return;
-    let live = true,
-      timer;
-    async function poll() {
-      try {
-        if (live) await refresh();
-      } catch (e) {
-        if (live) report(e);
-      } finally {
-        if (live) timer = setTimeout(poll, 750);
-      }
-    }
-    poll();
-    return () => {
-      live = false;
-      clearTimeout(timer);
-    };
-  }, [closed]);
-  useEffect(() => {
-    if (!state) return;
-    if (last.current && !state.busy) {
-      tree().catch(report);
-      if (file && !dirty) open(file.path, true, false).catch(report);
-    }
-    last.current = state.busy;
-  }, [state?.busy]);
-  useEffect(() => {
-    if (state?.persona && !transcript.current.personaSeen) {
-      transcript.current.personaSeen = true;
-      setPersona(state.persona);
-    }
-  }, [state?.persona]);
-  useEffect(() => {
-    const fn = (e) => {
-      const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key === "s") {
-        e.preventDefault();
-        save().catch(report);
-      } else if (mod && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPalette((x) => !x);
-      }
-    };
-    window.addEventListener("keydown", fn);
-    return () => window.removeEventListener("keydown", fn);
-  }, [file, dirty]);
-  useEffect(() => {
-    const fn = (e) => {
-      if (dirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", fn);
-    return () => window.removeEventListener("beforeunload", fn);
-  }, [dirty]);
-
-  function command(action) {
-    setPalette(false);
-    if (action.view) go(action.view);
-    if (action.connect) setConnect(true);
-    if (action.persona) setPersona(action.persona);
-    if (action.file) open(action.file).catch(report);
-    if (action.reset) api("reset").then(refresh).catch(report);
-    if (action.mode)
-      api("settings", { mode: action.mode }).then(refresh).catch(report);
-    if (action.workspace) switchWorkspace().catch(report);
-  }
-  function go(next) {
-    setView(next);
-    setMobile("view");
-  }
-  async function close() {
-    if (
-      !window.confirm(
-        "Close the local Studio server? Unsaved editor changes will be lost.",
-      )
-    )
-      return;
-    try {
-      await api("close");
-      setDirty(false);
-      setClosed(true);
-    } catch (e) {
-      report(e);
-    }
-  }
-
-  if (closed)
-    return (
-      <main className="closed">
-        <Mark />
-        <h1>Studio closed</h1>
-        <p>You can close this window.</p>
-      </main>
-    );
-  if (!state)
-    return (
-      <main className="closed">
-        <Mark />
-        <p>Opening workspace…</p>
-        <Toaster theme="dark" position="top-center" richColors />
-      </main>
-    );
-  const meter = state.meter,
-    fill = meter.prompt / meter.window;
-  const shared = { state, report };
-  return (
-    <div className={"shell mobile-" + mobile}>
-      <header className="top">
-        <Mark />
-        <strong>
-          Turnloom <em>Studio</em>
-        </strong>
-        <span className="divider" />
-        <button
-          className="root"
-          title="Open another workspace"
-          disabled={state.busy}
-          onClick={() => switchWorkspace().catch(report)}
-        >
-          <FolderOpen size={16} />
-          {state.workspace}
-        </button>
-        <button
-          className="palettebutton"
-          onClick={() => setPalette(true)}
-          aria-label="Open command palette"
-        >
-          <Search size={14} />
-          <span>Search views, personas, files</span>
-          <kbd>Ctrl K</kbd>
-        </button>
-        <button
-          className="meterchip"
-          onClick={() => go("cost")}
-          title="Open cost and tokens"
-          aria-label="Session cost and context use"
-        >
-          <Ring value={fill} />
-          <span>
-            {tokens(meter.prompt_tokens + meter.completion_tokens)} tokens
-          </span>
-          {meter.priced && <b>{usd(meter.cost)}</b>}
-          <i>{percent(meter.prompt, meter.window)}% context</i>
-        </button>
-        <button
-          className="connection"
-          disabled={state.busy}
-          onClick={() => setConnect(true)}
-        >
-          <i className={state.model ? "dot" : "dot off"} />
-          {state.model || "Connect model"}
-          <Settings2 size={15} />
-        </button>
-      </header>
-      <nav className="mobile-tabs">
-        {[
-          ["view", VIEWS.find((v) => v[0] === view)[1]],
-          ["agent", "Chat"],
-        ].map(([key, label]) => (
-          <button key={key} onClick={() => setMobile(key)} className={mobile === key ? "on" : ""}>
-            {label}
-          </button>
-        ))}
-      </nav>
-      <div className="body">
-        <nav className="rail" aria-label="Views">
-          {VIEWS.map(([key, label, Icon]) => (
-            <button
-              key={key}
-              className={view === key ? "on" : ""}
-              aria-current={view === key ? "page" : undefined}
-              aria-label={label}
-              title={label}
-              onClick={() => go(key)}
-            >
-              <Icon size={19} />
-              <span>{label}</span>
-            </button>
-          ))}
-          <span className="railspace" />
-          <button aria-label="Close Studio" title="Close Studio" disabled={state.busy} onClick={close}>
-            <Power size={18} />
-            <span>Close Studio</span>
-          </button>
-        </nav>
-        <PanelGroup direction="horizontal" autoSaveId="turnloom-shell" className="panes">
-          <Panel minSize={35} order={1} className="viewpane">
-            {view === "code" && (
-              <CodeView
-                {...shared}
-                nodes={nodes}
-                file={file}
-                dirty={dirty}
-                setDirty={setDirty}
-                content={content}
-                open={(path) => open(path).catch(report)}
-                save={save}
-                reloadTree={() => tree().catch(report)}
-              />
-            )}
-            {view === "changes" && (
-              <ChangesView busy={state.busy} open={(path) => open(path).catch(report)} report={report} />
-            )}
-            {view === "agents" && (
-              <PersonasView {...shared} gallery={gallery} persona={persona} choose={setPersona} />
-            )}
-            {view === "cost" && <CostView {...shared} openConnect={() => setConnect(true)} />}
-            {view === "policy" && (
-              <PolicyView {...shared} open={(path) => open(path).catch(report)} reloadTree={() => tree().catch(report)} />
-            )}
-            {view === "tools" && <ToolsView {...shared} />}
-            {view === "documents" && <DocumentsView {...shared} file={file} />}
-            {view === "ledger" && <LedgerView {...shared} />}
-          </Panel>
-          <PanelResizeHandle className="grip" />
-          <Panel defaultSize={32} minSize={22} maxSize={55} order={2} className="agentpane">
-            <Chat
-              {...shared}
-              personas={personas}
-              persona={persona}
-              file={file}
-              go={go}
-              refresh={refresh}
-              needModel={() => setConnect(true)}
-            />
-          </Panel>
-        </PanelGroup>
-      </div>
-      <footer>
-        <span>
-          <i className="dot" />
-          Local workspace · v{state.version}
-          {state.gate.active ? " · Provio gate on" : ""}
-          {state.desktop ? " · desktop" : ""}
-        </span>
-        <span>
-          {state.busy
-            ? state.stopping
-              ? "Stopping after current operation"
-              : state.pending
-                ? "Awaiting approval"
-                : "Working"
-            : meter.steps
-              ? `${(meter.prompt_tokens + meter.completion_tokens).toLocaleString()} tokens · ${meter.priced ? "$" + meter.cost.toFixed(5) : "cost unavailable"}`
-              : "Ready"}
-        </span>
-        <span>{dirty ? "Unsaved changes" : "UTF-8"}</span>
-      </footer>
-      {connect && (
-        <Connect
-          current={state.connection}
-          close={() => setConnect(false)}
-          finish={() => {
-            setConnect(false);
-            refresh().catch(report);
-          }}
-        />
-      )}
-      <Palette open={palette} setOpen={setPalette} run={command} personas={personas} nodes={nodes} />
-      <Toaster theme="dark" position="top-center" richColors closeButton />
-    </div>
-  );
+  if (link === "none") return <NoSession />;
+  if (link === "expired") return <Expired />;
+  if (link === "closed") return <Closed />;
+  return <Workbench />;
 }
-createRoot(document.getElementById("app")).render(<App />);
+
+createRoot(document.getElementById("app")).render(
+  <Guard>
+    <App />
+  </Guard>,
+);
