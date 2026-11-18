@@ -1,5 +1,7 @@
 ![Turnloom, a coding agent whose context you can inspect](https://raw.githubusercontent.com/bhaskargurram-ai/turnloom/main/docs/banner.svg)
 
+[![PyPI](https://img.shields.io/pypi/v/turnloom)](https://pypi.org/project/turnloom/) [![Python](https://img.shields.io/pypi/pyversions/turnloom)](https://pypi.org/project/turnloom/) [![Test](https://github.com/bhaskargurram-ai/turnloom/actions/workflows/test.yml/badge.svg)](https://github.com/bhaskargurram-ai/turnloom/actions/workflows/test.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Turnloom is a coding agent for your terminal and desktop that shows you what it keeps in context and what each call costs. It reads and edits files, runs commands with your approval, and folds older tool output out of the prompt into a local archive that you and the model can read back at any time. Every edit is shown as a diff before it lands and can be undone afterwards. Every model call is metered.
 
 It works with any OpenAI-compatible endpoint: hosted providers, OpenRouter, or a model on your own machine through Ollama, LM Studio, vLLM or llama.cpp. LiteLLM adds Anthropic, Bedrock, Vertex AI and Azure.
@@ -11,19 +13,19 @@ It works with any OpenAI-compatible endpoint: hosted providers, OpenRouter, or a
 Turnloom needs Python 3.11 or newer. The core has one dependency.
 
 ```sh
-pipx install "git+https://github.com/bhaskargurram-ai/turnloom"
+pipx install turnloom
 turnloom connect        # pick a provider and a model
 turnloom chat           # start working in the current directory
 ```
 
-`uv tool install "git+https://github.com/bhaskargurram-ai/turnloom"` and `pip install` work the same way. Each [release](https://github.com/bhaskargurram-ai/turnloom/releases) also carries a wheel. On Windows you can instead clone the repository and double-click **Open Turnloom Studio.cmd**, which creates its own environment.
+`uv tool install turnloom` and `pip install turnloom` work the same way, and `uvx turnloom chat` runs it without installing. On Windows you can instead clone the repository and double-click **Open Turnloom Studio.cmd**, which creates its own environment.
 
 `turnloom connect` lists providers and their models. Choose OpenRouter to sign in through your browser, choose Ollama or LM Studio to use a local model, or pick any other provider and paste its key once. Keys go to your operating system's credential store, never to a file. `turnloom doctor` checks the setup. [Provider guide](docs/providers.md)
 
 ## Studio
 
 ```sh
-pipx install "turnloom[studio] @ git+https://github.com/bhaskargurram-ai/turnloom"
+pipx install "turnloom[studio]"
 turnloom studio
 ```
 
@@ -116,7 +118,7 @@ Use `--no-fold` to compare a run with folding against one without. The receipt r
 - **Other agents, as a server.** `turnloom serve` is an MCP server: session receipts, archived tool results, a place to park long output, and with `--allow-run` task delegation to Turnloom.
 - **Other harnesses, as a layer.** `turnloom proxy` serves an OpenAI-compatible endpoint that folds and meters another harness's requests to your connected model.
 - **Native provider APIs.** With the `llm` extra, `turnloom connect litellm:anthropic` and its siblings reach providers that are not OpenAI-compatible, through [LiteLLM](https://github.com/BerriAI/litellm).
-- **CI and containers.** The repository is a GitHub Action (`uses: bhaskargurram-ai/turnloom@v0.7.0`), and its `Dockerfile` builds an image for isolated, unattended runs.
+- **CI and containers.** The repository is a GitHub Action (`uses: bhaskargurram-ai/turnloom@v0.7.0`), and `ghcr.io/bhaskargurram-ai/turnloom` is an image for isolated, unattended runs.
 - **Documents and undo for MCP.** [VerifyDoc](https://github.com/bhaskargurram-ai/verifydoc) scores extracted fields against their source. [Unwind](https://github.com/bhaskargurram-ai/unwind) classifies MCP calls by reversibility and can take them back.
 - **Benchmarks.** `turnloom-agent` is a headless entry point with a [Harbor](https://github.com/harbor-framework/harbor) adapter and ATIF export. Turnloom has not been run on a public leaderboard. [Status and how to run it](docs/leaderboard.md)
 

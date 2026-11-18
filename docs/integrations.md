@@ -17,7 +17,7 @@ The core install has what most sessions need. Extras add optional surfaces:
 | `turnloom[studio]` | `search`, `desktop`, `documents`, `guard` and `tokens` |
 | `turnloom[full]` | Every terminal-side extra plus the Git and Time reference servers used below |
 
-Install one with, for example, `pipx install "turnloom[full] @ git+https://github.com/bhaskargurram-ai/turnloom"`.
+Install one with, for example, `pipx install "turnloom[full]"`.
 
 | Upstream project | Where it appears in Turnloom |
 | --- | --- |
@@ -200,14 +200,15 @@ Without the action, the same thing is `turnloom run "..." --read-only --json` wi
 
 ## Containers
 
-The `Dockerfile` builds an image with Turnloom, Git and ripgrep that runs as an unprivileged user. Mount a project at `/workspace`:
+Each release publishes `ghcr.io/bhaskargurram-ai/turnloom`, an image with Turnloom, Git and ripgrep that runs as an unprivileged user. Mount a project at `/workspace`:
 
 ```sh
-docker build -t turnloom .
 docker run --rm -it -v "$PWD:/workspace" \
   -e TURNLOOM_ENDPOINT -e TURNLOOM_MODEL -e TURNLOOM_API_KEY \
-  turnloom run "Fix the failing test" --yes
+  ghcr.io/bhaskargurram-ai/turnloom:v0.7.0 run "Fix the failing test" --yes
 ```
+
+The repository's `Dockerfile` builds the same image locally with `docker build -t turnloom .`.
 
 Inside a container `--yes` is a reasonable choice: commands can only reach the mounted project and whatever network you allow. There is no credential store in the image, so pass the connection through the environment.
 

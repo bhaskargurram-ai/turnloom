@@ -8,7 +8,7 @@ Turnloom Studio runs as a desktop application. The interface is hosted in a nati
 | --- | --- |
 | The built app | Open `Turnloom Studio.exe` in the app folder and choose a workspace |
 | A checkout on Windows | Double-click **Open Turnloom Studio.cmd** |
-| A Python environment | Install the `studio` extra, then `turnloom studio` in your project |
+| A Python environment | `pipx install "turnloom[studio]"`, then `turnloom studio` in your project |
 
 `turnloom studio --browser` opens Studio in a browser tab instead, and `--no-open` prints the session URL and opens nothing, for a remote shell with a forwarded port. If no web view runtime is present, Studio opens a standalone Edge or Chrome app window, and a browser tab as the last resort. In a browser, Studio stops by itself after 15 minutes without use; the app window stops when you close it.
 
