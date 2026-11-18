@@ -29,8 +29,11 @@ jobs:
           path: dist/
 
   pypi:
-    # Publishes through PyPI trusted publishing. Configure the publisher for this repository,
-    # workflow file "release.yml" and environment "pypi" at https://pypi.org/manage/account/publishing/
+    # Publishes through PyPI trusted publishing. To turn it on, add this repository as a trusted
+    # publisher on PyPI (workflow file "release.yml", environment "pypi") and set the repository
+    # variable PYPI_TRUSTED_PUBLISHING to "true". Until then, upload the files attached to the
+    # GitHub release with twine.
+    if: vars.PYPI_TRUSTED_PUBLISHING == 'true'
     needs: build
     runs-on: ubuntu-latest
     environment: pypi

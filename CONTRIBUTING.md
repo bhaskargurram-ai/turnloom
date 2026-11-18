@@ -42,4 +42,5 @@ The standalone desktop app is built with `packaging/build.ps1` or the steps in [
 
 1. Update `__version__` in `turnloom/__init__.py` and the changelog.
 2. Tag `vX.Y.Z` and push the tag.
-3. The release workflow builds the wheel and source archive, installs the wheel in a clean environment, publishes to PyPI through trusted publishing, and attaches the files to a GitHub release.
+3. The release workflow builds the wheel and source archive, installs the wheel in a clean environment, attaches the files to a GitHub release and pushes the container image to GHCR.
+4. Publish to PyPI. With trusted publishing configured (see the comment in `.github/workflows/release.yml`) the workflow does it. Otherwise download the release files and upload exactly those: `gh release download vX.Y.Z -p "turnloom-*" -D dist && twine upload dist/*`.
