@@ -197,8 +197,16 @@ class ProxyTests(unittest.TestCase):
         self.assertEqual(events[0]["choices"][0]["delta"]["tool_calls"][0]["function"]["name"], "bash")
         self.assertEqual(events[1]["choices"][0]["finish_reason"], "tool_calls")
         self.assertEqual(events[2]["usage"]["prompt_tokens"], 100)
-        with self.assertRaises(urllib.error.HTTPError):
+        with self.assertRaises(urllib.error.HTTPError) as wrong:
             post(body, token="wrong")
+        wrong.exception.close()
+        for headers in ({"Origin": "https://example.org"}, {"Host": "attacker.example"}):
+            request = urllib.request.Request(base + "/chat/completions", json.dumps(body).encode(),
+                                             {"Content-Type": "text/plain", "Authorization": "Bearer secret", **headers})
+            with self.assertRaises(urllib.error.HTTPError) as refused:
+                urllib.request.urlopen(request, timeout=5)
+            self.assertEqual(refused.exception.code, 403)
+            refused.exception.close()
 
     @unittest.skipUnless(find_spec("openai"), "requires the openai package")
     def test_openai_sdk_talks_to_the_proxy(self):

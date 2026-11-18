@@ -2,27 +2,30 @@
 
 Notable changes to Turnloom. Versions follow [Semantic Versioning](https://semver.org); before 1.0 a minor version may change behavior.
 
-## 0.6.0
+## 0.7.0
 
-The first public release. The agent gains real file tools, streaming, sessions that survive the process, and reversible edits. Studio is rebuilt on those.
+The first public release. The agent gains real file tools, streaming, sessions that survive the process, and reversible edits. Studio is redesigned and rebuilt on those. Turnloom can now be driven from editors and from other agents.
 
 ### Added
 
 - **File tools in every session.** `list_files`, `read_file`, `search_files`, `edit_file` and `write_file` are confined to the workspace. Edits show a diff for approval, keep line endings, and are written atomically. Before this release the terminal agent could only use the shell.
-- **Undo.** `turnloom undo`, `/undo` in chat and Studio restore the files a turn edited. A file changed since is kept and reported.
-- **Streaming.** Replies appear as they are written in the terminal and in Studio, with tool activity shown while it runs.
+- **Undo for edits.** `turnloom undo`, `/undo` in chat and Studio restore the files a turn edited. A file changed since is kept and reported.
+- **Streaming.** Replies appear as they are written in the terminal, in Studio and in editors, with tool activity shown while it runs.
 - **Sessions.** `turnloom sessions` lists them, `--resume` continues one with its tool results intact, and Studio can start, list and resume sessions.
 - **Approval modes.** `--auto-edit`, `--read-only`, `--allow PATTERN`, and an "always" answer at the prompt. Studio has the same choices.
+- **Editors.** `turnloom acp` serves the Agent Client Protocol, for Zed, JetBrains IDEs and other ACP clients.
 - **Project instructions and skills.** `AGENTS.md` (or `CLAUDE.md`) is read from the workspace root. Skills under `.agents/skills` and `.claude/skills` are offered to the model.
-- **MCP over HTTP.** Server entries may be a streamable HTTP `url` with a `bearer_env`.
-- **Turnloom as an MCP server for other agents.** `turnloom serve` adds `transcript` and `recall`, and with `--allow-run` a `run_task` tool.
+- **MCP over HTTP.** Server entries may be a streamable HTTP `url` with a `bearer_env`, and process entries may set `env`.
+- **Turnloom as an MCP server for other agents.** `turnloom serve` adds `transcript` and `read_result`, and with `--allow-run` a `run_task` tool.
 - **GitHub Action and container image definition** for unattended runs.
 - `turnloom studio`, `turnloom doctor`, `--max-steps`, `--events`, and chat commands `/diff`, `/undo`, `/new`, `/help`.
-- Context window sizes from the model catalog, cached-token reporting, and `TURNLOOM_ENDPOINT`, `TURNLOOM_MODEL`, `TURNLOOM_API_KEY`.
+- Studio can create, rename and delete files, shows what a turn edited with a review and a revert, and has light and dark themes.
+- `TURNLOOM_ENDPOINT`, `TURNLOOM_MODEL` and `TURNLOOM_API_KEY`.
 
 ### Changed
 
 - **Commands and edits are declined unless something approves them.** A caller that sets no approval callback must opt in with `auto_approve`. Previously a missing callback meant "approve everything".
+- **The policy gate covers file edits** as `fs.write`, alongside shell commands, reads and MCP calls.
 - **Context overflow archives instead of deleting.** Exchanges removed to fit the window stay recoverable through `recall`, and an oversized newest result is shortened in place rather than failing the turn.
 - **Tool results the model has not read are never folded.** A batch of parallel calls used to lose all but its last three results before the model saw them.
 - **Full command output is archived** when the prompt only receives its head and tail.
@@ -31,27 +34,43 @@ The first public release. The agent gains real file tools, streaming, sessions t
 - Retries honor `Retry-After`, cover dropped connections, and retry a timed-out request once instead of four times.
 - A truncated reply is returned as `partial`. An empty reply is retried once. Limits explain why they stopped the turn.
 - Three identical tool calls in a row end tool use everywhere, not only in Studio. Repeating a check between edits is no longer treated as a loop.
-- `turnloom team` runs its three stages without LangGraph, and planning and review are read-only by construction.
+- `turnloom team` runs without LangGraph installed, and planning and review stages are read-only by construction. Studio's team stages gain a read-only switch.
 - Session traces get a `.gitignore`, so they stay out of the user's repository.
-- Studio no longer shows sample data. It keeps the conversation when a turn fails or the persona changes, waits for approvals without a timer, stops by itself when unused, and opens without putting its token on the browser's command line.
+- Studio no longer shows sample data. It keeps the conversation when a turn fails or the persona changes, waits for approvals without a timer, stops by itself when left unused in a browser, and opens without putting its token on a browser's command line. Closing Studio stops a running turn.
+- `turnloom-studio` is a console command, so its help and errors are visible. `turnloom-studio-gui` is the windowless variant. `--no-open` and `--port` support remote shells.
+- The proxy refuses requests that carry a browser `Origin` or a foreign `Host`.
 - Command output is decoded as UTF-8 first. Redirected terminal output is UTF-8 on Windows.
 - The evaluation interval resamples attempts as well as tasks, checks end their process tree at the timeout, and the example manifest is a task that runs.
+- The `desktop` extra no longer installs PyInstaller; `build-app` does. `studio` and `full` are composed from the smaller extras.
 
 ### Removed
 
-- The `team` extra and its LangGraph dependency.
 - `turnloom demo`, which folded a hard-coded string. `turnloom doctor` is the offline check.
-- The second, auto-approving command line in `python -m turnloom.agent`.
-- Benchmark-specific rules from the default system prompt. The evaluation runner adds them to its own sessions.
+- Benchmark-specific rules from the default system prompt. `turnloom-agent` and the evaluation runner add them to their own sessions.
 - Thirteen provider presets that need a vendor-specific client or a token exchange.
+- The Cline UI components and the Tailwind-dependent styling in Studio.
 
-### Upgrading from 0.5
+### Upgrading from 0.6
 
 - Scripts that used `turnloom run` without a terminal must pass `--read-only`, `--auto-edit` or `--yes`.
 - `HARNESS_ENDPOINT`, `HARNESS_MODEL` and `HARNESS_API_KEY` still work. Prefer the `TURNLOOM_` names.
-- `pip install "turnloom[team]"` no longer exists; `turnloom team` works with the base install.
-- Code that builds a `Config` directly: `approve` now receives `(kind, detail)`, and unattended callers set `auto_approve=True`.
+- Code that builds a `Config` directly: `approve` now receives `(kind, detail)`, and unattended callers set `auto_approve=True`. `workspace_tool` is replaced by the built-in file tools.
+- A PyInstaller build installs `.[build-app]` instead of `.[studio,full,desktop]`.
+- MCP clients of `turnloom serve`: the tools are now `sessions`, `receipt`, `transcript`, `read_result`, `archive_output`, `recall` and optionally `run_task`.
+
+## 0.6.0
+
+Tagged on GitHub and not published to a package index.
+
+- Studio rebuilt around a view rail and a command palette, opening in a native window through pywebview, with a PyInstaller spec for a standalone app.
+- New Studio views: Changes, Agents (283 vendored Agency Agents personas and a team builder), Cost, Policy, Tools, Documents and Undo ledger.
+- Every model call metered into `.turnloom/usage.jsonl`, with cached input priced at the cache rate and each request's reply limit fitted to the remaining context window.
+- Provio gates shell commands, workspace reads and MCP tool calls when the workspace has a `provio.yaml`, and fails closed.
+- LiteLLM reaches native provider APIs as `litellm:<provider>`.
+- `turnloom proxy` serves an OpenAI-compatible endpoint that folds and meters requests from other harnesses.
+- Folded previews keep their ending, and `recall` can search.
+- A Harbor installed-agent adapter, the headless `turnloom-agent` entry point and ATIF export.
 
 ## 0.5.0 and earlier
 
-Development releases that were not published: the terminal agent with shell and recall tools, provider connections with OpenRouter sign-in, MCP stdio servers, Agent Skills loading, the evaluation tools, and the first version of Studio.
+Development versions: the terminal agent with shell and recall tools, provider connections with OpenRouter sign-in, MCP stdio servers, Agent Skills loading, the evaluation tools, and the first version of Studio.

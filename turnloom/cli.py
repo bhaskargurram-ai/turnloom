@@ -262,6 +262,9 @@ def main(argv=None):
     serve.add_argument("--allow-run", action="store_true", help="Let clients delegate read-only tasks to the connected model")
     serve.add_argument("--allow-edits", action="store_true", help="With --allow-run, also let delegated tasks edit files")
     serve.add_argument("--allow-shell", action="store_true", help="With --allow-run, also let delegated tasks run commands")
+    editor = commands.add_parser("acp", help="Serve Turnloom to editors over the Agent Client Protocol on stdio")
+    editor.add_argument("--workspace", type=Path, default=Path.cwd())
+    editor.add_argument("--persona", default="builder", help="A persona id from turnloom personas")
     layer = commands.add_parser("proxy", help="Serve an OpenAI-compatible endpoint that folds context for another harness")
     layer.add_argument("--port", type=int, default=8787)
     layer.add_argument("--workspace", type=Path, default=Path.cwd(), help="Where the usage ledger is written")
@@ -327,6 +330,12 @@ def main(argv=None):
         except ValueError as error:
             parser.error(str(error))
         return 0
+    if args.action == "acp":
+        from turnloom.acp import serve as serve_acp
+        try:
+            return serve_acp(args.workspace, args.persona)
+        except ValueError as error:
+            parser.error(str(error))
     if args.action == "studio":
         from turnloom.studio import launch
         return launch(args.workspace, args.port, "none" if args.no_open else "browser" if args.browser else "window")

@@ -236,6 +236,35 @@ class SessionTests(unittest.TestCase):
                              capture_output=True, text=True, stdin=subprocess.DEVNULL)
         self.assertEqual(bad.returncode, 2)
 
+    def test_headless_agent_runs_unattended_and_writes_a_trajectory(self):
+        (self.workspace / "notes.txt").write_text("one\n")
+        Provider.plans["Edit notes"] = [("edit_file", {"path": "notes.txt", "old_string": "one", "new_string": "two"}),
+                                        ("shell", {"command": "echo checked"})]
+        trajectory = self.workspace / "logs" / "trajectory.json"
+        done = subprocess.run([sys.executable, "-m", "turnloom.agent", "--task", "Edit notes", "--workspace", str(self.workspace),
+                               "--atif", str(trajectory)], env={**os.environ, "HLB_CONTEXT_WINDOW": "64000"},
+                              capture_output=True, text=True, encoding="utf-8", stdin=subprocess.DEVNULL)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        result = json.loads(done.stdout.strip().splitlines()[-1])
+        self.assertEqual((result["status"], result["files_changed"]), ("completed", ["notes.txt"]))
+        self.assertEqual((self.workspace / "notes.txt").read_text(), "two\n")
+        system = Provider.requests[0]["messages"][0]["content"]
+        self.assertIn("evaluation task", system)
+        steps = json.loads(trajectory.read_text(encoding="utf-8"))["steps"]
+        self.assertEqual([step["source"] for step in steps], ["system", "user", "agent", "agent", "agent"])
+        self.assertIn("checked", steps[3]["observation"]["results"][0]["content"])
+        self.assertTrue((trajectory.with_suffix(".jsonl")).is_file())
+
+    def test_personas_list_and_unknown_persona_is_refused(self):
+        code, output, errors = self.cli("personas", "--search", "security")
+        self.assertEqual(code, 0)
+        self.assertIn("security-appsec-engineer", output)
+        self.assertRegex(errors, r"\d+ personas")
+        code, _, errors = self.cli("run", "hello", "--workspace", str(self.workspace), "--read-only", "--persona", "nobody")
+        self.assertEqual(code, 2)
+        self.assertIn("Unknown persona", errors)
+        self.assertEqual(Provider.requests, [])
+
     def test_doctor_reports_setup_without_secrets(self):
         code, output, _ = self.cli("doctor", "--workspace", str(self.workspace))
         self.assertEqual(code, 0)

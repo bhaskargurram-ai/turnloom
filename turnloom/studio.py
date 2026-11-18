@@ -1211,15 +1211,23 @@ def watch_idle(server, limit=IDLE_SECONDS, interval=30):
     threading.Thread(target=loop, daemon=True).start()
 
 
-def open_browser(url):
-    """Open the session without putting its token on the browser's command line, where other users could read it."""
+def handoff(url):
+    """A private page that forwards a browser to the session.
+
+    Opening this file instead of the session URL keeps the token off the browser's command line,
+    which other users of the machine can read. The file is readable by its owner only and removed
+    after half a minute. Returns its file:// address.
+    """
     handle, name = tempfile.mkstemp(prefix="turnloom-studio-", suffix=".html")
     with os.fdopen(handle, "w", encoding="utf-8") as page:
         page.write('<!doctype html><meta charset="utf-8"><title>Turnloom Studio</title>'
                    f'<meta http-equiv="refresh" content="0;url={url}"><p>Opening Turnloom Studio…</p>')
-    opened = webbrowser.open(Path(name).as_uri())
     threading.Timer(30, lambda: Path(name).unlink(missing_ok=True)).start()
-    return opened
+    return Path(name).as_uri()
+
+
+def open_browser(url):
+    return webbrowser.open(handoff(url))
 
 
 def report(text):

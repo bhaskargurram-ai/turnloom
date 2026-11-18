@@ -14,7 +14,7 @@ import threading
 from importlib.resources import files
 from pathlib import Path
 
-from turnloom.studio import choose_folder, make_server, open_browser
+from turnloom.studio import choose_folder, handoff, make_server, open_browser
 
 TITLE = "Turnloom Studio"
 
@@ -78,7 +78,7 @@ def launch(workspace=None, argv=None):
         browser = app_browser()
         if browser:
             profile = Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".cache") / "turnloom" / "app-window"
-            process = subprocess.Popen([browser, f"--app={url}", f"--user-data-dir={profile}", "--window-size=1480,940",
+            process = subprocess.Popen([browser, f"--app={handoff(url)}", f"--user-data-dir={profile}", "--window-size=1480,940",
                                         "--no-first-run", "--no-default-browser-check"])
             threading.Thread(target=lambda: (process.wait(), server.shutdown()), daemon=True).start()
         else:

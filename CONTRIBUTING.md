@@ -1,34 +1,45 @@
 # Contributing
 
-Start with a small reproduction and a focused change. Run the offline demo and test suite from the repository root.
+Bug reports with a small reproduction and focused pull requests are welcome. For anything larger than a fix, open an issue first so the direction can be agreed before you write the code. Security problems go through the private channel in [SECURITY.md](SECURITY.md).
 
-The [CI template](docs/ci/test.yml) runs these checks on Windows and Linux. To enable it, copy it to `.github/workflows/test.yml` using an account authorized to write workflows.
+## Set up
 
 ```sh
-python -m pip install -e .
-python -m unittest discover -s tests -v
-turnloom demo
+git clone https://github.com/bhaskargurram-ai/turnloom
+cd turnloom
+python -m venv .venv
+.venv/bin/python -m pip install -e ".[full]"      # Windows: .venv\Scripts\python
+.venv/bin/python -m unittest discover -s tests
+ruff check .
 ```
 
-| Area | Entry point |
-| --- | --- |
-| Studio shell, command palette and views | `studio/App.jsx`, `studio/Workspace.jsx`, `studio/Cost.jsx`, `studio/Personas.jsx`, `studio/Tools.jsx`, `studio/Chat.jsx` |
-| Studio styles and Context Loom | `studio/studio.css`, `studio/Loom.jsx`, `studio/loom.css` |
-| Local Studio server and editor API | `turnloom/studio.py` |
-| Desktop window and app build | `turnloom/desktop.py`, `packaging/` |
-| Token metering and the usage ledger | `turnloom/meter.py` |
-| Provider presets and the LiteLLM gateway | `turnloom/providers.py`, `turnloom/gateway.py` |
-| Proxy for other harnesses | `turnloom/proxy.py` |
-| Provio policy gate | `turnloom/guard.py`, `studio/Policy.jsx` |
-| Persona catalog | `turnloom/roster.py`, `scripts/sync_personas.py` |
-| Harbor adapter and ATIF export | `integrations/harbor/`, `turnloom/atif.py` |
-| Terminal and chat | `turnloom/cli.py` |
-| Tool calls and model requests | `turnloom/agent.py` |
-| Observation folding and recall | `turnloom/context.py` |
-| Experiment scoring | `turnloom/evaluate.py`, `turnloom/compare.py` |
+The suite needs no network and no model: tests script the model's replies. [AGENTS.md](AGENTS.md) maps the code and lists the rules a change has to follow; it is written for coding agents and is the quickest orientation for people too.
 
-For prompt or cost changes, include the control settings, sample size, model, and measured tradeoff. Add regression coverage for changed behavior. Personas under `turnloom/personas/` are vendored. Change them upstream and refresh with `scripts/sync_personas.py`, which keeps the license and records the commit. Remove credentials and private task data from any shared trace.
+## Studio
 
-To work on Studio, run `npm ci` and `npm run build` from the `studio` directory. Commit the rebuilt files in `turnloom/studio_assets` with the source change. The wheel ships these assets and their third-party notices so users only need Python. Launch `turnloom-studio --workspace .` from the repository root to inspect the result.
+The browser interface lives in `studio/` and is bundled into `turnloom/studio_assets/`, which the Python package ships so users never need Node.
 
-For Studio release checks, install `python -m pip install -e ".[studio,full]"` before running the Python suite. The Studio integration test starts Unwind and VerifyDoc in a disposable workspace and calls the extraction tool over MCP. From `studio/`, run `npx playwright install chromium` followed by `npm run test:browser`. The test walks the editor, approvals, the Cost, Agents, Documents and Tools views, the command palette and a narrow window. Set `PYTHON` to the virtual environment interpreter if necessary. Set `BROWSER_CHANNEL=chrome` to use locally installed Chrome. The browser test uses a scripted model and exercises real workspace edits, approvals, cancellation and archive recall.
+```sh
+cd studio
+npm ci
+npm run build                      # writes ../turnloom/studio_assets
+npx playwright install chromium    # once
+PYTHON=../.venv/bin/python npm run test:browser
+```
+
+Commit the rebuilt assets with your source change. The browser test drives a real Studio server with a scripted model through every view. Set `BROWSER_CHANNEL=chrome` to use an installed Chrome. The Documents and Policy steps run when the `documents` and `guard` extras are installed and are skipped otherwise.
+
+The standalone desktop app is built with `packaging/build.ps1` or the steps in [docs/desktop.md](docs/desktop.md).
+
+## What a pull request needs
+
+- A test that fails without the change.
+- For changes to prompts, folding or cost accounting: the control settings, model, sample size and the measured difference. `turnloom-eval` and `turnloom-compare` exist for this; see [docs/experiments.md](docs/experiments.md).
+- Documentation updated in the same pull request when behavior or a flag changes, and a line in [CHANGELOG.md](CHANGELOG.md).
+- No credentials or private task data in any trace you attach.
+
+## Releasing
+
+1. Update `__version__` in `turnloom/__init__.py` and the changelog.
+2. Tag `vX.Y.Z` and push the tag.
+3. The release workflow builds the wheel and source archive, installs the wheel in a clean environment, publishes to PyPI through trusted publishing, and attaches the files to a GitHub release.

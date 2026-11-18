@@ -91,6 +91,7 @@ class Config:
     auto_approve: bool = False
     mcp: Any = None
     on_text: Callable[[str], None] | None = None
+    on_thought: Callable[[str], None] | None = None
     on_tool_start: Callable[[str, str], None] | None = None
     on_tool_event: Callable[[str, str, str], None] | None = None
     on_event: Callable[[dict], None] | None = None
@@ -116,6 +117,7 @@ class Result:
     estimated_usd: float = 0
     folded_chars: int = 0
     files_changed: list[str] = field(default_factory=list)
+    truncated: bool = False
 
 
 def environment(workspace: Path) -> str:
@@ -199,9 +201,11 @@ def read_stream(response, config: Config, on_text, deadline: float) -> dict[str,
                 message["content"] += text
                 if on_text:
                     on_text(text)
-            thought = delta.get("reasoning_content")
-            if isinstance(thought, str):
+            thought = delta.get("reasoning_content") or delta.get("reasoning")
+            if isinstance(thought, str) and thought:
                 reasoning += thought
+                if config.on_thought:
+                    config.on_thought(thought)
             for part in delta.get("tool_calls") or []:
                 index = part.get("index")
                 if index is None:
@@ -649,6 +653,7 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
     last_call, streak = None, 0
     executed = 0
     retried_empty = False
+    truncated = False
     finish_reason = ""
     try:
         while True:
@@ -733,8 +738,8 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
                         status = "error"
                         errors.append("The model returned neither an answer nor a tool call.")
                     elif stop_reason == "length":
-                        status = "partial"
-                        errors.append("The reply reached the reply token limit and may be cut off. Raise --reply for longer answers.")
+                        status, truncated = "partial", True
+                        errors.append("The reply reached its token limit and may be cut off. Raise the reply limit for longer answers.")
                     elif finish_reason:
                         status = "partial"
                         errors.append(finish_reason)
@@ -820,7 +825,7 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
         errors.append("Interrupted from the keyboard.")
     repair(messages)
     changed = list(dict.fromkeys(item["path"] for item in files.changes if item["turn"] == files.turn))
-    result = Result(status, answer, steps, round(time.monotonic() - started, 3), usage, errors, cost, folded, changed)
+    result = Result(status, answer, steps, round(time.monotonic() - started, 3), usage, errors, cost, folded, changed, truncated)
     record({"type": "end", "result": result.__dict__})
     return result
 

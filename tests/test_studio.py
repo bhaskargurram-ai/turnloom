@@ -3,6 +3,8 @@ import tempfile
 import threading
 import time
 import unittest
+import urllib.parse
+import urllib.request
 from http.client import HTTPConnection
 from importlib.util import find_spec
 from pathlib import Path
@@ -276,6 +278,18 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
         self.assertEqual(self.request("GET", "/../turnloom/agent.py")[0], 404)
         self.assertEqual(self.request("GET", "/studio.js?v=1")[0], 200)
+
+    def test_browser_handoff_keeps_the_token_off_the_command_line(self):
+        from turnloom import studio
+        opened = []
+        url = f"http://127.0.0.1:{self.server.server_port}/#{self.token}"
+        with patch.object(studio.webbrowser, "open", side_effect=lambda target: opened.append(target) or True):
+            self.assertTrue(studio.open_browser(url))
+        self.assertTrue(opened[0].startswith("file:"))
+        self.assertNotIn(self.token, opened[0])
+        page = Path(urllib.request.url2pathname(urllib.parse.urlsplit(opened[0]).path))
+        self.addCleanup(page.unlink, missing_ok=True)
+        self.assertIn(url, page.read_text(encoding="utf-8"))
 
     def test_malformed_bodies_are_rejected_without_a_traceback(self):
         for body in ("[]", "not json", ""):

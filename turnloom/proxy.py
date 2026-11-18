@@ -11,6 +11,7 @@ harness never sees them. Every call lands in the workspace usage ledger.
 
 import copy
 import json
+import secrets
 import threading
 import time
 import urllib.error
@@ -178,7 +179,14 @@ def make_server(layer, port=8787, token=""):
             self.wfile.write(body)
 
         def allowed(self):
-            if token and self.headers.get("Authorization") != "Bearer " + token:
+            # A harness on this machine sends no Origin and addresses the proxy by its loopback name.
+            # Anything else is a web page trying to spend the operator's tokens, or a rebound hostname.
+            port = self.server.server_port
+            if self.headers.get("Origin") or self.headers.get("Host") not in (f"127.0.0.1:{port}", f"localhost:{port}"):
+                self.reply(403, b'{"error":{"message":"The Turnloom proxy accepts local clients only"}}')
+                return False
+            supplied = self.headers.get("Authorization", "")
+            if token and not secrets.compare_digest(supplied.encode(), ("Bearer " + token).encode()):
                 self.reply(401, b'{"error":{"message":"Invalid proxy token"}}')
                 return False
             return True

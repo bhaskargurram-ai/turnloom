@@ -85,7 +85,7 @@ async def connect(spec, workspace, startup_timeout=20):
                 yield session
         return
     from mcp.client.stdio import stdio_client
-    env = {name: os.environ[name] for name in spec.get("pass_env", []) if name in os.environ}
+    env = {name: os.environ[name] for name in spec.get("pass_env", []) if name in os.environ} | spec.get("env", {})
     params = StdioServerParameters(command=spec["command"], args=spec.get("args", []), cwd=str(workspace), env=env)
     async with stdio_client(params) as streams:
         async with ClientSession(*streams, read_timeout_seconds=wait) as session:
@@ -111,8 +111,11 @@ class McpTools:
                         or not re.match(r"https?://", spec["url"]) or not isinstance(spec.get("bearer_env", ""), str):
                     raise ValueError(f"Invalid HTTP configuration for {name}. Use url and optionally bearer_env.")
                 continue
-            if set(spec) - {"command", "args", "pass_env"} or not isinstance(spec.get("command"), str) or not spec["command"]:
+            if set(spec) - {"command", "args", "pass_env", "env"} or not isinstance(spec.get("command"), str) or not spec["command"]:
                 raise ValueError(f"Invalid stdio configuration for {name}")
+            values = spec.get("env", {})
+            if not isinstance(values, dict) or not all(isinstance(key, str) and isinstance(item, str) for key, item in values.items()):
+                raise ValueError(f"{name}.env must map variable names to strings")
             for field in ("args", "pass_env"):
                 values = spec.get(field, [])
                 if not isinstance(values, list) or not all(isinstance(item, str) for item in values):

@@ -16,7 +16,7 @@ The headless agent reads the same settings the board gives every harness.
 
 | Fact | Variable | Fallback |
 | --- | --- | --- |
-| Endpoint and key | `OPENAI_BASE_URL`, `OPENAI_API_KEY` | `HARNESS_ENDPOINT`, `HARNESS_API_KEY` |
+| Endpoint and key | `TURNLOOM_ENDPOINT`, `TURNLOOM_API_KEY` | `HARNESS_ENDPOINT`, `HARNESS_API_KEY`, then `OPENAI_BASE_URL`, `OPENAI_API_KEY` |
 | Context window | `HLB_CONTEXT_WINDOW` | `HARNESS_CONTEXT_TOKENS`, then 128,000 |
 | Longest reply | `HLB_MAX_OUTPUT_TOKENS` | `HARNESS_MAX_REPLY_TOKENS`, then 16,384 |
 | Reasoning effort | `HLB_REASONING_EFFORT` | `HARNESS_REASONING_EFFORT`, then unset |
@@ -28,7 +28,8 @@ Behavior that matters under the board's rules:
 - **Compaction is recorded.** Older long tool results fold into previews that the model reads back with `recall`. When whole exchanges leave the prompt, the trajectory gets a system step starting `[COMPACTED HISTORY]`.
 - **Reasoning is returned** in the field it arrived in, `reasoning_content` or `reasoning`.
 - **Trajectory integrity.** The system prompt and task are the first steps. Every model call is one agent step with real timestamps, its tool calls, their full paired results and provider-reported tokens. The file is rewritten after every call, so a run stopped at the time limit still leaves a trajectory.
-- **Cheating rule.** The system prompt forbids fetching benchmark solutions, answer keys, other agents' trajectories and upstream code that contains the answer.
+- **Cheating rule.** The headless agent's system prompt forbids fetching benchmark solutions, answer keys, other agents' trajectories and upstream code that contains the answer. Interactive sessions do not carry this rule.
+- **Unattended by design.** `turnloom-agent` approves every command and edit, because a benchmark sandbox has nobody to ask. Do not run it outside a sandbox.
 
 ## Run it yourself
 
@@ -40,7 +41,7 @@ export PYTHONPATH=integrations/harbor
 harbor run -d terminal-bench@2.1 -a turnloom_harbor:Turnloom -m openai/MODEL_ID \
   --ae OPENAI_API_KEY=$KEY --ae OPENAI_BASE_URL=https://PROVIDER/v1 \
   --ae HLB_CONTEXT_WINDOW=1048576 --ae HLB_MAX_OUTPUT_TOKENS=131072 \
-  --ak version=v0.6.0 --n-attempts 3
+  --ak version=v0.7.0 --n-attempts 3
 ```
 
 The dataset name is the one Harbor's registry uses and has not been run from this repository. The board itself pins the task repositories by commit: `harbor-framework/terminal-bench-2-1` at `d49e28f` and `datacurve-ai/deep-swe` at `0b9fabb`.
@@ -49,7 +50,7 @@ The adapter installs Turnloom with `uv tool install` from this repository at the
 
 ## Before asking for a run
 
-1. Push a tagged release, `v0.6.0` or later, so the version can be pinned.
+1. Use a tagged release, `v0.7.0` or later, so the version can be pinned.
 2. Run both benchmarks locally on one of the board's models with three attempts, and keep the trajectories.
 3. Run `atif-scan` over them and read anything it flags.
 4. Share the adapter, the pinned tag and your local numbers with the board's owner. The board's notes put a new harness at about 330 USD of inference plus GPU time, and they rank open-source harnesses ahead of closed ones.
