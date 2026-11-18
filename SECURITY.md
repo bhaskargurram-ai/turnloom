@@ -20,10 +20,12 @@ What that means in practice:
 
 - **Workspace reads go to your model provider.** Anything the agent reads becomes part of a request to the endpoint you connected. Use a local model for code that must not leave the machine.
 - **Approved commands are not sandboxed.** A command runs as your user with your file and network access. Read it before approving. `--yes` approves everything and is meant for containers and disposable checkouts; the repository's `Dockerfile` exists for that.
+- **Programs come from your system, not the project.** Turnloom finds ripgrep, Git and Provio on `PATH` and in its own scripts folder and never in the current directory or the workspace, so a project cannot substitute its own `rg.cmd` or `git.cmd`. Directory links and Windows junctions that lead out of the workspace are not followed.
+- **Read-only means read-only.** A read-only session has no edit, shell or MCP tools.
 - **Allow patterns are deliberately narrow.** `--allow "pytest*"` never applies to a command containing `;`, `&`, `|`, `<`, `>`, `` ` ``, `$`, parentheses, `%`, `^` or a newline.
 - **Model output and file contents are untrusted input.** A file or web page can contain text written to steer the agent. The system prompt tells the model to treat tool output as data, and the approval gate is what actually protects you: a steered model still has to get its command past you.
 - **Secrets.** Model API keys are stored in the operating system's credential store and are removed from the environment that commands inherit. Other secrets in your environment are not removed. The file tools refuse names that usually hold secrets (`.env`, `*.pem`, `*.key`, `id_rsa*`, `.npmrc`, `.netrc`, `credentials.json` and similar) and the `.git`, `.ssh`, `.aws` and `.gnupg` folders. This is a guard against accidents, not a boundary: an approved command can read anything you can.
-- **A policy can sit under the approvals.** With a `provio.yaml` in the workspace and the `guard` extra installed, every shell command, file read, file edit and MCP call is first checked by [Provio](https://github.com/writ-agent/provio). A denied call never runs, a call the policy cannot judge never runs, and every decision is written to a hash-chained ledger. This is a second check, not a sandbox: an allowed command still runs with your permissions.
+- **A policy can sit under the approvals.** With a `provio.yaml` in the workspace and the `guard` extra installed, every shell command, file read, file edit and MCP call is first checked by [Provio](https://github.com/writ-agent/provio). A denied call never runs, a call the policy cannot judge never runs, and every decision is written to a hash-chained ledger. If the workspace has a policy file but Provio is not installed, the terminal, editors and Studio refuse to run until you install it or explicitly turn the gate off. This is a second check, not a sandbox: an allowed command still runs with your permissions.
 - **Traces contain your code.** `.turnloom/*.jsonl` holds file contents and command output. Turnloom writes a `.gitignore` in that folder covering traces, the usage ledger and the undo database. Remove credentials before sharing a trace.
 
 ## Studio
@@ -42,15 +44,15 @@ Another program running as your user on the same machine is outside this model: 
 
 ## MCP
 
-An MCP configuration names programs Turnloom starts and URLs it connects to, so treat the file as code. The terminal only reads the file you pass with `--mcp`. Studio lists the servers in the workspace's `.turnloom/mcp.json` and starts one only after you switch it on or open its tool list there; read the command shown before you do that in a repository you did not write. Process servers inherit only the environment variables named in `pass_env`. Every tool call asks for approval with its arguments shown.
+An MCP configuration names programs Turnloom starts and URLs it connects to, so treat the file as code. The terminal only reads the file you pass with `--mcp`. Studio lists the servers in the workspace's `.turnloom/mcp.json` and starts one only after you switch it on or open its tool list there; read the command shown before you do that in a repository you did not write. Switching a server on trusts the definition it has at that moment: if the file later changes that server's command, it is switched off until you turn it on again. Process servers inherit only the environment variables named in `pass_env`. Every tool call asks for approval with its arguments shown.
 
 `turnloom acp` gives the editor that launched it the same abilities you have in the terminal, with the editor's permission prompts as the approval gate.
 
 `turnloom proxy` forwards another program's model requests to your connected model, using your key. It listens on loopback, refuses requests that carry a browser `Origin` or a foreign `Host`, and can require a token with `--token`. Any local program can still use it while it runs, so stop it when you are done.
 
-`turnloom-agent` approves every command and edit by design. It exists for benchmark sandboxes and should not be run anywhere else.
+`turnloom-agent` and `turnloom-eval` approve every command and edit by design and do not consult a workspace policy. They exist for benchmark sandboxes and disposable task copies and should not be pointed at a directory you care about.
 
-`turnloom serve` exposes session metadata and archived tool output to the MCP client that launched it. With `--allow-run` that client can spend your model tokens; with `--allow-edits` or `--allow-shell` it can change files or run commands in the workspace through the agent. Enable those only for clients you trust.
+`turnloom serve` exposes session metadata and archived tool output to the MCP client that launched it. With `--allow-run` that client can spend your model tokens; with `--allow-edits` or `--allow-shell` it can change files or run commands in the workspace through the agent. A workspace's Provio policy applies to that delegated work. Enable those only for clients you trust.
 
 ## Supply chain
 

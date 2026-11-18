@@ -132,10 +132,16 @@ class StudioTests(unittest.TestCase):
         self.bench.dispatch("decision", {"id": pending["pending"]["id"], "approve": True, "always": True})
         pending = self.wait(lambda snapshot: snapshot["pending"] and snapshot["pending"]["kind"] == "shell")
         self.assertTrue((self.root / "b.txt").exists())
-        self.assertTrue(pending["settings"]["auto_edit"])
+        self.assertEqual(pending["always"], {"edits": True, "requests": 0})
+        self.assertFalse(pending["settings"]["auto_edit"])
         self.bench.dispatch("decision", {"id": pending["pending"]["id"], "approve": False})
         done = self.wait(lambda snapshot: not snapshot["busy"])
         self.assertEqual(done["messages"][-1]["status"], "partial")
+        # "Always" lasts for the session. It is not written to the workspace's saved settings.
+        self.bench.dispatch("settings", {"budget": 2})
+        self.assertFalse(Workbench(self.root).settings["auto_edit"])
+        self.bench.dispatch("reset", {})
+        self.assertEqual(self.state()["always"], {"edits": False, "requests": 0})
 
     def test_long_poll_returns_when_state_changes(self):
         revision = self.state()["revision"]

@@ -198,6 +198,37 @@ class SessionTests(unittest.TestCase):
         self.assertEqual((self.workspace / "notes.txt").read_text(), "one\n")
         self.assertFalse((self.workspace / "extra.txt").exists())
 
+    def test_undo_after_a_team_run_restores_the_build_stage(self):
+        marker = "\n\nPrior stage reports:"
+
+        class Staged(Provider):
+            def do_POST(self):
+                payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                Provider.requests.append(payload)
+                messages = payload["messages"]
+                task = max(item["content"] for item in messages if item["role"] == "user")
+                tools = [tool["function"]["name"] for tool in payload.get("tools", [])]
+                done = sum(item["role"] == "tool" for item in messages)
+                message = {"role": "assistant", "content": "stage report"}
+                if "write_file" in tools and marker in task and not done:
+                    message = {"role": "assistant", "content": None, "tool_calls": [{"id": "w", "type": "function", "function": {
+                        "name": "write_file", "arguments": json.dumps({"path": "built.txt", "content": "made\n"})}}]}
+                body = json.dumps({"choices": [{"message": message, "finish_reason": "stop"}],
+                                   "usage": {"prompt_tokens": 10, "completion_tokens": 2}}).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+        self.server.RequestHandlerClass = Staged
+        code, output, _ = self.cli("team", "Build the file", "--workspace", str(self.workspace), "--yes")
+        self.assertEqual(code, 0, output)
+        self.assertTrue((self.workspace / "built.txt").exists())
+        self.assertIn("1 file changed", output)
+        code, output, _ = self.cli("undo", "--workspace", str(self.workspace))
+        self.assertEqual(code, 0)
+        self.assertIn("Restored built.txt", output)
+        self.assertFalse((self.workspace / "built.txt").exists())
+
     def test_chat_survives_a_failed_turn_and_supports_commands(self):
         (self.workspace / "notes.txt").write_text("one\n")
         Provider.plans["Edit notes"] = [("edit_file", {"path": "notes.txt", "old_string": "one", "new_string": "two"})]

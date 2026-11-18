@@ -188,25 +188,25 @@ class McpTools:
             self.catalogs.pop(server, None)
 
     def dispatch(self, operation, raw, approve, remaining=30):
-        with self.lock:
-            return self._dispatch(operation, raw, approve, remaining)
-
-    def _dispatch(self, operation, raw, approve, remaining):
+        """Search a server's tools or call one. The operator is asked before the lock is taken, so
+        Studio's own panels are never stuck behind a pending approval."""
         server = None
         try:
             params = json.loads(raw)
             server = params["server"]
-            if server not in self.servers:
+            if not isinstance(server, str) or server not in self.servers:
+                server = None
                 return {"error": "Unknown server. Configured servers: " + ", ".join(self.servers)}
             if server not in self.enabled:
                 return {"error": f"Server {server} is not enabled for this turn"}
             if remaining <= 0:
                 return {"error": "Task deadline expired"}
             if operation == "mcp_search":
-                self.session(server)
+                with self.lock:
+                    self.session(server)
+                    catalog = list(self.catalogs[server])
                 query = str(params.get("query") or "").casefold()
-                matches = [item for item in self.catalogs[server] if query in
-                           (item.name + " " + (item.description or "")).casefold()]
+                matches = [item for item in catalog if query in (item.name + " " + (item.description or "")).casefold()]
                 matches.sort(key=lambda item: (item.name.casefold() != query, query not in item.name.casefold(), item.name))
                 return {"count": len(matches), "names": [item.name for item in matches][:200], "tools": [
                     {"name": item.name, "description": (item.description or "")[:700], "inputSchema": item.inputSchema}
@@ -223,8 +223,9 @@ class McpTools:
             if approve and not approve(
                     "mcp", f"MCP {server} / {params['name']} {json.dumps(params['arguments'], ensure_ascii=False)}"):
                 return {"error": "Operator declined the tool call"}
-            result = self.portal.call(self.session(server).call_tool, params["name"], params["arguments"],
-                                      timedelta(seconds=max(1, min(remaining, 300))))
+            with self.lock:
+                result = self.portal.call(self.session(server).call_tool, params["name"], params["arguments"],
+                                          timedelta(seconds=max(1, min(remaining, 300))))
             return {"isError": result.isError, "content": [part.text if part.type == "text" else
                     {"type": part.type} for part in result.content], "structuredContent": result.structuredContent}
         except KeyError as error:

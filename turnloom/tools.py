@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import sysconfig
 import tempfile
 import time
@@ -62,6 +63,38 @@ WRITE_TOOLS = [
 NAMES = {item["function"]["name"] for item in READ_TOOLS + WRITE_TOOLS}
 
 
+def find_program(name, workspace=None):
+    """Locate an executable the way a shell would, except that the current directory and the
+    workspace are never searched.
+
+    On Windows a bare program name resolves in the current directory first, so a repository that
+    ships `rg.cmd` or `git.cmd` would otherwise have it run in place of the real tool.
+    """
+    folders = [getattr(sys, "_MEIPASS", None), sysconfig.get_path("scripts"), *os.environ.get("PATH", "").split(os.pathsep)]
+    suffixes = [item for item in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";") if item] if os.name == "nt" else [""]
+    trusted = Path(sysconfig.get_path("scripts")).resolve()
+    barred = [Path.cwd().resolve()] + ([Path(workspace).resolve()] if workspace else [])
+    for folder in folders:
+        if not folder or not os.path.isabs(folder):
+            continue
+        try:
+            base = Path(folder).resolve()
+        except OSError:
+            continue
+        if base != trusted and any(base == item or base.is_relative_to(item) for item in barred):
+            continue
+        for suffix in suffixes:
+            candidate = base / (name + suffix)
+            if candidate.is_file() and (os.name == "nt" or os.access(candidate, os.X_OK)):
+                return str(candidate)
+    return None
+
+
+def system_program(name):
+    """A Windows system tool by its full path, so a same-named file elsewhere can never stand in for it."""
+    return str(Path(os.environ.get("SystemRoot") or r"C:\Windows") / "System32" / name)
+
+
 def write_atomic(path, data):
     """Replace a file in one step so a crash never leaves it half written."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -72,7 +105,11 @@ def write_atomic(path, data):
         try:
             shutil.copymode(path, temporary)
         except OSError:
-            pass
+            if os.name != "nt":
+                # A new file gets ordinary permissions, not the private mode of a temporary file.
+                umask = os.umask(0)
+                os.umask(umask)
+                os.chmod(temporary, 0o666 & ~umask)
         os.replace(temporary, path)
     except BaseException:
         Path(temporary).unlink(missing_ok=True)
@@ -161,8 +198,15 @@ class Workspace:
     def name(self, path):
         return path.relative_to(self.root).as_posix() or "."
 
+    def inside(self, path):
+        """Whether a path's real location is in the workspace. Links and Windows junctions that lead out are not."""
+        try:
+            return Path(os.path.realpath(path)).is_relative_to(self.root)
+        except (OSError, ValueError):
+            return False
+
     def visible(self, path, operator=False):
-        return not self.hidden(path.name, operator) and not path.is_symlink()
+        return not self.hidden(path.name, operator) and not path.is_symlink() and self.inside(path)
 
     def entries(self, name=".", operator=False):
         folder = self.resolve(name, operator=operator)
@@ -232,7 +276,8 @@ class Workspace:
             result["next_line"] = first + shown
         return result
 
-    def search_files(self, query, path=".", regex=False, glob=None):
+    def search_files(self, query, path=".", regex=False, glob=None, permit=None):
+        """Search file contents. ``permit(path)`` may veto individual files, as a policy gate does."""
         if not isinstance(query, str) or not query.strip() or len(query) > 512:
             raise ValueError("Enter a search string of 1 to 512 characters.")
         if glob is not None and (not isinstance(glob, str) or len(glob) > 200 or glob.startswith("!")):
@@ -243,11 +288,20 @@ class Workspace:
                 re.compile(query)
             except re.error as error:
                 raise ValueError(f"Invalid regular expression: {error}") from error
-        rg = shutil.which("rg", path=sysconfig.get_path("scripts")) or shutil.which("rg")
+        rg = find_program("rg", self.root)
         lines = self.ripgrep(rg, query, target, regex, glob) if rg else None
         engine = "ripgrep"
         if lines is None:
             lines, engine = self.scan(query, target, regex, glob), "python"
+        verdicts = {}
+
+        def allowed(row):
+            name = row.split(":", 1)[0]
+            if name not in verdicts:
+                location = self.root / name
+                verdicts[name] = self.inside(location) and (permit is None or bool(permit(location)))
+            return verdicts[name]
+        lines = [row for row in lines if allowed(row)]
         text, kept = [], 0
         for row in lines[:200]:
             kept += len(row) + 1
@@ -259,7 +313,7 @@ class Workspace:
     def ripgrep(self, rg, query, target, regex, glob):
         args = [rg, "--no-config", "--line-number", "--no-heading", "--color", "never", "--max-columns", "300",
                 "--max-columns-preview", "--max-filesize", "2M", "--max-count", "50", "--sort", "path",
-                "--hidden", "--path-separator", "/"]
+                "--hidden", "--path-separator", "/", "--glob-case-insensitive"]
         if not regex:
             args.append("--fixed-strings")
         if glob:
@@ -368,19 +422,20 @@ class Workspace:
         return {"path": label, "created": before is None, "replacements": count, "added": added, "removed": removed,
                 "diff": unified(before or "", after, label, 4000)}
 
-    def pending(self, turn=None):
-        """Net change per file for one turn (default: the latest turn with edits)."""
-        if turn is None:
+    def pending(self, turn=None, since=None):
+        """Net change per file for one turn (default: the latest turn with edits), or for every
+        turn after ``since`` when a single operator turn spans several agent runs."""
+        if since is None and turn is None:
             turn = max((item["turn"] for item in self.changes), default=None)
         merged = {}
         for item in self.changes:
-            if item["turn"] == turn:
+            if item["turn"] > since if since is not None else item["turn"] == turn:
                 merged.setdefault(item["path"], {"path": item["path"], "before": item["before"]})["after"] = item["after"]
         return turn, list(merged.values())
 
-    def undo(self, turn=None):
+    def undo(self, turn=None, since=None):
         """Restore files edited in a turn when they still hold the agent's version."""
-        turn, files = self.pending(turn)
+        turn, files = self.pending(turn, since)
         restored, conflicts = [], []
         for item in files:
             target = self.resolve(item["path"], exists=False)
@@ -396,10 +451,12 @@ class Workspace:
             else:
                 write_atomic(target, item["before"].encode("utf-8"))
             restored.append(item["path"])
-        self.changes = [item for item in self.changes if item["turn"] != turn or item["path"] in conflicts]
+        def undone(item):
+            return item["turn"] > since if since is not None else item["turn"] == turn
+        self.changes = [item for item in self.changes if not undone(item) or item["path"] in conflicts]
         return {"restored": restored, "conflicts": conflicts}
 
-    def dispatch(self, name, raw, approve=None, read_only=False):
+    def dispatch(self, name, raw, approve=None, read_only=False, permit=None):
         try:
             arguments = json.loads(raw) if isinstance(raw, str) else raw
             if not isinstance(arguments, dict):
@@ -410,7 +467,7 @@ class Workspace:
                 return self.read_file(arguments["path"], arguments.get("line") or 1, arguments.get("limit") or 250)
             if name == "search_files":
                 return self.search_files(arguments["query"], arguments.get("path") or ".",
-                                         arguments.get("regex") is True, arguments.get("glob"))
+                                         arguments.get("regex") is True, arguments.get("glob"), permit)
             if name in ("edit_file", "write_file"):
                 if read_only:
                     return {"error": "This session is read-only. Describe the change instead of applying it."}

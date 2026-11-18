@@ -50,6 +50,9 @@ class Observations:
                 parsed = json.loads(content)
             except ValueError:
                 parsed = None
+            if isinstance(parsed, dict) and parsed.get("note") and parsed.get("tool") == tool \
+                    and parsed.get("reference") in self.records:
+                continue  # already a fold preview
             if isinstance(parsed, dict) and isinstance(parsed.get("reference"), str) and parsed["reference"] in self.records:
                 # Already archived in full at capture: keep pointing at that record.
                 reference = parsed["reference"]
@@ -63,9 +66,11 @@ class Observations:
                 # folding must still see that text is missing and how to read it.
                 preview = json.dumps({"reference": reference, "preview": content[:180], "ending": content[-120:],
                                       "characters": total, "tool": tool,
-                                      "note": f"Folded: the middle is omitted. Call {tool} with this reference to read any part."})
-                item["content"] = preview
-                removed += len(content) - len(preview)
+                                      "note": f"Folded: the middle is omitted. Call {tool} with this reference to read any part."},
+                                     ensure_ascii=False)
+                if len(preview) < len(content):
+                    item["content"] = preview
+                    removed += len(content) - len(preview)
         return removed
 
     def recall(self, arguments):

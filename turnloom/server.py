@@ -134,7 +134,15 @@ def serve(workspace, allow_run=False, allow_edits=False, allow_shell=False):
                             max_steps=min(100, max(1, max_steps)), approve=policy,
                             read_only=not (allow_edits or allow_shell),
                             input_rate=connection.input_rate, output_rate=connection.output_rate)
-            result = run_agent(task, config)
+            from turnloom import guard
+            if guard.policy_path(base).is_file():
+                if not guard.installed():
+                    raise ValueError('This workspace has a provio.yaml but Provio is not installed. Install "turnloom[guard]".')
+                # The workspace's policy applies to delegated work as it does to the operator's own.
+                with guard.Gate(base, approve=policy, confirm=True, session=session_id) as config.gate:
+                    result = run_agent(task, config)
+            else:
+                result = run_agent(task, config)
             return {"session_id": session_id, "status": result.status, "answer": result.answer, "errors": result.errors,
                     "usage": result.usage, "estimated_usd": result.estimated_usd, "files_changed": result.files_changed}
 

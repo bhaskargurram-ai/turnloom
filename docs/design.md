@@ -28,7 +28,7 @@ Each step runs in this order:
 3. **Fit.** The prompt is estimated at four characters per token, scaled by the ratio the provider reported on the previous call. If it exceeds the window, the oldest complete exchange is saved to the archive as one record and removed; its reference is appended to the system message and the transcript records a `context` event. The system prompt, the first task and the newest user message always stay. If only the newest exchange remains and it is still too large, its biggest tool result is archived and shortened in place.
 4. **Reply allowance.** The reply limit is set to what remains of the window after the prompt, with a 20% margin on the estimate, so a provider that refuses input plus reply beyond its window still gets a request that fits.
 5. **Budget.** With a budget set, the next request is priced from the estimate. The reply limit shrinks to what the remaining allowance affords, or the turn stops with `budget_limit`.
-6. **Request.** One POST to `/chat/completions`. With a text callback the request streams and tool-call fragments are assembled by index. An endpoint that rejects streaming options is remembered and asked for whole replies. Retries cover 408, 409, 425, 429 and 5xx with backoff that honors `Retry-After`; a reply that has started to appear is never replayed, and a timed-out request is retried once. Endpoints of the form `litellm://provider` go through LiteLLM instead and return whole replies. On OpenRouter and LiteLLM routes to Claude models the system prompt is marked as a cache breakpoint.
+6. **Request.** One POST to `/chat/completions`. With a text callback the request streams and tool-call fragments are assembled by index. An endpoint that rejects streaming options is remembered and asked for whole replies. Retries cover 408, 409, 425, 429, 500, 502, 503, 504 and 529 with backoff that honors `Retry-After`; a reply that has started to appear is never replayed, and a timed-out request is retried once. Endpoints of the form `litellm://provider` go through LiteLLM instead and return whole replies. On OpenRouter and LiteLLM routes to Claude models the system prompt is marked as a cache breakpoint.
 7. **Reply.** A reply without tool calls is the answer. Tool calls run one at a time, each through the policy gate when one is active and then the approval gate.
 
 ## Tools
@@ -43,13 +43,15 @@ Each step runs in this order:
 
 Every path is resolved before use. Paths that leave the workspace through `..`, an absolute path, a drive, a symlink or a Windows alternate data stream are refused. `.git`, `.turnloom`, virtual environments, `node_modules`, `.ssh`, `.aws` and `.gnupg` are closed to everyone. Files whose names look like secrets (`.env`, `*.pem`, `id_rsa*`, `.npmrc` and similar) are closed to the model's file tools and open to the operator's editor in Studio.
 
-A read-only session offers the model only the read tools and `recall`.
+A read-only session offers the model only the read tools and `recall`: no edits, no shell and no MCP tools.
+
+External programs Turnloom starts itself (ripgrep, Git, Provio, a browser) are looked up on `PATH` and in the interpreter's scripts folder, never in the current directory or the workspace, so a repository cannot supply its own `rg.cmd` or `git.cmd`.
 
 ## Approval and policy
 
 `agent.permitted` is the approval gate: it asks the caller's `approve(kind, detail)` callback, where `kind` is `shell`, `edit` or `mcp`. With no callback, an action runs only if the caller set `auto_approve`. Nothing is approved by omission.
 
-When a workspace has a `provio.yaml` and the `guard` extra is installed, `agent.gated` first hands the call to Provio as `bash`, `fs.read`, `fs.write` or the MCP tool's name. A denial returns the rule and its reason to the model. An ask verdict goes to the operator with the rule shown, or is refused when nobody can answer. An allowed call continues to the approval gate unless the operator chose to let the policy decide. If Provio cannot answer, the tool does not run.
+When a workspace has a `provio.yaml` and the `guard` extra is installed, `agent.gated` first hands the call to Provio as `bash`, `fs.read`, `fs.write` or the MCP tool's name. A denial returns the rule and its reason to the model. An ask verdict goes to the operator with the rule shown, or is refused when nobody can answer. An allowed call continues to the approval gate unless the operator chose to let the policy decide. If Provio cannot answer, the tool does not run. The policy judges a file by its resolved location. A search asks the policy about each file that matched and returns only lines from files it allows; a file whose rule says ask is left out, and the model can request it by name. When a rule asks about an edit, the operator sees the diff in that one prompt.
 
 ## The archive
 
@@ -66,7 +68,7 @@ Three things enter the archive: a tool result when it is folded, the complete ou
 
 ## Transcript and usage
 
-Each session appends to `<workspace>/.turnloom/<id>.jsonl`. Every event carries a timestamp. Events are `start` (task, model, system prompt), `assistant` (message and usage), `tool` (result), `edit` (path with content before and after), `context` (exchanges archived to fit the window) and `end` (the receipt). The folder gets a `.gitignore` containing `*`.
+Each session appends to `<workspace>/.turnloom/<id>.jsonl`. Every event carries a timestamp. Events are `start` (task, model, system prompt; later stages of a team run are marked `continues`), `assistant` (message and usage), `tool` (result), `edit` (path with content before and after), `context` (exchanges archived to fit the window) and `end` (the receipt). The folder gets a `.gitignore` covering traces, the usage ledger and the undo database; `mcp.json` and `personas/` stay visible to Git.
 
 The transcript is the durable form of a session. `replay` prints it, `--resume` rebuilds the conversation from it, `undo` restores files from its `edit` events, `turnloom atif` converts it to an ATIF trajectory, and `turnloom serve` reads it for other agents. It contains file contents and command output, so treat it like the code it came from.
 

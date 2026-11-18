@@ -61,6 +61,22 @@ class ConnectorTests(unittest.TestCase):
                     "reference": reference, "search": "needle"}}), None)
                 self.assertIn("needle", json.dumps(found))
                 self.assertIn("Unknown server", hub.dispatch("mcp_search", '{"server":"absent","query":""}', None)["error"])
+                self.assertIn("Unknown server", hub.dispatch("mcp_call", '{"server":["local"],"name":"x","arguments":{}}', None)["error"])
+                # A pending approval must not block Studio's own use of the manager.
+                waiting, release = threading.Event(), threading.Event()
+
+                def slow(kind, detail):
+                    waiting.set()
+                    return release.wait(10)
+                payload = '{"server":"local","name":"sessions","arguments":{}}'
+                held = threading.Thread(target=hub.dispatch, args=("mcp_call", payload, slow, 30))
+                held.start()
+                self.assertTrue(waiting.wait(10))
+                started = time.monotonic()
+                self.assertTrue(hub.tools("local"))
+                self.assertLess(time.monotonic() - started, 5)
+                release.set()
+                held.join(20)
 
     def test_served_agent_runs_delegated_tasks_read_only_and_exposes_its_archive(self):
         """Another MCP client delegates a task to `turnloom serve --allow-run` and reads the result back."""

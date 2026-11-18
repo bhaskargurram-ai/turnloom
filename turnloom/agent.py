@@ -25,7 +25,7 @@ from turnloom import __version__, gateway, meter
 from turnloom.context import Observations
 from turnloom.providers import PROVIDERS
 from turnloom.tools import NAMES as FILE_TOOLS
-from turnloom.tools import READ_TOOLS, WRITE_TOOLS, Workspace
+from turnloom.tools import READ_TOOLS, WRITE_TOOLS, Workspace, system_program, unified
 
 # Best-effort: commands do not inherit model credentials. Other secrets in the environment still reach them.
 KEY_VARIABLES = {variable for _, _, variable in PROVIDERS.values()} | {
@@ -99,6 +99,7 @@ class Config:
     tool_limit: int = 0
     files: Workspace | None = None
     read_only: bool = False
+    continues: bool = False
     cache_rate: float | None = None
     fold_keep: int = 3
     cache_prompt: bool = True
@@ -164,7 +165,8 @@ def tool_schemas(config: Config) -> list[dict[str, Any]]:
     if not config.read_only:
         tools.append(SHELL)
     tools.append(RECALL)
-    if config.mcp:
+    if config.mcp and not config.read_only:
+        # A server's tools can change things Turnloom cannot see, so a read-only session gets none.
         tools += config.mcp.schema()
     return tools
 
@@ -358,7 +360,8 @@ def kill_tree(process: subprocess.Popen) -> None:
     """End a command together with the processes it started."""
     try:
         if os.name == "nt":
-            subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True, timeout=10)
+            subprocess.run([system_program("taskkill.exe"), "/T", "/F", "/PID", str(process.pid)],
+                           capture_output=True, timeout=10)
         else:
             os.killpg(process.pid, signal.SIGKILL)
     except (OSError, subprocess.SubprocessError):
@@ -438,15 +441,16 @@ def run_shell(arguments: str, config: Config, deadline: float, archive: Observat
         return json.dumps({"error": str(error)})
 
 
-def gated(config: Config, tool: str, arguments: dict, execute, server: str | None = None) -> str:
+def gated(config: Config, tool: str, arguments: dict, execute, server: str | None = None, detail: str = "") -> str:
     """Run a tool through the Provio gate when one is configured.
 
     ``execute`` receives the approval question to use: the operator's when no gate is present, and
-    whatever the gate hands over when the policy has had its say.
+    whatever the gate hands over when the policy has had its say. ``detail`` is what the operator
+    should be shown if the policy asks, such as an edit's diff.
     """
     if config.gate is None:
         return execute(lambda kind, detail: permitted(config, kind, detail))
-    return config.gate.run(tool, arguments, execute, server)
+    return config.gate.run(tool, arguments, execute, server, detail)
 
 
 def estimated_tokens(messages: list[dict[str, Any]]) -> int:
@@ -458,20 +462,30 @@ def protocol_overhead(config: Config) -> int:
 
 
 def repair(messages: list[dict[str, Any]]) -> None:
-    """Drop tool calls that never received a result so an interrupted turn can continue."""
-    answered = {item.get("tool_call_id") for item in messages if item["role"] == "tool"}
+    """Make an interrupted conversation valid again.
+
+    A tool call counts as answered only by the results that directly follow its own message, since
+    some providers reuse call ids. Unanswered calls are dropped, and so is an assistant message left
+    with neither text nor calls.
+    """
     cleaned = []
-    for item in messages:
-        calls = item.get("tool_calls") if item["role"] == "assistant" else None
-        if calls:
-            kept = [call for call in calls if call.get("id") in answered]
-            if len(kept) != len(calls):
-                item = {key: value for key, value in item.items() if key != "tool_calls"}
-                if kept:
-                    item["tool_calls"] = kept
-                elif not item.get("content"):
-                    continue
-        cleaned.append(item)
+    for index, item in enumerate(messages):
+        if item["role"] != "assistant":
+            cleaned.append(item)
+            continue
+        calls = item.get("tool_calls") or []
+        answered = set()
+        for later in messages[index + 1:]:
+            if later["role"] != "tool":
+                break
+            answered.add(later.get("tool_call_id"))
+        kept = [call for call in calls if call.get("id") in answered]
+        if len(kept) != len(calls):
+            item = {key: value for key, value in item.items() if key != "tool_calls"}
+            if kept:
+                item["tool_calls"] = kept
+        if item.get("tool_calls") or item.get("content"):
+            cleaned.append(item)
     messages[:] = cleaned
 
 
@@ -512,10 +526,18 @@ def fit_context(messages, config, archive=None, scale=1.0):
             if reference:
                 archive.exchanges.append((reference, len(blob)))
         del messages[start:boundary]
-        if archive is not None and archive.exchanges and messages[0]["role"] == "system":
-            listed = ", ".join(f"{reference} ({size:,} characters)" for reference, size in archive.exchanges[-12:])
-            messages[0]["content"] = messages[0]["content"].split(ARCHIVE_NOTE)[0] + ARCHIVE_NOTE + listed
+        if archive is not None and messages[0]["role"] == "system":
+            messages[0]["content"] = noted(messages[0]["content"], archive)
     return before - len(messages)
+
+
+def noted(prompt: str, archive: Observations | None) -> str:
+    """A system prompt followed by the references of exchanges archived out of the conversation, if any."""
+    base = prompt.split(ARCHIVE_NOTE)[0]
+    held = [(reference, size) for reference, size in archive.exchanges if reference in archive.records] if archive else []
+    if not held:
+        return base
+    return base + ARCHIVE_NOTE + ", ".join(f"{reference} ({size:,} characters)" for reference, size in held[-12:])
 
 
 def reply_allowance(messages, config, scale=1.0):
@@ -649,7 +671,7 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
         return permitted(config, kind, detail)
 
     record({"type": "start", "model": config.model, "task": task, "version": __version__,
-            "system_prompt": config.system_prompt})
+            "system_prompt": config.system_prompt, **({"continues": True} if config.continues else {})})
     usage = {"prompt_tokens": 0, "completion_tokens": 0, "cached_tokens": 0}
     errors: list[str] = []
     answer = ""
@@ -719,9 +741,18 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
                     config.on_step({"step": steps, **call_usage, "folded_chars": folded,
                                     "reported": "estimated_calls" not in usage,
                                     "cost": meter.price(call_usage, config.input_rate, config.output_rate, config.cache_rate)})
+                calls = message.get("tool_calls") or []
+                if not calls and not message.get("content"):
+                    # An empty reply never enters the conversation or the transcript: a null assistant
+                    # message would be rejected on every later request.
+                    if not retried_empty and not finish_reason:
+                        retried_empty = True
+                        continue
+                    status = "error"
+                    errors.append("The model returned neither an answer nor a tool call.")
+                    break
                 messages.append(message)
                 record({"type": "assistant", "step": steps, "message": message, "usage": reported, "estimated_usd": cost})
-                calls = message.get("tool_calls") or []
                 if stopping():
                     status = "stopped"
                     break
@@ -733,16 +764,8 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
                     errors.append(finish_reason)
                     break
                 if not calls:
-                    answer = message.get("content") or ""
-                    if not answer and not retried_empty and not finish_reason:
-                        # One empty reply is usually a provider hiccup; ask once more before failing.
-                        retried_empty = True
-                        messages.pop()
-                        continue
-                    if not answer:
-                        status = "error"
-                        errors.append("The model returned neither an answer nor a tool call.")
-                    elif stop_reason == "length":
+                    answer = message["content"]
+                    if stop_reason == "length":
                         status, truncated = "partial", True
                         errors.append("The reply reached its token limit and may be cut off. Raise the reply limit for longer answers.")
                     elif finish_reason:
@@ -774,11 +797,26 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
                     elif tool_name in FILE_TOOLS:
                         before = len(files.changes)
 
-                        def touch(ask, tool_name=tool_name, arguments=arguments):
-                            return json.dumps(files.dispatch(tool_name, arguments, ask, config.read_only), ensure_ascii=False)
-                        result = gated(config, "fs.write" if tool_name in ("edit_file", "write_file") else "fs.read",
-                                       {"path": str(config.workspace / str(params.get("path") or ".")), "action": tool_name},
-                                       touch) if isinstance(params, dict) else touch(gate)
+                        writing = tool_name in ("edit_file", "write_file")
+                        permit = config.gate.permits_read if config.gate and tool_name == "search_files" else None
+
+                        def touch(ask, tool_name=tool_name, arguments=arguments, permit=permit):
+                            return json.dumps(files.dispatch(tool_name, arguments, ask, config.read_only, permit), ensure_ascii=False)
+                        if config.gate is None or not isinstance(params, dict):
+                            result = touch(gate)
+                        else:
+                            # The policy judges the file's real location, and sees an edit's diff if it asks.
+                            location, detail = str(config.workspace / str(params.get("path") or ".")), ""
+                            try:
+                                location = str(files.resolve(str(params.get("path") or "."), exists=False))
+                                if writing and not config.read_only:
+                                    target, old, new, _ = files.plan(tool_name, params)
+                                    name = files.name(target)
+                                    detail = ("Create " if old is None else "Edit ") + name + "\n" + unified(old or "", new, name)
+                            except (ValueError, KeyError, TypeError, OSError):
+                                pass
+                            result = gated(config, "fs.write" if writing else "fs.read", {"path": location, "action": tool_name},
+                                           touch, None, detail)
                         for change in files.changes[before:]:
                             record({"type": "edit", "step": steps, "path": change["path"],
                                     "before": change["before"], "after": change["after"]})
@@ -791,6 +829,8 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
                             result = run_shell(arguments, config, deadline, archive)
                     elif tool_name == "recall":
                         result = archive.recall(arguments)
+                    elif config.mcp and tool_name in ("mcp_search", "mcp_call") and config.read_only:
+                        result = json.dumps({"error": "This session is read-only. MCP tools are unavailable."})
                     elif config.mcp and tool_name in ("mcp_search", "mcp_call"):
                         def invoke(ask, arguments=arguments, tool_name=tool_name):
                             return json.dumps(config.mcp.dispatch(tool_name, arguments, ask, deadline - time.monotonic()),

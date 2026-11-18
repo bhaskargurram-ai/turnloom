@@ -7,7 +7,6 @@ that a browser tab. https://github.com/r0x0r/pywebview
 """
 
 import os
-import shutil
 import subprocess
 import sys
 import threading
@@ -15,6 +14,7 @@ from importlib.resources import files
 from pathlib import Path
 
 from turnloom.studio import choose_folder, handoff, make_server, open_browser
+from turnloom.tools import find_program
 
 TITLE = "Turnloom Studio"
 
@@ -35,7 +35,7 @@ def internal(arguments):
 
 def app_browser():
     """A Chromium browser that can open a URL as a standalone app window."""
-    candidates = [shutil.which(name) for name in ("msedge", "chrome", "google-chrome", "chromium", "chromium-browser")]
+    candidates = [find_program(name) for name in ("msedge", "chrome", "google-chrome", "chromium", "chromium-browser")]
     for root in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles"), os.environ.get("LocalAppData")):
         if root:
             candidates += [Path(root) / "Microsoft/Edge/Application/msedge.exe", Path(root) / "Google/Chrome/Application/chrome.exe"]

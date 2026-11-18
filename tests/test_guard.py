@@ -84,6 +84,41 @@ class GateTests(unittest.TestCase):
         kinds = {row["tool"] for row in guard.ledger(self.root)["records"]}
         self.assertIn("fs.write", kinds)
 
+    def test_search_cannot_read_what_the_policy_denies(self):
+        (self.root / "kubeconfig").write_text("users:\n- name: admin\n  user:\n    client-key-data: QUJDREVG\n")
+        (self.root / "app.py").write_text("client-key-data = 'not a secret, just code'\n")
+        direct = self.run_turn([("read_file", {"path": "kubeconfig"})], True, False)[0][0]
+        self.assertEqual(direct["blocked_by"], "provio")
+        for arguments in ({"query": "client-key-data"}, {"query": ".", "regex": True, "glob": "kubeconfig"}):
+            with self.subTest(arguments=arguments):
+                found = self.run_turn([("search_files", arguments)], True, False)[0][0]
+                self.assertFalse([row for row in found["matches"] if row.startswith("kubeconfig")], found)
+        self.assertEqual(self.run_turn([("search_files", {"query": "client-key-data"})], True, False)[0][0]["matches"],
+                         ["app.py:1:client-key-data = 'not a secret, just code'"])
+
+    def test_a_rule_that_asks_puts_one_question_with_the_edit_in_view(self):
+        (self.root / "provio.yaml").write_text(
+            guard.STARTER + 'rules:\n  - {id: ask-before-writes, when: "tool == \\"fs.write\\"", verdict: ask}\n',
+            encoding="utf-8")
+        (self.root / "notes.txt").write_text("one\n")
+        edit = ("edit_file", {"path": "notes.txt", "old_string": "one", "new_string": "two"})
+        for confirm in (True, False):
+            with self.subTest(confirm=confirm):
+                (self.root / "notes.txt").write_text("one\n")
+                results, asked = self.run_turn([edit], True, confirm)
+                self.assertNotIn("blocked_by", results[0], results[0])
+                self.assertEqual(len(asked), 1, asked)
+                self.assertIn("+two", asked[0])
+                self.assertEqual((self.root / "notes.txt").read_text(), "two\n")
+        (self.root / "notes.txt").write_text("one\n")
+        results, asked = self.run_turn([edit], False, False)
+        self.assertEqual((self.root / "notes.txt").read_text(), "one\n")
+        self.assertTrue(results[0].get("declined") or results[0].get("error"))
+
+    def test_shell_ask_verdict_is_put_to_the_operator_once(self):
+        results, asked = self.run_turn([("shell", {"command": "git reset --hard"})], True, True)
+        self.assertEqual(asked, ["git reset --hard"])
+
     def test_ledger_and_test_report_decisions(self):
         self.run_turn([("shell", {"command": "echo one"}), ("shell", {"command": "rm -rf /"})], True, False)
         ledger = guard.ledger(self.root)

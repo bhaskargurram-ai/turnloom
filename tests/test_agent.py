@@ -98,8 +98,24 @@ class LoopTests(unittest.TestCase):
         self.assertNotIn("*", ignored)
 
     def test_read_only_sessions_offer_no_write_or_shell_tools(self):
-        names = [tool["function"]["name"] for tool in agent.tool_schemas(self.config(read_only=True, files=object()))]
+        class Servers:
+            def __init__(self):
+                self.calls = []
+
+            def schema(self):
+                return [{"type": "function", "function": {"name": "mcp_call"}}]
+
+            def dispatch(self, *arguments):
+                self.calls.append(arguments)
+                return {"ran": True}
+        servers = Servers()
+        names = [tool["function"]["name"] for tool in agent.tool_schemas(self.config(read_only=True, files=object(), mcp=servers))]
         self.assertEqual(names, ["list_files", "read_file", "search_files", "recall"])
+        call = ("mcp_call", {"server": "s", "name": "t", "arguments": {}})
+        model = Scripted(reply(calls=[call]), reply("Could not."))
+        self.run_with(model, read_only=True, mcp=servers)
+        self.assertIn("read-only", model.sent[1]["messages"][-1]["content"])
+        self.assertEqual(servers.calls, [])
         refused = json.loads(run_shell('{"command": "echo hi"}', self.config(read_only=True), float("inf")))
         self.assertIn("read-only", refused["error"])
 
@@ -205,6 +221,20 @@ class LoopTests(unittest.TestCase):
         model = Scripted(reply(""), reply("Recovered."))
         self.assertEqual(self.run_with(model).answer, "Recovered.")
         self.assertEqual(self.run_with(Scripted(reply(""), reply(""))).status, "error")
+
+    def test_empty_replies_never_enter_the_conversation_or_the_transcript(self):
+        trace = self.root / ".turnloom" / ("e" * 32 + ".jsonl")
+        history = []
+        failed = self.run_with(Scripted(reply(None), reply(None)), task="first", history=history, transcript=trace)
+        self.assertEqual(failed.status, "error")
+        model = Scripted(reply(None), reply("recovered"))
+        self.run_with(model, task="second", history=history, transcript=trace)
+        sent = [(item["role"], item.get("content")) for item in model.sent[0]["messages"][1:]]
+        self.assertEqual(sent, [("user", "first"), ("user", "second")])
+        resumed = load_history(trace, "system")
+        self.assertEqual([(item["role"], item.get("content")) for item in resumed[1:]],
+                         [("user", "first"), ("user", "second"), ("assistant", "recovered")])
+        self.assertTrue(all(item.get("content") or item.get("tool_calls") for item in resumed))
         cut = self.run_with(Scripted(reply("A long answer that stops", finish="length")))
         self.assertEqual((cut.status, cut.answer), ("partial", "A long answer that stops"))
 
@@ -252,6 +282,15 @@ class LoopTests(unittest.TestCase):
         self.assertEqual([call["id"] for call in messages[0]["tool_calls"]], ["a"])
         self.assertEqual(messages[2], {"role": "assistant", "content": "note"})
         self.assertEqual(len(messages), 3)
+
+    def test_repair_handles_reused_call_ids_and_empty_messages(self):
+        messages = [{"role": "assistant", "content": None, "tool_calls": [{"id": "0"}]},
+                    {"role": "tool", "tool_call_id": "0", "content": "{}"},
+                    {"role": "assistant", "content": None},
+                    {"role": "assistant", "content": None, "tool_calls": [{"id": "0"}]},
+                    {"role": "user", "content": "next"}]
+        repair(messages)
+        self.assertEqual([item["role"] for item in messages], ["assistant", "tool", "user"])
 
     def test_saved_session_resumes_with_its_tool_results(self):
         trace = self.root / ".turnloom" / ("d" * 32 + ".jsonl")
@@ -329,6 +368,28 @@ class ContextTests(unittest.TestCase):
         archive.fold(messages)
         folded = json.loads(messages[0]["content"])
         self.assertEqual((folded["reference"], folded["characters"]), (reference, len(full)))
+
+    def test_folding_non_ascii_output_shrinks_it_and_never_nests(self):
+        archive = Observations()
+        text = "变量 значение مقدار " * 60
+        messages = [{"role": "tool", "tool_call_id": "u", "content": text}] + [
+            {"role": "tool", "tool_call_id": str(index), "content": "recent"} for index in range(3)]
+        removed = archive.fold(messages)
+        folded = messages[0]["content"]
+        self.assertGreater(removed, 0)
+        self.assertLess(len(folded), len(text))
+        self.assertIn("变量", folded)
+        self.assertEqual(archive.fold(messages), 0)
+        self.assertEqual(messages[0]["content"], folded)
+
+    def test_archive_note_survives_a_new_system_prompt(self):
+        archive = Observations()
+        reference = archive.save("an archived exchange")
+        archive.exchanges.append((reference, 20))
+        prompt = agent.noted("New persona prompt", archive)
+        self.assertIn(reference, prompt)
+        self.assertEqual(agent.noted(prompt, archive), prompt)
+        self.assertEqual(agent.noted(prompt, Observations()), "New persona prompt")
 
     def test_recall_reports_bad_arguments_precisely(self):
         archive = Observations()

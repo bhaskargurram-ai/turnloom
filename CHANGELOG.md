@@ -25,7 +25,10 @@ The first public release. The agent gains real file tools, streaming, sessions t
 ### Changed
 
 - **Commands and edits are declined unless something approves them.** A caller that sets no approval callback must opt in with `auto_approve`. Previously a missing callback meant "approve everything".
-- **The policy gate covers file edits** as `fs.write`, alongside shell commands, reads and MCP calls.
+- **The policy gate covers file edits** as `fs.write`, alongside shell commands, reads and MCP calls. Searches return only lines from files the policy allows, delegated tasks through `turnloom serve` are gated, and a rule that asks is put to the operator once, with an edit's diff in view. Studio refuses to run ungated when a policy file exists and Provio is missing.
+- **Programs are never taken from the project folder.** ripgrep, Git, Provio and `taskkill` are resolved from `PATH` and the interpreter's scripts folder only. On Windows a bare program name used to resolve in the current directory first.
+- Directory junctions leading out of the workspace are no longer listed or searched. Read-only sessions no longer offer MCP tools.
+- Studio remembers an enabled MCP server together with its definition and switches it off when the definition changes. Choosing "always" on an edit lasts for the session and is not saved.
 - **Context overflow archives instead of deleting.** Exchanges removed to fit the window stay recoverable through `recall`, and an oversized newest result is shortened in place rather than failing the turn.
 - **Tool results the model has not read are never folded.** A batch of parallel calls used to lose all but its last three results before the model saw them.
 - **Full command output is archived** when the prompt only receives its head and tail.

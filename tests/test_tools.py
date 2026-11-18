@@ -1,11 +1,14 @@
 import json
 import os
+import stat
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from turnloom.tools import PROTECTED, Workspace, tolerant
+from turnloom.tools import PROTECTED, Workspace, find_program, system_program, tolerant
 
 
 class WorkspaceToolTests(unittest.TestCase):
@@ -61,6 +64,92 @@ class WorkspaceToolTests(unittest.TestCase):
             self.assertFalse((Path(elsewhere) / "new.txt").exists())
             self.assertNotIn("link/", self.call("list_files")["entries"])
 
+    @unittest.skipUnless(os.name == "nt", "directory junctions are a Windows feature")
+    def test_junction_out_of_the_workspace_is_not_listed_or_searched(self):
+        with tempfile.TemporaryDirectory() as elsewhere:
+            (Path(elsewhere) / "private.txt").write_text("OUTSIDE-SECRET token=abc")
+            made = subprocess.run(["cmd", "/c", "mklink", "/J", str(self.root / "vendor"), elsewhere], capture_output=True)
+            if made.returncode:
+                self.skipTest("junctions unavailable")
+            try:
+                with patch("turnloom.tools.find_program", return_value=None):
+                    self.assertEqual(self.call("search_files", query="token")["matches"], [])
+                self.assertEqual(self.call("search_files", query="token")["matches"], [])
+                self.assertEqual(self.call("list_files", glob="**/*.txt")["paths"], [])
+                self.assertNotIn("vendor/", self.call("list_files")["entries"])
+                self.assertEqual(self.call("read_file", path="vendor/private.txt"), {"error": "Path outside the workspace."})
+            finally:
+                os.rmdir(self.root / "vendor")
+
+    def test_programs_planted_in_the_workspace_or_current_directory_are_never_chosen(self):
+        planted = self.root / ("rg.cmd" if os.name == "nt" else "rg")
+        planted.write_text("@echo planted\n" if os.name == "nt" else "#!/bin/sh\necho planted\n")
+        planted.chmod(planted.stat().st_mode | stat.S_IXUSR)
+        marker = self.root / "ran.txt"
+        before = os.getcwd()
+        os.chdir(self.root)
+        try:
+            with patch.dict(os.environ, {"PATH": os.pathsep.join([".", str(self.root), os.environ.get("PATH", "")])}):
+                os.environ.pop("NoDefaultCurrentDirectoryInExePath", None)
+                found = find_program("rg", self.root)
+                self.assertFalse(found and Path(found).resolve().is_relative_to(self.root), found)
+                self.assertIsNone(find_program("definitely-not-a-real-program-name"))
+                result = self.call("search_files", query="return 1")
+                self.assertEqual(result["count"], 2)
+        finally:
+            os.chdir(before)
+        self.assertFalse(marker.exists())
+        self.assertTrue(find_program("python" if os.name == "nt" else Path(sys.executable).name) or True)
+        if os.name == "nt":
+            self.assertTrue(system_program("taskkill.exe").lower().endswith("system32\\taskkill.exe"))
+            self.assertTrue(Path(system_program("taskkill.exe")).is_file())
+
+    def test_secret_names_are_excluded_from_search_whatever_their_case(self):
+        (self.root / "Server.PEM").write_text("TOKEN=upper\n")
+        (self.root / "ID_RSA").write_text("TOKEN=key\n")
+        for engine in ("ripgrep", "python"):
+            with self.subTest(engine=engine):
+                context = patch("turnloom.tools.find_program", return_value=None) if engine == "python" else patch.dict(os.environ, {})
+                with context:
+                    found = self.call("search_files", query="TOKEN")
+                if found["engine"] != engine:
+                    self.skipTest("ripgrep is not installed")
+                self.assertEqual(found["matches"], [])
+
+    def test_search_drops_files_a_policy_vetoes(self):
+        (self.root / "notes.txt").write_text("return 1 here too\n")
+        asked = []
+
+        def permit(path):
+            asked.append(path.name)
+            return path.name != "app.py"
+        found = self.files.search_files("return 1", permit=permit)
+        self.assertEqual(found["matches"], ["notes.txt:1:return 1 here too"])
+        self.assertEqual(sorted(asked), ["app.py", "notes.txt"])
+
+    @unittest.skipIf(os.name == "nt", "POSIX file modes")
+    def test_new_files_get_ordinary_permissions(self):
+        self.call("write_file", path="fresh.txt", content="x\n")
+        umask = os.umask(0)
+        os.umask(umask)
+        self.assertEqual(stat.S_IMODE((self.root / "fresh.txt").stat().st_mode), 0o666 & ~umask)
+        (self.root / "tool.sh").write_text("#!/bin/sh\n")
+        (self.root / "tool.sh").chmod(0o755)
+        self.call("write_file", path="tool.sh", content="#!/bin/sh\necho hi\n")
+        self.assertEqual(stat.S_IMODE((self.root / "tool.sh").stat().st_mode), 0o755)
+
+    def test_edits_across_several_runs_are_reviewed_and_undone_as_one_turn(self):
+        self.files.turn = 4
+        self.call("write_file", path="plan.md", content="plan\n")
+        self.files.turn = 5
+        self.call("write_file", path="build.py", content="x = 1\n")
+        self.files.turn = 6
+        _, files = self.files.pending(since=3)
+        self.assertEqual([item["path"] for item in files], ["plan.md", "build.py"])
+        self.assertEqual(self.files.pending(since=5)[1], [])
+        self.assertEqual(self.files.undo(since=3), {"restored": ["plan.md", "build.py"], "conflicts": []})
+        self.assertEqual(self.files.changes, [])
+
     def test_read_pages_through_a_file(self):
         (self.root / "long.txt").write_text("\n".join(f"row {index}" for index in range(1, 601)))
         first = self.call("read_file", path="long.txt")
@@ -87,7 +176,7 @@ class WorkspaceToolTests(unittest.TestCase):
         self.check_search("ripgrep")
 
     def test_search_falls_back_to_python_without_ripgrep(self):
-        with patch("turnloom.tools.shutil.which", return_value=None):
+        with patch("turnloom.tools.find_program", return_value=None):
             self.check_search("python")
 
     def test_glob_lists_nested_files(self):

@@ -200,6 +200,11 @@ class ProxyTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as wrong:
             post(body, token="wrong")
         wrong.exception.close()
+        for malformed in ("just a string", {"messages": "nope"}, {"messages": ["nope"]}):
+            with self.assertRaises(urllib.error.HTTPError) as bad:
+                post(malformed)
+            self.assertEqual(bad.exception.code, 400)
+            bad.exception.close()
         for headers in ({"Origin": "https://example.org"}, {"Host": "attacker.example"}):
             request = urllib.request.Request(base + "/chat/completions", json.dumps(body).encode(),
                                              {"Content-Type": "text/plain", "Authorization": "Bearer secret", **headers})
@@ -351,6 +356,58 @@ class StudioLayerTests(unittest.TestCase):
     def test_team_mode_runs_without_langgraph(self):
         with patch.dict("sys.modules", {"langgraph": None, "langgraph.graph": None}):
             self.check_team_mode()
+
+    def test_team_edits_can_be_reviewed_and_reverted_after_the_last_stage(self):
+        self.bench.dispatch("settings", {"mode": "team", "servers": [], "auto_edit": True})
+        replies = iter([reply("Plan: add a file."),
+                        reply(None, [("write_file", {"path": "made.txt", "content": "built\n"})]), reply("Built it."),
+                        reply("Looks right.")])
+        with patch("turnloom.agent.api_request", side_effect=lambda *a, **k: next(replies)):
+            self.bench.dispatch("run", {"task": "Make a file", "persona": "builder"})
+            self.wait()
+        state = self.bench.dispatch("state", {})
+        self.assertEqual(state["edits"], [{"path": "made.txt", "created": True, "added": 1, "removed": 0}])
+        self.assertIn("+built", self.bench.dispatch("edit_diff", {"path": "made.txt"})["diff"])
+        self.assertEqual(self.bench.dispatch("revert", {}), {"restored": ["made.txt"], "conflicts": []})
+        self.assertFalse((self.root / "made.txt").exists())
+
+    def test_archived_exchange_references_stay_in_the_prompt_on_later_turns(self):
+        with patch("turnloom.agent.api_request", return_value=reply("one")):
+            self.bench.dispatch("run", {"task": "first", "persona": "builder"})
+            self.wait()
+        reference = self.bench.archive.save("an exchange that left the prompt")
+        self.bench.archive.exchanges.append((reference, 32))
+        with patch("turnloom.agent.api_request", return_value=reply("two")) as request:
+            self.bench.dispatch("run", {"task": "second", "persona": "reviewer"})
+            self.wait()
+        system = request.call_args_list[0].args[1][0]["content"]
+        self.assertIn("Code Reviewer", system)
+        self.assertIn(reference, system)
+
+    def test_an_enabled_server_is_switched_off_when_its_definition_changes(self):
+        folder = self.root / ".turnloom"
+        folder.mkdir(exist_ok=True)
+        config = folder / "mcp.json"
+        config.write_text(json.dumps({"mcpServers": {"docs": {"command": "docs-server", "args": ["--safe"]}}}), encoding="utf-8")
+        self.bench.dispatch("settings", {"servers": ["docs"]})
+        row, = [item for item in self.bench.dispatch("servers", {})["servers"] if item["name"] == "docs"]
+        self.assertEqual((row["enabled"], row["changed"]), (True, False))
+        config.write_text(json.dumps({"mcpServers": {"docs": {"command": "something-else"}}}), encoding="utf-8")
+        again = Workbench(self.root)
+        self.addCleanup(again.close)
+        row, = [item for item in again.dispatch("servers", {})["servers"] if item["name"] == "docs"]
+        self.assertEqual((row["enabled"], row["changed"]), (False, True))
+
+    def test_a_policy_file_without_provio_stops_the_turn_until_the_gate_is_turned_off(self):
+        (self.root / "provio.yaml").write_text("version: 1\ndefault: allow\n", encoding="utf-8")
+        with patch("turnloom.guard.installed", return_value=False):
+            with self.assertRaisesRegex(ValueError, "Provio is not installed"):
+                self.bench.dispatch("run", {"task": "hello", "persona": "builder"})
+            self.bench.dispatch("settings", {"gate": "off"})
+            with patch("turnloom.agent.api_request", return_value=reply("ran without the gate")):
+                self.bench.dispatch("run", {"task": "hello", "persona": "builder"})
+                self.wait()
+        self.assertEqual(self.bench.dispatch("state", {})["messages"][-1]["text"], "ran without the gate")
 
     def test_changes_compare_the_working_tree_with_the_last_commit(self):
         def git(*arguments):

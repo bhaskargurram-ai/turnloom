@@ -5,7 +5,6 @@ import hashlib
 import json
 import os
 import secrets
-import shutil
 import sqlite3
 import subprocess
 import sys
@@ -20,11 +19,11 @@ from pathlib import Path
 from uuid import uuid4
 
 from turnloom import __version__, gateway, guard, meter, providers, roster
-from turnloom.agent import ARCHIVE_NOTE, Config, load_history, run_agent, trace_folder
+from turnloom.agent import Config, load_history, noted, run_agent, trace_folder
 from turnloom.cli import events, instructions, traces
 from turnloom.context import Observations
 from turnloom.extensions import McpTools
-from turnloom.tools import IGNORE, Workspace, canonical, unified, uses_crlf, write_atomic
+from turnloom.tools import IGNORE, Workspace, canonical, find_program, unified, uses_crlf, write_atomic
 
 
 LIMIT = 512 * 1024
@@ -36,7 +35,7 @@ KINDS = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=u
 REVIEW = ("\n\nFor a broad review, sample the most relevant files, report concrete findings with file and line evidence, "
           "and state what you covered.")
 DEFAULTS = {"budget": 0.0, "fold": True, "keep": 3, "reply": 8192, "effort": "", "mode": "solo", "auto_approve": False,
-            "auto_edit": False, "cache": True, "servers": [], "gate": "confirm",
+            "auto_edit": False, "cache": True, "servers": [], "trusted": {}, "gate": "confirm",
             "team": [{"name": "plan", "persona": "engineering-software-architect", "read_only": True,
                       "instruction": "Inspect the task and the code, then list the changes and checks needed."},
                      {"name": "build", "persona": "builder", "read_only": False,
@@ -74,9 +73,15 @@ def through_unwind(ledger, spec=None):
     """Wrap an MCP server command in Unwind's reversibility proxy. No spec means the bundled VerifyDoc server."""
     upstream = [spec["command"], *spec.get("args", [])] if spec else []
     wrapped = worker("turnloom.unwind_stdio", str(ledger), *upstream)
-    if spec and spec.get("pass_env"):
-        wrapped["pass_env"] = spec["pass_env"]
+    for key in ("pass_env", "env"):
+        if spec and spec.get(key):
+            wrapped[key] = spec[key]
     return wrapped
+
+
+def digest(spec):
+    """A fingerprint of one server definition, so an enabled server stays enabled only while it is unchanged."""
+    return hashlib.sha256(json.dumps(spec, sort_keys=True).encode("utf-8")).hexdigest()[:24]
 
 
 def settings_path(root):
@@ -191,6 +196,8 @@ class Workbench:
         self.running = ""
         self.notified = 0.0
         self.always = set()
+        self.session_edits = False
+        self.turn_base = 0
         self.session_key = ""
         self.catalog = {}
         self.persona = "builder"
@@ -291,7 +298,7 @@ class Workbench:
         return {"path": self.files.name(target)}
 
     def git(self, *arguments):
-        executable = shutil.which("git")
+        executable = find_program("git", self.root)
         if not executable:
             raise ValueError("Install Git to review changes.")
         return subprocess.run([executable, "-c", "core.quotepath=off", *arguments], cwd=self.root, capture_output=True,
@@ -333,7 +340,7 @@ class Workbench:
         """Files the agent's own tools edited in the latest turn, net per file."""
         if not self.messages:
             return []
-        _, changed = self.files.pending(self.files.turn)
+        _, changed = self.files.pending(since=self.turn_base)
         rows = []
         for item in changed:
             diff = unified(item["before"] or "", item["after"], item["path"], 200000).splitlines()
@@ -349,7 +356,8 @@ class Workbench:
             if self.stop.is_set():
                 return False
             settings = self.settings
-            if settings["auto_approve"] or (kind == "edit" and settings["auto_edit"]) or (kind, detail) in self.always:
+            edits = kind == "edit" and (settings["auto_edit"] or self.session_edits)
+            if settings["auto_approve"] or edits or (kind, detail) in self.always:
                 self.risk = self.verdict = None
                 return True
             title, _, body = detail.partition("\n") if kind == "edit" else ("", "", detail)
@@ -434,8 +442,12 @@ class Workbench:
                 manager.__enter__()
                 manager.before_approval = self.assess
                 self.mcp, self.unwound = manager, unwound
-            self.mcp.enabled = {name for name in self.mcp.servers if name in self.settings["servers"]}
+            self.mcp.enabled = {name for name, spec in self.mcp.servers.items() if self.trusted(name, spec)}
             return self.mcp
+
+    def trusted(self, name, spec):
+        """A server runs for the agent only if the operator switched on this exact definition of it."""
+        return name in self.settings["servers"] and self.settings["trusted"].get(name) == digest(spec)
 
     def close(self):
         with self.lock:
@@ -481,7 +493,8 @@ class Workbench:
                 return spec["url"]
             return (Path(spec["command"]).name + " " + " ".join(spec.get("args", [])))[:160]
         return {"companions": companions_installed(), "config": ".turnloom/mcp.json", "servers": [
-            {"name": name, "command": summary(spec), "enabled": name in self.settings["servers"],
+            {"name": name, "command": summary(spec), "enabled": self.trusted(name, spec),
+             "changed": name in self.settings["servers"] and not self.trusted(name, spec),
              "unwind": name in unwound, "bundled": name == "verifydoc",
              "running": bool(self.mcp and name in self.mcp.sessions)} for name, spec in specs.items()]}
 
@@ -571,8 +584,18 @@ class Workbench:
             settings["mode"] = data["mode"]
         if data.get("gate") in ("confirm", "policy", "off"):
             settings["gate"] = data["gate"]
+        if isinstance(data.get("trusted"), dict) and not persist:
+            settings["trusted"] = {name: value for name, value in data["trusted"].items()
+                                   if isinstance(name, str) and isinstance(value, str)}
         if isinstance(data.get("servers"), list):
             settings["servers"] = [name for name in data["servers"] if isinstance(name, str)][:32]
+            if persist:
+                # Switching a server on trusts the definition it has right now, not whatever replaces it later.
+                try:
+                    specs = self.mcp.servers if self.mcp else self.server_specs()[0]
+                except (ValueError, OSError):
+                    specs = {}
+                settings["trusted"] = {name: digest(specs[name]) for name in settings["servers"] if name in specs}
         if isinstance(data.get("team"), list):
             team = []
             for stage in data["team"][:8]:
@@ -694,6 +717,8 @@ class Workbench:
             if "companions" in data:
                 wanted = set(settings["servers"]) | {"verifydoc"} if data["companions"] is True else set(settings["servers"]) - {"verifydoc"}
                 settings["servers"] = self.settings["servers"] = sorted(wanted)
+                if data["companions"] is True and companions_installed():
+                    self.settings["trusted"]["verifydoc"] = digest(through_unwind(self.root / ".turnloom" / "unwind.db"))
             tools = None
             if settings["servers"]:
                 try:
@@ -703,7 +728,11 @@ class Workbench:
                     if data.get("companions") is True:
                         raise
             gate = None
-            if self.gate_state()["active"]:
+            state = self.gate_state()
+            if state["policy"] and not state["installed"] and settings["gate"] != "off":
+                raise ValueError('This workspace has a provio.yaml but Provio is not installed. Install "turnloom[guard]", '
+                                 "or turn the gate off in the Policy view to run without the policy.")
+            if state["active"]:
                 gate = guard.Gate(self.root, approve=self.approve, confirm=settings["gate"] == "confirm",
                                   session=self.trace.stem, notify=self.note_verdict)
             self.stop.clear()
@@ -725,7 +754,8 @@ class Workbench:
                             budget_usd=settings["budget"] if priced and (conn.free or (conn.input_rate and conn.output_rate)) else 0,
                             on_step=lambda event: self.record_step(event, current["persona"]))
             if self.history and self.history[0]["role"] == "system":
-                self.history[0]["content"] = config.system_prompt
+                self.history[0]["content"] = noted(config.system_prompt, self.archive)
+            self.turn_base = self.files.turn
             self.messages.append({"role": "user", "text": task})
             self.stages = [{"name": stage["name"], "persona": stage["persona"], "status": "queued"}
                            for stage in settings["team"]] if team else []
@@ -800,7 +830,9 @@ class Workbench:
         self.history.clear()
         self.archive = StudioArchive()
         self.files.changes = []
+        self.turn_base = self.files.turn
         self.always.clear()
+        self.session_edits = False
         self.draft = self.running = ""
 
     def sessions(self):
@@ -876,6 +908,7 @@ class Workbench:
                     "session": self.trace.stem, "trace": f".turnloom/{self.trace.name}",
                     "draft": self.draft, "running": self.running,
                     "loom": self.archive.snapshot(), "edits": self.edits(),
+                    "always": {"edits": self.session_edits, "requests": len(self.always)},
                     "persona": self.persona, "settings": self.settings,
                     "stages": self.stages, "companions": companions_installed(), "gate": self.gate_state(),
                     "limits": {"steps": STEPS, "tools": TOOLS},
@@ -919,7 +952,8 @@ class Workbench:
                 self.decision = data["approve"] is True
                 if self.decision and data.get("always") is True:
                     if self.pending["kind"] == "edit":
-                        self.settings["auto_edit"] = True
+                        # For this session only. The saved setting changes only through the settings action.
+                        self.session_edits = True
                     else:
                         self.always.add((self.pending["kind"], self.pending["detail"]))
                 self.pending = None
@@ -927,7 +961,7 @@ class Workbench:
             return True
         if action == "edit_diff":
             with self.lock:
-                _, changed = self.files.pending(self.files.turn)
+                _, changed = self.files.pending(since=self.turn_base)
                 item = next((item for item in changed if item["path"] == data["path"]), None)
                 if item is None:
                     raise ValueError("No recorded edit for that file.")
@@ -937,7 +971,7 @@ class Workbench:
         if action == "revert":
             with self.lock:
                 self.idle()
-                outcome = self.files.undo(self.files.turn)
+                outcome = self.files.undo(since=self.turn_base)
                 parts = []
                 if outcome["restored"]:
                     parts.append("Restored " + ", ".join(outcome["restored"]) + ".")
@@ -1062,8 +1096,6 @@ class Workbench:
                         self.session_key = key
                 providers.store_profile({"provider": provider, **row})
                 self.connection = providers.connection(provider, row, self.session_key or key)
-                if self.history and self.history[0]["role"] == "system":
-                    self.history[0]["content"] = self.history[0]["content"].split(ARCHIVE_NOTE)[0]
                 self.touch()
             return True
         raise ValueError("Unknown action.")

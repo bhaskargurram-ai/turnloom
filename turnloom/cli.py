@@ -7,9 +7,7 @@ import math
 import os
 import platform
 import re
-import shutil
 import sys
-import sysconfig
 import time
 from contextlib import nullcontext
 from dataclasses import asdict
@@ -22,7 +20,7 @@ from turnloom.agent import Config, SYSTEM_PROMPT, environment, load_history, pro
 from turnloom.context import Observations
 from turnloom.extensions import McpTools, project_skills, skills
 from turnloom import providers, roster
-from turnloom.tools import Workspace, unified
+from turnloom.tools import Workspace, find_program, unified
 
 
 SESSION = re.compile("[a-f0-9]{32}")
@@ -132,10 +130,10 @@ def list_sessions(workspace):
 
 
 def recorded_edits(path):
-    """Edits made by the final turn of a saved session."""
+    """Edits made by the final turn of a saved session. The stages of a team run count as one turn."""
     edits = []
     for event in events(path):
-        if event.get("type") == "start":
+        if event.get("type") == "start" and not event.get("continues"):
             edits = []
         elif event.get("type") == "edit":
             edits.append({"path": event["path"], "before": event["before"], "after": event["after"], "turn": 0})
@@ -221,7 +219,7 @@ def doctor(workspace):
         line("Credential store", type(providers.vault()).__module__.rsplit(".", 1)[-1])
     except Exception:
         line("Credential store", "unavailable. Use provider environment variables")
-    rg = shutil.which("rg", path=sysconfig.get_path("scripts")) or shutil.which("rg")
+    rg = find_program("rg", workspace)
     line("ripgrep", rg or "not found. search_files uses the slower built-in scanner")
     extras = {"mcp": "MCP client and server", "acp": "Editor protocol (ACP)", "yaml": "YAML skill metadata",
               "litellm": "LiteLLM gateway", "provio_sdk": "Provio policy gate", "langgraph": "LangGraph team graph",

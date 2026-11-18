@@ -67,6 +67,9 @@ class Layer:
 
     def complete(self, body, client=""):
         """Fold, forward, resolve recall calls locally, and return an OpenAI chat completion."""
+        if not isinstance(body, dict) or not isinstance(body.get("messages"), list) \
+                or not all(isinstance(item, dict) for item in body["messages"]):
+            raise ValueError("The request body must be an object with a messages array of objects")
         body = copy.deepcopy(body)
         body.pop("stream", None)
         body.pop("stream_options", None)

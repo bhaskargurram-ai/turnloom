@@ -13,11 +13,8 @@ The gate fails closed. If Provio cannot answer, the tool does not run.
 """
 
 import json
-import shutil
-import threading
 import subprocess
 import sys
-import sysconfig
 from importlib.util import find_spec
 from pathlib import Path
 
@@ -36,12 +33,14 @@ def installed():
     return find_spec("provio_sdk") is not None and binary() is not None
 
 
-def binary():
+def binary(workspace=None):
+    """The provio executable, never one found in the current directory or in the workspace it will judge."""
+    from turnloom.tools import find_program
     name = "provio.exe" if sys.platform == "win32" else "provio"
     bundled = Path(getattr(sys, "_MEIPASS", "")) / name if getattr(sys, "frozen", False) else None
     if bundled and bundled.is_file():
         return str(bundled)
-    return shutil.which("provio", path=sysconfig.get_path("scripts")) or shutil.which("provio")
+    return find_program("provio", workspace)
 
 
 def policy_path(workspace):
@@ -50,7 +49,7 @@ def policy_path(workspace):
 
 def cli(workspace, *arguments, timeout=20):
     """Run the provio binary in a workspace. Returns (exit code, stdout, stderr)."""
-    executable = binary()
+    executable = binary(workspace)
     if not executable:
         raise ValueError('Provio is not installed. Run: python -m pip install "turnloom[guard]"')
     result = subprocess.run([executable, *arguments], cwd=workspace, capture_output=True, timeout=timeout,
@@ -130,7 +129,7 @@ class Gate:
 
     ``approve(kind, detail)`` asks the operator and returns a bool; without one, an ask verdict is
     refused. ``confirm`` keeps the operator in the loop for allowed calls too. ``notify`` receives the
-    verdict just before the operator is asked.
+    verdict just before the operator is asked. A gate serves one agent loop, one call at a time.
     """
 
     def __init__(self, workspace, approve=None, confirm=True, session=None, notify=None):
@@ -142,9 +141,14 @@ class Gate:
         if not policy_path(workspace).is_file():
             raise ValueError("This workspace has no provio.yaml. Create one in Studio's Policy view or with provio init.")
         self.approve, self.confirm, self.notify = approve, confirm, notify
-        self.local = threading.local()
-        self.provio = Provio(binary=binary(), policy=str(policy_path(workspace)), ledger=str(Path(workspace) / LEDGER),
-                             cwd=str(workspace), session_id=session, approver=self.asked if approve else None,
+        self.asked_operator = False
+        self.quiet = False
+        self.detail = ""
+        # The operator may take as long as they need. Provio's own five-minute default would abandon
+        # a prompt that is still waiting for an answer.
+        self.provio = Provio(binary=binary(workspace), policy=str(policy_path(workspace)),
+                             ledger=str(Path(workspace) / LEDGER), cwd=str(workspace), session_id=session,
+                             approver=self.asked if approve else None, approval_timeout=7 * 86400,
                              approver_id="human:turnloom-operator", caller=Caller(agent="turnloom", agent_version=__version__))
 
     def close(self):
@@ -164,31 +168,51 @@ class Gate:
     def asked(self, request):
         """Provio's ask verdict: put the call and the rule that asked in front of the operator."""
         from provio_sdk import Approval
-        self.local.asked = True
+        if self.quiet:
+            return Approval(False, approver="policy:turnloom-search")
+        self.asked_operator = True
         if self.notify:
             self.notify(self.summary(request.decision))
         arguments = request.call.args
         if arguments.get("command"):
             kind, text = "shell", arguments["command"]
         elif request.call.tool == "fs.write":
-            kind, text = "edit", f"Edit {arguments.get('path') or 'a file'}\nThe policy asks before this file is changed."
+            kind, text = "edit", self.detail or f"Edit {arguments.get('path') or 'a file'}\nThe policy asks before this file is changed."
         else:
             kind, text = "mcp", f"{request.call.tool} {json.dumps(dict(arguments), ensure_ascii=False)}"
         return Approval(bool(self.approve(kind, str(text))), approver="human:turnloom-operator")
 
-    def run(self, tool, arguments, execute, server=None):
+    def permits_read(self, path):
+        """Whether the policy lets a search return lines from this file.
+
+        A rule that asks counts as no: the model can request the file by name, and the operator is
+        asked then, with the file in front of them.
+        """
+        from provio_sdk import ProvioError
+        self.quiet = True
+        try:
+            decision = self.provio.authorize(self.provio.make_call("fs.read", {"path": str(path), "action": "search_files"}))
+            self.provio.record(decision, ok=True, output=None)
+            return True
+        except ProvioError:
+            return False
+        finally:
+            self.quiet = False
+
+    def run(self, tool, arguments, execute, server=None, detail=""):
         """Decide, then run ``execute(ask)`` and record it. Returns the tool's JSON result text.
 
         ``execute`` receives the approval question it should use: one that always agrees when the policy
         or the operator has already settled the matter, the operator's prompt when confirmation is on.
+        ``detail`` is shown to the operator if the policy asks, so an edit is approved with its diff in view.
         """
         from provio_sdk import ProvioApprovalRejected, ProvioError, Server
         from provio_sdk.guard import refusal_text
-        self.local.asked = False
+        self.asked_operator, self.detail = False, detail
 
         def guarded():
             # Reaching here means allow, redact, or an ask the operator granted.
-            settled = self.local.asked or not self.confirm or self.approve is None
+            settled = self.asked_operator or not self.confirm or self.approve is None
             return execute((lambda kind, detail: True) if settled else self.approve)
 
         try:

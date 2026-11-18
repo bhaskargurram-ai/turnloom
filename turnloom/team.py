@@ -53,7 +53,7 @@ def run_team(task, config, stages=None, on_stage=None, archive=None):
             return "timeout" if seconds < 1 else "budget_limit"
         current = replace(config, system_prompt=(row["prompt"] or config.system_prompt) + "\n\n" + row["instruction"],
                           deadline_seconds=seconds, budget_usd=max(0, remaining),
-                          read_only=config.read_only or row["read_only"])
+                          read_only=config.read_only or row["read_only"], continues=bool(results))
         prompt = task + ("\n\nPrior stage reports:\n" + "\n".join(reports) if reports else "")
         if on_stage:
             on_stage(row["name"], "running", None)
