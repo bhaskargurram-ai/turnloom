@@ -1,4 +1,5 @@
 import json
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -409,6 +410,7 @@ class StudioLayerTests(unittest.TestCase):
                 self.wait()
         self.assertEqual(self.bench.dispatch("state", {})["messages"][-1]["text"], "ran without the gate")
 
+    @unittest.skipUnless(shutil.which("git"), "requires Git")
     def test_changes_compare_the_working_tree_with_the_last_commit(self):
         def git(*arguments):
             subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.org", "-c", "commit.gpgsign=false", *arguments],
