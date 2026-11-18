@@ -32,6 +32,9 @@ class StudioTests(unittest.TestCase):
         resolution = patch.object(providers, "resolve", return_value=connection)
         resolution.start()
         self.addCleanup(resolution.stop)
+        private = patch.dict("os.environ", {"TURNLOOM_CONFIG_DIR": str(self.root / "operator-config")})
+        private.start()
+        self.addCleanup(private.stop)
         self.bench = Workbench(self.root)
         self.addCleanup(self.bench.close)
 
@@ -238,6 +241,9 @@ class ServerTests(unittest.TestCase):
     def setUp(self):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
+        private = patch.dict("os.environ", {"TURNLOOM_CONFIG_DIR": str(Path(folder.name) / "operator-config")})
+        private.start()
+        self.addCleanup(private.stop)
         with patch.object(providers, "resolve", side_effect=ValueError("none")):
             self.server, url = make_server(Path(folder.name))
         self.token = url.split("#")[1]

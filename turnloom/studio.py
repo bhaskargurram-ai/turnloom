@@ -20,7 +20,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from turnloom import __version__, gateway, guard, meter, providers, roster
-from turnloom.agent import ARCHIVE_NOTE, Config, load_history, run_agent
+from turnloom.agent import ARCHIVE_NOTE, Config, load_history, run_agent, trace_folder
 from turnloom.cli import events, instructions, traces
 from turnloom.context import Observations
 from turnloom.extensions import McpTools
@@ -79,11 +79,20 @@ def through_unwind(ledger, spec=None):
     return wrapped
 
 
+def settings_path(root):
+    """Where Studio keeps one workspace's settings: in the operator's own configuration folder.
+
+    They decide what runs without being asked, so they must never be read from the workspace,
+    where a cloned repository could supply them.
+    """
+    name = hashlib.sha256(str(root).encode("utf-8")).hexdigest()[:20] + ".json"
+    return providers.profile_path().parent / "workspaces" / name
+
+
 def companion_tools(workspace):
     if not companions_installed():
         raise ValueError("Install turnloom[documents] and restart to enable Unwind and VerifyDoc.")
-    ledger = workspace / ".turnloom" / "unwind.db"
-    ledger.parent.mkdir(exist_ok=True)
+    ledger = trace_folder(workspace / ".turnloom") / "unwind.db"
     return McpTools(None, workspace, servers={"verifydoc": through_unwind(ledger)}, startup_timeout=90)
 
 
@@ -193,9 +202,9 @@ class Workbench:
         self.unwound = set()
         self.settings = json.loads(json.dumps(DEFAULTS))
         try:
-            saved = json.loads((self.root / ".turnloom" / "studio.json").read_text(encoding="utf-8"))
-            self.configure(saved, persist=False)
-        except (OSError, ValueError, KeyError, TypeError):
+            saved = json.loads(settings_path(self.root).read_text(encoding="utf-8"))
+            self.configure(saved.get("settings") or {}, persist=False)
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
             pass
         try:
             self.connection = providers.resolve()
@@ -420,7 +429,7 @@ class Workbench:
                 specs, unwound = self.server_specs()
                 if not specs:
                     raise ValueError("No MCP servers. Install turnloom[documents] or add .turnloom/mcp.json to the workspace.")
-                (self.root / ".turnloom").mkdir(exist_ok=True)
+                trace_folder(self.root / ".turnloom")
                 manager = McpTools(None, self.root, servers=specs, startup_timeout=90)
                 manager.__enter__()
                 manager.before_approval = self.assess
@@ -577,9 +586,8 @@ class Workbench:
                 raise ValueError("A team needs at least one stage.")
             settings["team"] = team
         if persist:
-            target = self.root / ".turnloom" / "studio.json"
-            target.parent.mkdir(exist_ok=True)
-            write_atomic(target, json.dumps(settings, indent=1).encode("utf-8"))
+            record = {"workspace": str(self.root), "settings": settings}
+            write_atomic(settings_path(self.root), json.dumps(record, indent=1).encode("utf-8"))
         return settings
 
     def priced(self):

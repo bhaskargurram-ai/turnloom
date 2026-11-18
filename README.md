@@ -98,12 +98,12 @@ The gate covers shell commands, file reads, file edits and MCP tool calls, and i
 
 Long sessions fill the prompt with old tool output. Turnloom handles that without a summarizing model call:
 
-1. **Fold.** The three most recent tool results stay whole. Older results longer than 800 characters are replaced in the prompt by their first and last lines and a reference. Results the model has not read yet are never folded.
+1. **Fold.** The three most recent tool results stay whole. Older results longer than 800 characters are replaced in the prompt by a short preview of their start and end and a reference. Results the model has not read yet are never folded.
 2. **Archive.** The full text stays in the session's archive. When a command prints more than fits, the prompt gets the head and tail and the archive keeps the rest.
 3. **Recall.** The model calls `recall` with a reference to read a slice or search inside an archived result. You can open the same reference in Studio.
 4. **Overflow.** If the conversation still outgrows the model's window, the oldest exchanges move to the archive as a unit and their references are listed for the model. Nothing is dropped without a way back.
 
-The transcript of every session is a JSON Lines file under `.turnloom/` in the workspace, with a `.gitignore` so traces stay out of version control. `--resume` rebuilds the conversation and its archive from that file. Studio and the proxy also append every model call to `.turnloom/usage.jsonl`.
+The transcript of every session is a JSON Lines file under `.turnloom/` in the workspace, with a `.gitignore` that keeps traces out of version control. `--resume` rebuilds the conversation and its archive from that file. Studio and the proxy also append every model call to `.turnloom/usage.jsonl`.
 
 Use `--no-fold` to compare a run with folding against one without. The receipt reports folded characters, input and output tokens, and cached tokens when the provider reports them; cached input is priced at the provider's cache rate when it lists one. Folding rewrites earlier messages, so on providers with prompt caching it trades some cache hits for a smaller prompt. Measure on your own tasks before relying on it. [Design notes](docs/design.md) · [Measuring it yourself](docs/experiments.md)
 

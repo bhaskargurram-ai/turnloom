@@ -74,7 +74,8 @@ class Ledger:
     def add(self, **record):
         record = {"time": round(time.time(), 3), **record}
         with self.lock:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+            from turnloom.agent import trace_folder
+            trace_folder(self.path.parent)
             with self.path.open("a", encoding="utf-8") as output:
                 output.write(json.dumps(record, ensure_ascii=False) + "\n")
         return record

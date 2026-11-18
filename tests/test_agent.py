@@ -93,7 +93,9 @@ class LoopTests(unittest.TestCase):
         self.assertIn("1: value = 1", model.sent[1]["messages"][-1]["content"])
         kinds = [json.loads(line)["type"] for line in trace.read_text(encoding="utf-8").splitlines()]
         self.assertEqual(kinds, ["start", "assistant", "tool", "assistant", "edit", "tool", "assistant", "end"])
-        self.assertEqual((trace.parent / ".gitignore").read_text(), "*\n")
+        ignored = (trace.parent / ".gitignore").read_text().splitlines()
+        self.assertTrue({"*.jsonl", "*.db", ".gitignore"} <= set(ignored))
+        self.assertNotIn("*", ignored)
 
     def test_read_only_sessions_offer_no_write_or_shell_tools(self):
         names = [tool["function"]["name"] for tool in agent.tool_schemas(self.config(read_only=True, files=object()))]

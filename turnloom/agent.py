@@ -525,13 +525,18 @@ def reply_allowance(messages, config, scale=1.0):
     return max(256, min(config.max_reply_tokens, config.context_tokens - used))
 
 
+LOCAL_STATE = "# Session traces and local state hold file contents and command output. Keep them out of version control.\n" \
+              "*.jsonl\n*.db\n*.db-*\n.gitignore\n"
+
+
 def trace_folder(folder: Path) -> Path:
-    """Create a session folder that Git ignores, since traces hold file contents and command output."""
+    """Create the workspace's .turnloom folder so that Git ignores traces, the usage ledger and the undo
+    database, while files a team may want to share (mcp.json, personas/) stay visible to it."""
     if not folder.is_dir():
         folder.mkdir(parents=True, exist_ok=True)
     marker = folder / ".gitignore"
     if not marker.exists():
-        marker.write_text("*\n", encoding="utf-8")
+        marker.write_text(LOCAL_STATE, encoding="utf-8")
     return folder
 
 

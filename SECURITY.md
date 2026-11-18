@@ -24,7 +24,7 @@ What that means in practice:
 - **Model output and file contents are untrusted input.** A file or web page can contain text written to steer the agent. The system prompt tells the model to treat tool output as data, and the approval gate is what actually protects you: a steered model still has to get its command past you.
 - **Secrets.** Model API keys are stored in the operating system's credential store and are removed from the environment that commands inherit. Other secrets in your environment are not removed. The file tools refuse names that usually hold secrets (`.env`, `*.pem`, `*.key`, `id_rsa*`, `.npmrc`, `.netrc`, `credentials.json` and similar) and the `.git`, `.ssh`, `.aws` and `.gnupg` folders. This is a guard against accidents, not a boundary: an approved command can read anything you can.
 - **A policy can sit under the approvals.** With a `provio.yaml` in the workspace and the `guard` extra installed, every shell command, file read, file edit and MCP call is first checked by [Provio](https://github.com/writ-agent/provio). A denied call never runs, a call the policy cannot judge never runs, and every decision is written to a hash-chained ledger. This is a second check, not a sandbox: an allowed command still runs with your permissions.
-- **Traces contain your code.** `.turnloom/*.jsonl` holds file contents and command output. Turnloom writes a `.gitignore` in that folder. Remove credentials before sharing a trace.
+- **Traces contain your code.** `.turnloom/*.jsonl` holds file contents and command output. Turnloom writes a `.gitignore` in that folder covering traces, the usage ledger and the undo database. Remove credentials before sharing a trace.
 
 ## Studio
 
@@ -36,12 +36,13 @@ Studio is a web server for one person on one machine.
 - Pages are served with a Content Security Policy that allows scripts and connections only from Studio itself. Model output is rendered as text or sanitized Markdown, never as HTML.
 - The server stops when you close the window or choose Close Studio. Opened in a browser, it also stops by itself after 15 minutes with no request and no running turn.
 - **Auto-approve** in Studio approves every command, edit and tool call, like `--yes`. It is off by default and meant for disposable workspaces.
+- Studio keeps each workspace's settings (approval switches, policy mode, enabled MCP servers, budget) in your own configuration folder, never in the workspace. A repository you clone cannot arrive with actions pre-approved or servers pre-enabled.
 
 Another program running as your user on the same machine is outside this model: it could read the token from the browser's storage or act directly.
 
 ## MCP
 
-An MCP configuration names programs Turnloom starts and URLs it connects to, so treat the file as code. Turnloom never loads one implicitly from a repository. Process servers inherit only the environment variables named in `pass_env`. Every tool call asks for approval with its arguments shown.
+An MCP configuration names programs Turnloom starts and URLs it connects to, so treat the file as code. The terminal only reads the file you pass with `--mcp`. Studio lists the servers in the workspace's `.turnloom/mcp.json` and starts one only after you switch it on or open its tool list there; read the command shown before you do that in a repository you did not write. Process servers inherit only the environment variables named in `pass_env`. Every tool call asks for approval with its arguments shown.
 
 `turnloom acp` gives the editor that launched it the same abilities you have in the terminal, with the editor's permission prompts as the approval gate.
 

@@ -35,7 +35,8 @@ The first public release. The agent gains real file tools, streaming, sessions t
 - A truncated reply is returned as `partial`. An empty reply is retried once. Limits explain why they stopped the turn.
 - Three identical tool calls in a row end tool use everywhere, not only in Studio. Repeating a check between edits is no longer treated as a loop.
 - `turnloom team` runs without LangGraph installed, and planning and review stages are read-only by construction. Studio's team stages gain a read-only switch.
-- Session traces get a `.gitignore`, so they stay out of the user's repository.
+- Session traces, the usage ledger and the undo database get a `.gitignore`, so they stay out of the user's repository. `.turnloom/mcp.json` and `.turnloom/personas/` remain visible to Git so a team can share them.
+- **Studio settings moved out of the workspace** into the operator's configuration folder. A `.turnloom/studio.json` shipped in a repository could previously turn on auto-approve or enable MCP servers; that file is no longer read.
 - Studio no longer shows sample data. It keeps the conversation when a turn fails or the persona changes, waits for approvals without a timer, stops by itself when left unused in a browser, and opens without putting its token on a browser's command line. Closing Studio stops a running turn.
 - `turnloom-studio` is a console command, so its help and errors are visible. `turnloom-studio-gui` is the windowless variant. `--no-open` and `--port` support remote shells.
 - The proxy refuses requests that carry a browser `Origin` or a foreign `Host`.
@@ -56,6 +57,7 @@ The first public release. The agent gains real file tools, streaming, sessions t
 - `HARNESS_ENDPOINT`, `HARNESS_MODEL` and `HARNESS_API_KEY` still work. Prefer the `TURNLOOM_` names.
 - Code that builds a `Config` directly: `approve` now receives `(kind, detail)`, and unattended callers set `auto_approve=True`. `workspace_tool` is replaced by the built-in file tools.
 - A PyInstaller build installs `.[build-app]` instead of `.[studio,full,desktop]`.
+- Studio settings saved by 0.6 in `.turnloom/studio.json` are not carried over. Set them again once; the old file can be deleted.
 - MCP clients of `turnloom serve`: the tools are now `sessions`, `receipt`, `transcript`, `read_result`, `archive_output`, `recall` and optionally `run_task`.
 
 ## 0.6.0

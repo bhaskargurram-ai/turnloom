@@ -99,6 +99,9 @@ class GateTests(unittest.TestCase):
         self.assertFalse(guard.verify(self.root)["intact"])
 
     def test_studio_shows_the_rule_that_asked_and_marks_blocked_calls(self):
+        private = patch.dict("os.environ", {"TURNLOOM_CONFIG_DIR": str(self.root / "operator-config")})
+        private.start()
+        self.addCleanup(private.stop)
         with patch.object(providers, "resolve", return_value=providers.Connection("local", "fixture", "")):
             bench = Workbench(self.root)
         self.addCleanup(bench.close)
