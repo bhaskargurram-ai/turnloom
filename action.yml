@@ -39,6 +39,18 @@ inputs:
     description: Seconds allowed
     required: false
     default: "900"
+  budget:
+    description: Estimated USD the task may spend, 0 for no limit. Needs input-rate and output-rate unless the model is free
+    required: false
+    default: "0"
+  input-rate:
+    description: USD per million input tokens, used to estimate spend against the budget
+    required: false
+    default: ""
+  output-rate:
+    description: USD per million output tokens, used to estimate spend against the budget
+    required: false
+    default: ""
   python-version:
     description: Python used to run Turnloom
     required: false
@@ -84,5 +96,8 @@ runs:
         TURNLOOM_WORKSPACE: ${{ inputs.workspace }}
         TURNLOOM_MAX_STEPS: ${{ inputs.max-steps }}
         TURNLOOM_DEADLINE: ${{ inputs.deadline }}
+        TURNLOOM_BUDGET: ${{ inputs.budget }}
+        TURNLOOM_INPUT_RATE: ${{ inputs.input-rate }}
+        TURNLOOM_OUTPUT_RATE: ${{ inputs.output-rate }}
         TURNLOOM_STRICT: ${{ inputs.fail-on-incomplete }}
       run: python "${{ github.action_path }}/scripts/run_action.py"

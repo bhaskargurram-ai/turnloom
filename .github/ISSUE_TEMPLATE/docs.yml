@@ -1,0 +1,24 @@
+name: Documentation problem
+description: A page that is wrong, unclear or missing something
+labels: [documentation]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: The file or the link, and the heading if it helps.
+      placeholder: docs/quickstart.md, "Connect a model"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or unclear
+      description: What you were trying to do, what the page said, and what happened when you followed it.
+    validations:
+      required: true
+  - type: textarea
+    id: better
+    attributes:
+      label: What would have helped
+      description: Optional. A sentence you would add or change.

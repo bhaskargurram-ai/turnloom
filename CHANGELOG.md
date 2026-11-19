@@ -2,6 +2,21 @@
 
 Notable changes to Turnloom. Versions follow [Semantic Versioning](https://semver.org); before 1.0 a minor version may change behavior.
 
+## Unreleased
+
+### Added
+
+- **Agents in this repository's CI.** Three workflows run Turnloom on its own issues and pull requests: a review posted as one comment, triage of new issues, and an attempt at an issue on a branch when a maintainer labels it. The job that holds the model key cannot write or run commands, the agent's edits are executed only in a job with no secret, and `scripts/agent_reply.py` makes an answer safe to post. They are off until a `TURNLOOM_API_KEY` secret is set. [Agents in CI](docs/automation.md) describes the design and how to copy it.
+- The GitHub Action takes `budget`, `input-rate` and `output-rate`, so a task in CI can be given a spending limit.
+
+### Security
+
+- The GitHub Action starts Turnloom with the working directory off Python's import path. Before, a file in the workspace named like a module that Turnloom imports later, including one the agent wrote in `auto-edit` mode, could be loaded by the process that holds the model key.
+
+### Fixed
+
+- The GitHub Action no longer fails on a Windows runner when the answer holds a character the console cannot encode.
+
 ## 0.7.1
 
 A release shaped by running Turnloom beside seven other agents on Terminal-Bench tasks, and by writing the reference documentation. Both turned up things to fix.

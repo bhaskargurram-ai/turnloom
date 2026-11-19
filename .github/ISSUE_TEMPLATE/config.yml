@@ -1,5 +1,11 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Question
+    url: https://github.com/bhaskargurram-ai/turnloom/discussions/categories/q-a
+    about: Ask how to do something, or why Turnloom did what it did.
+  - name: Idea
+    url: https://github.com/bhaskargurram-ai/turnloom/discussions/categories/ideas
+    about: Propose something larger than a fix, before writing the code.
   - name: Security report
     url: https://github.com/bhaskargurram-ai/turnloom/security/advisories/new
     about: Report a vulnerability privately.

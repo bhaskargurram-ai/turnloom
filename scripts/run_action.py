@@ -22,6 +22,8 @@ def output(name, value):
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):  # a runner's console may not be UTF-8, and an answer can hold any character
+        stream.reconfigure(errors="replace")
     mode = os.environ.get("TURNLOOM_MODE", "read-only")
     if mode not in MODES:
         print(f"::error::mode must be one of: {', '.join(MODES)}")
@@ -30,9 +32,14 @@ def main():
     if not task:
         print("::error::task is empty")
         return 2
-    command = [sys.executable, "-m", "turnloom", "run", task, "--json", "--workspace", os.environ.get("TURNLOOM_WORKSPACE", "."),
+    # -P keeps the working directory off the import path: the workspace holds files the agent may edit, and
+    # none of them should be importable by the process that holds the model key.
+    command = [sys.executable, "-P", "-m", "turnloom", "run", task, "--json", "--workspace", os.environ.get("TURNLOOM_WORKSPACE", "."),
                "--persona", os.environ.get("TURNLOOM_PERSONA", "builder"), "--max-steps", os.environ.get("TURNLOOM_MAX_STEPS", "40"),
                "--deadline", os.environ.get("TURNLOOM_DEADLINE", "900"), *MODES[mode]]
+    for flag, name in (("--budget", "TURNLOOM_BUDGET"), ("--input-rate", "TURNLOOM_INPUT_RATE"), ("--output-rate", "TURNLOOM_OUTPUT_RATE")):
+        if os.environ.get(name, "").strip() not in ("", "0"):
+            command += [flag, os.environ[name].strip()]
     done = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
     sys.stderr.write(done.stderr)
     try:

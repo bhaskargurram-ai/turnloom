@@ -285,6 +285,7 @@ Then open the pull request on GitHub; the template asks what changed and how you
 
 - New here? Start with a [good first issue](https://github.com/bhaskargurram-ai/turnloom/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
 - Questions and ideas go in [Discussions](https://github.com/bhaskargurram-ai/turnloom/discussions).
+- Turnloom works on its own repository: it triages new issues, reviews pull requests and attempts an issue when a maintainer labels it. [Agents in CI](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/automation.md) describes the workflows and how to copy them.
 - [CONTRIBUTING.md](https://github.com/bhaskargurram-ai/turnloom/blob/main/CONTRIBUTING.md) covers the details. [AGENTS.md](https://github.com/bhaskargurram-ai/turnloom/blob/main/AGENTS.md) maps the code for people and for coding agents.
 - Everyone taking part is expected to follow the [code of conduct](https://github.com/bhaskargurram-ai/turnloom/blob/main/CODE_OF_CONDUCT.md).
 

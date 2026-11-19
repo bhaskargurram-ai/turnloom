@@ -61,6 +61,8 @@ Continuous integration runs on every pull request:
 | `studio` | The committed Studio bundle matches a fresh build, and the browser test passes |
 | `image` | The container image builds and runs |
 
+An agent may also comment. Turnloom reads new issues and names the code involved, and a maintainer can ask it to review a pull request or to attempt an issue on a branch. Its comments say that Turnloom wrote them, and they are suggestions: you can disagree with one, and nothing it writes decides whether a change is accepted. [Agents in CI](docs/automation.md) describes what it can and cannot do.
+
 A maintainer reviews when the checks are green, usually within a week. Review comments are about the change, never about you. Expect questions about the test and about edge cases on Windows. Small follow-up commits are fine; the pull request is squashed when it merges. If a week passes with no response, a comment on the pull request is the right nudge.
 
 ## Studio

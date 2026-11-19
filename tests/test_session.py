@@ -20,6 +20,7 @@ class Provider(BaseHTTPRequestHandler):
 
     requests = []
     plans = {}
+    answer = "Verified."
 
     def log_message(self, *args):
         pass
@@ -31,7 +32,7 @@ class Provider(BaseHTTPRequestHandler):
         last_user = max(index for index, item in enumerate(messages) if item["role"] == "user")
         done = sum(item["role"] == "tool" for item in messages[last_user:])
         plan = type(self).plans.get(messages[last_user]["content"], [])
-        message = {"role": "assistant", "content": "Verified."}
+        message = {"role": "assistant", "content": type(self).answer}
         if done < len(plan):
             name, arguments = plan[done]
             message = {"role": "assistant", "content": None, "tool_calls": [{
@@ -47,7 +48,7 @@ class Provider(BaseHTTPRequestHandler):
 
 class SessionTests(unittest.TestCase):
     def setUp(self):
-        Provider.requests, Provider.plans = [], {}
+        Provider.requests, Provider.plans, Provider.answer = [], {}, "Verified."
         self.server = HTTPServer(("127.0.0.1", 0), Provider)
         thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         thread.start()
@@ -59,7 +60,9 @@ class SessionTests(unittest.TestCase):
         self.workspace = Path(folder.name).resolve()
         settings = {"TURNLOOM_ENDPOINT": f"http://127.0.0.1:{self.server.server_port}/v1", "TURNLOOM_MODEL": "fixture",
                     "TURNLOOM_API_KEY": "test-only", "HARNESS_ENDPOINT": "", "HARNESS_MODEL": "",
-                    "TURNLOOM_CONFIG_DIR": str(self.workspace / "config")}
+                    "TURNLOOM_CONFIG_DIR": str(self.workspace / "config"),
+                    # Child processes test this checkout, wherever they start and whatever copy is installed.
+                    "PYTHONPATH": str(Path(__file__).resolve().parent.parent)}
         environment = patch.dict(os.environ, settings)
         environment.start()
         self.addCleanup(environment.stop)
@@ -266,6 +269,53 @@ class SessionTests(unittest.TestCase):
         bad = subprocess.run([sys.executable, str(script)], env={**os.environ, **settings, "TURNLOOM_MODE": "yolo"},
                              capture_output=True, text=True, stdin=subprocess.DEVNULL)
         self.assertEqual(bad.returncode, 2)
+
+    def test_github_action_runner_survives_an_answer_its_console_cannot_encode(self):
+        Provider.answer = "Two findings \U0001f534 and a café."
+        outputs = self.workspace / "outputs.txt"
+        script = Path(__file__).parent.parent / "scripts" / "run_action.py"
+        settings = {"TURNLOOM_TASK": "Review", "TURNLOOM_WORKSPACE": str(self.workspace), "GITHUB_OUTPUT": str(outputs),
+                    "RUNNER_TEMP": str(self.workspace), "PYTHONIOENCODING": "ascii"}
+        done = subprocess.run([sys.executable, str(script)], env={**os.environ, **settings}, capture_output=True,
+                              stdin=subprocess.DEVNULL)
+        self.assertEqual(done.returncode, 0, done.stderr.decode("ascii", "replace"))
+        self.assertIn(b"Two findings ? and a caf?.", done.stdout)
+        self.assertIn(Provider.answer, outputs.read_text(encoding="utf-8"))
+
+    def test_github_action_runner_does_not_import_code_from_the_workspace(self):
+        (self.workspace / "turnloom.py").write_text("from pathlib import Path\nPath('ran.txt').write_text('x')\nraise SystemExit(7)\n")
+        outputs = self.workspace / "outputs.txt"
+        script = Path(__file__).parent.parent / "scripts" / "run_action.py"
+        settings = {"TURNLOOM_TASK": "Review", "TURNLOOM_WORKSPACE": ".", "GITHUB_OUTPUT": str(outputs), "RUNNER_TEMP": str(self.workspace)}
+        done = subprocess.run([sys.executable, str(script)], env={**os.environ, **settings}, capture_output=True, text=True,
+                              stdin=subprocess.DEVNULL, cwd=self.workspace)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertFalse((self.workspace / "ran.txt").exists())
+        self.assertRegex(outputs.read_text(encoding="utf-8"), r"status<<turnloom-[0-9a-f]+\ncompleted\n")
+
+    def test_github_action_runner_stops_at_its_budget(self):
+        for name in "abcde":
+            (self.workspace / (name + ".txt")).write_text(name + "\n")
+        Provider.plans["Read notes"] = [("read_file", {"path": name + ".txt"}) for name in "abcde"]
+        outputs = self.workspace / "outputs.txt"
+        script = Path(__file__).parent.parent / "scripts" / "run_action.py"
+        # The scripted endpoint reports 100 input and 20 output tokens a call: 0.003 USD at these rates.
+        settings = {"TURNLOOM_TASK": "Read notes", "TURNLOOM_MODE": "read-only", "TURNLOOM_WORKSPACE": str(self.workspace),
+                    "TURNLOOM_STRICT": "false", "GITHUB_OUTPUT": str(outputs), "RUNNER_TEMP": str(self.workspace),
+                    "TURNLOOM_BUDGET": "0.005", "TURNLOOM_INPUT_RATE": "10", "TURNLOOM_OUTPUT_RATE": "100"}
+        done = subprocess.run([sys.executable, str(script)], env={**os.environ, **settings}, capture_output=True, text=True,
+                              stdin=subprocess.DEVNULL)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertRegex(outputs.read_text(encoding="utf-8"), r"status<<turnloom-[0-9a-f]+\nbudget_limit\n")
+        limited = len(Provider.requests)
+        Provider.requests.clear()
+        outputs.unlink()
+        unlimited = subprocess.run([sys.executable, str(script)], env={**os.environ, **settings, "TURNLOOM_BUDGET": "0"},
+                                   capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        self.assertEqual(unlimited.returncode, 0, unlimited.stderr)
+        self.assertNotIn("budget_limit", outputs.read_text(encoding="utf-8"))
+        self.assertEqual(len(Provider.requests), 6)
+        self.assertLess(limited, 6)
 
     def test_headless_agent_runs_unattended_and_writes_a_trajectory(self):
         (self.workspace / "notes.txt").write_text("one\n")

@@ -1,0 +1,65 @@
+name: Agent check
+# Runs the linter and the test suite on edits an agent made. This is the only place the agent's code is
+# executed, so it gets no secret and no permission beyond reading the repository.
+on:
+  workflow_call:
+    inputs:
+      patch:
+        description: Name of the artifact that holds attempt.patch
+        required: true
+        type: string
+      report:
+        description: Name of the artifact to write check.txt and passed.txt to
+        required: true
+        type: string
+    outputs:
+      passed:
+        description: true, false, or none when there were no edits to check
+        value: ${{ jobs.check.outputs.passed }}
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      passed: ${{ steps.run.outputs.passed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.patch }}
+          path: ${{ runner.temp }}/in
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - id: run
+        shell: bash
+        run: |
+          report="$RUNNER_TEMP/check.txt"
+          if [ ! -s "$RUNNER_TEMP/in/attempt.patch" ]; then
+            echo "There were no edits to check." > "$report"
+            passed=none
+          else
+            git apply "$RUNNER_TEMP/in/attempt.patch"
+            python -m pip install --quiet --disable-pip-version-check ".[mcp,skills,search,acp,team]" ruff
+            passed=true
+            echo '$ ruff check .' > "$report"
+            ruff check . 2>&1 | tail -n 40 >> "$report" || passed=false
+            echo '$ python -m unittest discover -s tests' >> "$report"
+            python -m unittest discover -s tests 2>&1 | tail -n 120 >> "$report" || passed=false
+          fi
+          echo "$passed" > "$RUNNER_TEMP/passed.txt"
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+          cat "$report"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.report }}
+          path: |
+            ${{ runner.temp }}/check.txt
+            ${{ runner.temp }}/passed.txt
+          retention-days: 14

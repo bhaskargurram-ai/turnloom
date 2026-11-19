@@ -196,6 +196,8 @@ jobs:
 
 `mode` is `read-only` (default), `auto-edit` or `unattended`. The answer is written to the job summary and to `outputs.answer`; the full result is at the path in `outputs.result-file`. In `unattended` mode the agent runs commands on the runner without asking, so give the job only the permissions and secrets the task needs and do not run it on untrusted pull requests.
 
+For workflows that post a review on a pull request, triage new issues and attempt an issue on a label, all without `unattended` mode, see [Agents in CI](automation.md).
+
 Without the action, the same thing is `turnloom run "..." --read-only --json` with `TURNLOOM_ENDPOINT`, `TURNLOOM_MODEL` and `TURNLOOM_API_KEY` set.
 
 ## Containers

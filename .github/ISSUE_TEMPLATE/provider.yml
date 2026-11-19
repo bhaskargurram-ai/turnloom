@@ -1,0 +1,37 @@
+name: Provider report
+description: Tell us whether a provider or a local model works with Turnloom. A report that everything works is as useful as one that something does not.
+title: "Provider report: "
+labels: ["area: providers"]
+body:
+  - type: input
+    id: provider
+    attributes:
+      label: Provider and model
+      description: The preset you chose in turnloom connect, or the endpoint for a custom one, and the model ID.
+      placeholder: groq / llama-3.3-70b-versatile
+    validations:
+      required: true
+  - type: checkboxes
+    id: worked
+    attributes:
+      label: What worked
+      description: Tick what you tried and saw working. Leave the rest.
+      options:
+        - label: turnloom connect listed the provider's models
+        - label: A read-only task finished (turnloom run --read-only "Explain how this project is laid out")
+        - label: The model called tools, such as reading a file or searching
+        - label: The answer streamed as it was written
+        - label: The receipt showed token counts and a cost
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What did not work
+      description: The command, what you expected and what you saw. Paste the exact error text. Leave empty if everything worked.
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of turnloom doctor
+      description: It contains no keys. Remove the workspace path if it is private.
+      render: text
+    validations:
+      required: true

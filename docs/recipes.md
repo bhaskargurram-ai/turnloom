@@ -315,6 +315,8 @@ Use the newest release tag after `@`.
 | `workspace` | `.` | The directory the agent works in |
 | `max-steps` | 40 | Model calls allowed |
 | `deadline` | 900 | Seconds allowed |
+| `budget` | 0 | Estimated USD the task may spend, 0 for no limit. Newer than release 0.7.1. |
+| `input-rate`, `output-rate` | empty | USD per million tokens, which a budget needs unless the model is free |
 | `python-version` | 3.12 | The Python that runs Turnloom |
 | `fail-on-incomplete` | `true` | Fail the step unless the task completes |
 
@@ -328,6 +330,8 @@ Use the newest release tag after `@`.
 In `unattended` mode the agent runs commands on the runner without asking. Give the job only the permissions and secrets the task needs, and do not run it on pull requests from people you do not trust.
 
 Without the action, the same thing is `turnloom run "..." --read-only --json` with `TURNLOOM_ENDPOINT`, `TURNLOOM_MODEL` and `TURNLOOM_API_KEY` set.
+
+**Going further.** This repository runs the action on its own pull requests and issues: a review posted as a comment, triage of new issues, and an attempt at an issue when a maintainer labels it. [Agents in CI](automation.md) describes those workflows, how they stay safe on text from strangers, and how to copy them.
 
 **What goes wrong.** The step fails although the agent produced an answer. `fail-on-incomplete` is on by default, and a task that ends as `partial`, for example at the step limit, is not complete. Raise `max-steps`, or set `fail-on-incomplete: "false"` and decide from `outputs.status` yourself. Separately, the action installs Turnloom without extras: in a repository that has a `provio.yaml`, the run stops because Provio is not installed.
 

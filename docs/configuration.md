@@ -303,6 +303,9 @@ The action at the root of the repository turns its inputs into these variables f
 | `workspace` | `TURNLOOM_WORKSPACE` | `.` |
 | `max-steps` | `TURNLOOM_MAX_STEPS` | 40 |
 | `deadline` | `TURNLOOM_DEADLINE` | 900 |
+| `budget` | `TURNLOOM_BUDGET` | 0, no limit |
+| `input-rate` | `TURNLOOM_INPUT_RATE` | empty |
+| `output-rate` | `TURNLOOM_OUTPUT_RATE` | empty |
 | `fail-on-incomplete` | `TURNLOOM_STRICT` | `true` |
 
 ### What the agent's commands can see

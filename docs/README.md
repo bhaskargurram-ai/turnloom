@@ -40,5 +40,6 @@ Each page answers one question. If you are new, read the quick start first.
 | --- | --- |
 | [Security](../SECURITY.md) | What can the agent do on my machine, and how do I report a vulnerability? |
 | [Contributing](../CONTRIBUTING.md) | How do I set up a checkout and get a pull request merged? |
+| [Agents in CI](automation.md) | What do the agents on this repository's issues and pull requests do, how are they kept safe, and how do I run them on my own repository? |
 | [Roadmap](../ROADMAP.md) | What is planned, and where is help wanted? |
 | [Changelog](../CHANGELOG.md) | What changed in each release? |
