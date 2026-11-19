@@ -53,6 +53,17 @@ A free model works too, such as one of OpenRouter's `:free` models that lists to
 
 To turn everything off again, delete the secret. To turn one workflow off, disable it under the repository's Actions tab.
 
+### Give the agent its own name and picture
+
+By default the comments come from `github-actions[bot]`. To have them come from a name and picture of your choosing, give the agent a GitHub App to post as:
+
+1. Create a GitHub App under your account (Settings, Developer settings, GitHub Apps). Turn the webhook off. Under repository permissions give it read and write access to **Issues** and **Pull requests** and nothing else. Upload a picture; this repository uses [`docs/agent-avatar.png`](agent-avatar.png).
+2. Install the app on the repository.
+3. Store the app's client ID as the repository variable `TURNLOOM_APP_CLIENT_ID`.
+4. Generate a private key for the app and store the contents of the file as the repository secret `TURNLOOM_APP_PRIVATE_KEY`.
+
+With both set, the jobs that post ask for a short-lived token for the app and comment as `your-app-name[bot]`. The key reaches only those jobs, never the one that talks to the model, and the token it yields cannot change code: an attempt's branch is still pushed with the workflow's own token. Without the variable, nothing changes.
+
 ## What it costs
 
 These are single runs on this repository with `gpt-5.1` in November 2026, before the workflows were switched on. Expect yours to differ.

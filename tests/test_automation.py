@@ -200,6 +200,18 @@ class AgentWorkflowTests(unittest.TestCase):
         self.assertIn("git worktree add", publish)
         self.assertNotRegex(publish, r"(?m)^\s+git apply", "the edits must not land in the checkout whose script is run")
 
+    def test_the_apps_key_reaches_only_the_jobs_that_post(self):
+        for name, text in self.texts.items():
+            for job, body in self.jobs(text).items():
+                if "TURNLOOM_APP_PRIVATE_KEY" in body:
+                    self.assertNotIn("secrets.TURNLOOM_API_KEY", body, f"{name}: job {job} talks to the model and holds the app's key")
+                    self.assertNotIn("uses: ./\n", body, f"{name}: job {job} runs the agent and holds the app's key")
+                    self.assertIn("permission-issues: write", body, f"{name}: job {job} asks for more than it needs")
+                    self.assertNotIn("permission-contents", body, f"{name}: job {job} lets the app's token change code")
+        self.assertNotIn("TURNLOOM_APP", self.texts["agent-check.yml"])
+        # The branch is pushed with the workflow's own token, so the app never needs access to code.
+        self.assertIn("x-access-token:$PUSH_TOKEN@", self.texts["agent-attempt.yml"])
+
     def test_each_workflow_is_gated(self):
         self.assertIn("pull_request_target", self.texts["agent-review.yml"])
         self.assertIn("author_association", self.texts["agent-review.yml"])

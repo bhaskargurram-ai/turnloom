@@ -115,14 +115,25 @@ jobs:
         with:
           name: agent-result
           path: result
+      - id: app
+        name: Use the agent's own name and picture, when a GitHub App is set up for it
+        if: vars.TURNLOOM_APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.TURNLOOM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.TURNLOOM_APP_PRIVATE_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
       - name: Post the review as one comment, replacing the previous one
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
         run: |
           status=0
           python3 scripts/agent_reply.py review --result result/turnloom-result.json --repository "$GITHUB_REPOSITORY" \
             --run-url "$RUN_URL" --out "$RUNNER_TEMP/comment.md" || status=$?
           if [ "$status" -eq 3 ]; then exit 0; elif [ "$status" -ne 0 ]; then exit "$status"; fi
           previous=$(gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" --paginate \
-            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- turnloom-agent:review -->"))) | .id' | tail -n 1)
+            --jq '.[] | select(.user.type == "Bot" and (.body | startswith("<!-- turnloom-agent:review -->"))) | .id' | tail -n 1)
           if [ -n "$previous" ]; then
             gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$previous" -F "body=@$RUNNER_TEMP/comment.md" --silent
           else

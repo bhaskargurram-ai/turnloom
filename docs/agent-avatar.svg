@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Turnloom</title>
+  <desc id="desc">The Turnloom mark: three warp threads and one weft passing under, over, under.</desc>
+  <rect width="512" height="512" fill="#f4f2ec"/>
+  <g transform="translate(112 112) scale(4.5)" fill="none">
+    <path d="M4 32h56" stroke="#1f3fbf" stroke-width="10"/>
+    <path d="M14 4v56M32 4v56M50 4v56" stroke="#1c1b18" stroke-width="7"/>
+    <path d="M24 32h16" stroke="#1f3fbf" stroke-width="10"/>
+  </g>
+</svg>
