@@ -154,6 +154,7 @@ python benchmarks/report.py results.json --markdown results.md --grid tasks.md -
 | [`run.py`](run.py) | Runs one Harbor job per agent and task |
 | [`collect.py`](collect.py) | Joins Harbor's results with the meter's records |
 | [`report.py`](report.py) | Makes the tables and the figure |
+| [`results/round-one.svg`](results/round-one.svg), [`results/round-one.png`](results/round-one.png) | The figure at the top of this page, as a vector and as an image for sharing |
 | [`results/round-one.json`](results/round-one.json), [`results/second-round.json`](results/second-round.json) | One row per agent and task: outcome, error, time, tokens and cost |
 | [`results/round-one-calls.jsonl`](results/round-one-calls.jsonl), [`results/second-round-calls.jsonl`](results/second-round-calls.jsonl) | One line per model call, as the meter recorded it. No prompts or replies |
 
