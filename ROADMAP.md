@@ -15,6 +15,8 @@ These need a machine, an editor or an account the maintainer does not have, whic
 | Packaging | Homebrew, winget, Scoop and Nix packages | [#12](https://github.com/bhaskargurram-ai/turnloom/issues/12) |
 | Benchmarks | Run the whole of Terminal-Bench 2.1 with three attempts per task and publish the trajectories | [#13](https://github.com/bhaskargurram-ai/turnloom/issues/13) |
 
+Two small changes to the command line need no special machine and are written up step by step: [#18](https://github.com/bhaskargurram-ai/turnloom/issues/18), where an error in a subcommand prints the usage of the whole program, and [#19](https://github.com/bhaskargurram-ai/turnloom/issues/19), where a persona search with no match should say so plainly. The [good first issue](https://github.com/bhaskargurram-ai/turnloom/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label lists whatever is open now.
+
 ## Next
 
 | Area | What is needed | Issue |
