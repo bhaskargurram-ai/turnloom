@@ -40,7 +40,7 @@ A provider that authenticates with one API key asks for it and stores it like an
 
 Turnloom asks the chosen endpoint for its model list. When an endpoint has no list route (HTTP 404 or 405), it uses the public Models.dev catalog, cached for a day in your configuration folder, and labels the source.
 
-Prices, the cached-input price and the context window come from the endpoint when it reports them. Models.dev fills gaps, and with the `llm` extra installed Studio also consults LiteLLM's public price map, using its prices only when the entry is for the same provider. The saved selection supplies these numbers to `run`, `chat`, `team`, Studio and the evaluation runner. Override them with `--context`, `--input-rate` and `--output-rate`. When no window is known, Turnloom assumes 128,000 tokens.
+Prices, the cached-input price and the context window come from the endpoint when it reports them. Models.dev fills gaps, and with the `llm` extra installed Studio also consults LiteLLM's public price map, using its prices only when the entry is for the same provider. The saved selection supplies these numbers to `run`, `chat`, `team` and Studio. The evaluation runner takes its prices from the saved selection and its window from `--context-tokens`. Override them with `--context`, `--input-rate` and `--output-rate`. When no window is known, Turnloom assumes 128,000 tokens.
 
 "Free" means a route the provider reports as free, or zero advertised OpenRouter charges. Unreported pricing stays "unknown" and budgets then need explicit rates. `--open-weights` filters by Models.dev metadata; each model keeps its own license. Models with unreported tool support may not call tools; try a small task first.
 

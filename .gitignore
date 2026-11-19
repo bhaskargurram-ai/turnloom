@@ -8,6 +8,7 @@ build/
 .provio/
 .env*
 results/
+!benchmarks/results/
 node_modules/
 .playwright-mcp/
 .ruff_cache/

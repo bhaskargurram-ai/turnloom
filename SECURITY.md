@@ -44,7 +44,7 @@ Another program running as your user on the same machine is outside this model: 
 
 ## MCP
 
-An MCP configuration names programs Turnloom starts and URLs it connects to, so treat the file as code. The terminal only reads the file you pass with `--mcp`. Studio lists the servers in the workspace's `.turnloom/mcp.json` and starts one only after you switch it on or open its tool list there; read the command shown before you do that in a repository you did not write. Switching a server on trusts the definition it has at that moment: if the file later changes that server's command, it is switched off until you turn it on again. Process servers inherit only the environment variables named in `pass_env`. Every tool call asks for approval with its arguments shown.
+An MCP configuration names programs Turnloom starts and URLs it connects to, so treat the file as code. The terminal only reads the file you pass with `--mcp`. Studio lists the servers in the workspace's `.turnloom/mcp.json` and starts one only after you switch it on or open its tool list there; read the command shown before you do that in a repository you did not write. Switching a server on trusts the definition it has at that moment: if the file later changes that server's command, it is switched off until you turn it on again. Process servers do not inherit your environment. They get the short list the MCP SDK gives every server (`PATH` and the home and profile variables, never API keys) plus the variables you name in `pass_env`. Every tool call asks for approval with its arguments shown.
 
 `turnloom acp` gives the editor that launched it the same abilities you have in the terminal, with the editor's permission prompts as the approval gate.
 

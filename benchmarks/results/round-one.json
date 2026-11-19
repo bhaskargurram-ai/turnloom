@@ -1,0 +1,3973 @@
+[
+ {
+  "agent": "aider",
+  "task": "build-pmars",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 207.831959,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2662,
+  "cached": 0,
+  "output": 3555,
+  "reasoning": 2988,
+  "usd": 0.038878,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "configure-git-webserver",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 194.940928,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2562,
+  "cached": 0,
+  "output": 5951,
+  "reasoning": 5498,
+  "usd": 0.062713,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "db-wal-recovery",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 87.232464,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2610,
+  "cached": 0,
+  "output": 6491,
+  "reasoning": 5900,
+  "usd": 0.068172,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "git-leak-recovery",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 93.838083,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2554,
+  "cached": 0,
+  "output": 6272,
+  "reasoning": 6095,
+  "usd": 0.065912,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "hf-model-inference",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 46.552073,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2737,
+  "cached": 0,
+  "output": 3214,
+  "reasoning": 2661,
+  "usd": 0.035561,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "kv-store-grpc",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 50.286586,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2706,
+  "cached": 0,
+  "output": 2232,
+  "reasoning": 1816,
+  "usd": 0.025702,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "largest-eigenval",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 16.899538,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2597,
+  "cached": 0,
+  "output": 290,
+  "reasoning": 171,
+  "usd": 0.006146,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "log-summary-date-ranges",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 41.381492,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2776,
+  "cached": 1536,
+  "output": 2771,
+  "reasoning": 2125,
+  "usd": 0.029452,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "model-extraction-relu-logits",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 78.269483,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2575,
+  "cached": 1536,
+  "output": 6291,
+  "reasoning": 4937,
+  "usd": 0.064401,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "multi-source-data-merger",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 80.537634,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2881,
+  "cached": 0,
+  "output": 5429,
+  "reasoning": 3346,
+  "usd": 0.057891,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "nginx-request-logging",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 79.706171,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2860,
+  "cached": 1536,
+  "output": 6193,
+  "reasoning": 5126,
+  "usd": 0.063777,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "openssl-selfsigned-cert",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 60.092031,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2742,
+  "cached": 0,
+  "output": 3466,
+  "reasoning": 2627,
+  "usd": 0.038088,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "polyglot-rust-c",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 214.345453,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2571,
+  "cached": 0,
+  "output": 14844,
+  "reasoning": 14127,
+  "usd": 0.151654,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "prove-plus-comm",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 199.452398,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 12636,
+  "cached": 3968,
+  "output": 16373,
+  "reasoning": 15906,
+  "usd": 0.175062,
+  "models": {
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "pypi-server",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 198.318147,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2643,
+  "cached": 1536,
+  "output": 4345,
+  "reasoning": 3775,
+  "usd": 0.045026,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "pytorch-model-recovery",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 165.034614,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2749,
+  "cached": 1536,
+  "output": 11404,
+  "reasoning": 10121,
+  "usd": 0.115748,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "regex-log",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 70.700285,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2665,
+  "cached": 1536,
+  "output": 3507,
+  "reasoning": 3190,
+  "usd": 0.036673,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "sanitize-git-repo",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 101.756719,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 10865,
+  "cached": 0,
+  "output": 1579,
+  "reasoning": 1276,
+  "usd": 0.029371,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "sqlite-db-truncate",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 90.835811,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2505,
+  "cached": 0,
+  "output": 4957,
+  "reasoning": 3727,
+  "usd": 0.052701,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "build-pmars",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 156.449153,
+  "reported": {
+   "n_input_tokens": 222028,
+   "n_cache_tokens": 189952,
+   "n_output_tokens": 8666,
+   "cost_usd": 0.150499
+  },
+  "version": "0.170.0",
+  "requests": 11,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 222028,
+  "cached": 189952,
+  "output": 8666,
+  "reasoning": 7182,
+  "usd": 0.15049900000000002,
+  "models": {
+   "gpt-5.1": 11
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "configure-git-webserver",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 50.70617,
+  "reported": {
+   "n_input_tokens": 11693,
+   "n_cache_tokens": 0,
+   "n_output_tokens": 2551,
+   "cost_usd": 0.04012625
+  },
+  "version": "0.170.0",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 11693,
+  "cached": 0,
+  "output": 2551,
+  "reasoning": 1684,
+  "usd": 0.040126,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "db-wal-recovery",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 133.273593,
+  "reported": {
+   "n_input_tokens": 383712,
+   "n_cache_tokens": 358400,
+   "n_output_tokens": 7111,
+   "cost_usd": 0.14755000000000001
+  },
+  "version": "0.170.0",
+  "requests": 25,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 383712,
+  "cached": 358400,
+  "output": 7111,
+  "reasoning": 5513,
+  "usd": 0.14755000000000001,
+  "models": {
+   "gpt-5.1": 25
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "git-leak-recovery",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 70.854645,
+  "reported": {
+   "n_input_tokens": 184931,
+   "n_cache_tokens": 170624,
+   "n_output_tokens": 2848,
+   "cost_usd": 0.06769175
+  },
+  "version": "0.170.0",
+  "requests": 13,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 184931,
+  "cached": 170624,
+  "output": 2848,
+  "reasoning": 1896,
+  "usd": 0.067691,
+  "models": {
+   "gpt-5.1": 13
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "hf-model-inference",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 374.368439,
+  "reported": {
+   "n_input_tokens": 477527,
+   "n_cache_tokens": 470528,
+   "n_output_tokens": 3613,
+   "cost_usd": 0.10369474999999999
+  },
+  "version": "0.170.0",
+  "requests": 34,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 477527,
+  "cached": 470528,
+  "output": 3613,
+  "reasoning": 504,
+  "usd": 0.10369499999999998,
+  "models": {
+   "gpt-5.1": 34
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "kv-store-grpc",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 64.263406,
+  "reported": {
+   "n_input_tokens": 113758,
+   "n_cache_tokens": 98816,
+   "n_output_tokens": 2998,
+   "cost_usd": 0.06100950000000001
+  },
+  "version": "0.170.0",
+  "requests": 8,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 113758,
+  "cached": 98816,
+  "output": 2998,
+  "reasoning": 1050,
+  "usd": 0.06101000000000001,
+  "models": {
+   "gpt-5.1": 8
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "largest-eigenval",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 470.058494,
+  "reported": {
+   "n_input_tokens": 799119,
+   "n_cache_tokens": 766592,
+   "n_output_tokens": 30114,
+   "cost_usd": 0.43762275000000006
+  },
+  "version": "0.170.0",
+  "requests": 25,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 799119,
+  "cached": 766592,
+  "output": 30114,
+  "reasoning": 18199,
+  "usd": 0.43762300000000004,
+  "models": {
+   "gpt-5.1": 25
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "log-summary-date-ranges",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 32.0581,
+  "reported": {
+   "n_input_tokens": 25470,
+   "n_cache_tokens": 12800,
+   "n_output_tokens": 1625,
+   "cost_usd": 0.0336875
+  },
+  "version": "0.170.0",
+  "requests": 2,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 25470,
+  "cached": 12800,
+  "output": 1625,
+  "reasoning": 904,
+  "usd": 0.033688,
+  "models": {
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "model-extraction-relu-logits",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 101.544281,
+  "reported": {
+   "n_input_tokens": 87647,
+   "n_cache_tokens": 71552,
+   "n_output_tokens": 7237,
+   "cost_usd": 0.10143275
+  },
+  "version": "0.170.0",
+  "requests": 6,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 87647,
+  "cached": 71552,
+  "output": 7237,
+  "reasoning": 4687,
+  "usd": 0.10143300000000001,
+  "models": {
+   "gpt-5.1": 6
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "multi-source-data-merger",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 80.618958,
+  "reported": {
+   "n_input_tokens": 93358,
+   "n_cache_tokens": 77440,
+   "n_output_tokens": 5885,
+   "cost_usd": 0.08842749999999999
+  },
+  "version": "0.170.0",
+  "requests": 6,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 93358,
+  "cached": 77440,
+  "output": 5885,
+  "reasoning": 2281,
+  "usd": 0.08842700000000002,
+  "models": {
+   "gpt-5.1": 6
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "nginx-request-logging",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 485.079133,
+  "reported": {
+   "n_input_tokens": 760351,
+   "n_cache_tokens": 734080,
+   "n_output_tokens": 32127,
+   "cost_usd": 0.4458687500000001
+  },
+  "version": "0.170.0",
+  "requests": 21,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 760351,
+  "cached": 734080,
+  "output": 32127,
+  "reasoning": 24236,
+  "usd": 0.44586599999999993,
+  "models": {
+   "gpt-5.1": 21
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "openssl-selfsigned-cert",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 38.536791,
+  "reported": {
+   "n_input_tokens": 118391,
+   "n_cache_tokens": 115712,
+   "n_output_tokens": 2134,
+   "cost_usd": 0.03915275
+  },
+  "version": "0.170.0",
+  "requests": 9,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 118391,
+  "cached": 115712,
+  "output": 2134,
+  "reasoning": 758,
+  "usd": 0.039154,
+  "models": {
+   "gpt-5.1": 9
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "polyglot-rust-c",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 355.062379,
+  "reported": {
+   "n_input_tokens": 345636,
+   "n_cache_tokens": 263552,
+   "n_output_tokens": 23898,
+   "cost_usd": 0.374529
+  },
+  "version": "0.170.0",
+  "requests": 14,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 345636,
+  "cached": 263552,
+  "output": 23898,
+  "reasoning": 20129,
+  "usd": 0.37452799999999997,
+  "models": {
+   "gpt-5.1": 14
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "prove-plus-comm",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 71.411235,
+  "reported": {
+   "n_input_tokens": 169811,
+   "n_cache_tokens": 154752,
+   "n_output_tokens": 3780,
+   "cost_usd": 0.07596775
+  },
+  "version": "0.170.0",
+  "requests": 12,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 169811,
+  "cached": 154752,
+  "output": 3780,
+  "reasoning": 2442,
+  "usd": 0.075967,
+  "models": {
+   "gpt-5.1": 12
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "pypi-server",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 89.102031,
+  "reported": {
+   "n_input_tokens": 249183,
+   "n_cache_tokens": 232832,
+   "n_output_tokens": 4068,
+   "cost_usd": 0.09022275
+  },
+  "version": "0.170.0",
+  "requests": 16,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 249183,
+  "cached": 232832,
+  "output": 4068,
+  "reasoning": 2016,
+  "usd": 0.09022399999999998,
+  "models": {
+   "gpt-5.1": 16
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "pytorch-model-recovery",
+  "reward": null,
+  "error": "AgentTimeoutError",
+  "agent_seconds": 1089.415008,
+  "reported": {
+   "n_input_tokens": 178924,
+   "n_cache_tokens": 161920,
+   "n_output_tokens": 6650,
+   "cost_usd": 0.107995
+  },
+  "version": "0.170.0",
+  "requests": 30,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 619407,
+  "cached": 576768,
+  "output": 14778,
+  "reasoning": 9989,
+  "usd": 0.27317499999999995,
+  "models": {
+   "gpt-5.1": 30
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "regex-log",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 92.877703,
+  "reported": {
+   "n_input_tokens": 30083,
+   "n_cache_tokens": 17792,
+   "n_output_tokens": 6835,
+   "cost_usd": 0.08593775000000002
+  },
+  "version": "0.170.0",
+  "requests": 2,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 30083,
+  "cached": 17792,
+  "output": 6835,
+  "reasoning": 6033,
+  "usd": 0.085938,
+  "models": {
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "sanitize-git-repo",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 73.966971,
+  "reported": {
+   "n_input_tokens": 82895,
+   "n_cache_tokens": 68736,
+   "n_output_tokens": 4120,
+   "cost_usd": 0.06749075000000002
+  },
+  "version": "0.170.0",
+  "requests": 6,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 82895,
+  "cached": 68736,
+  "output": 4120,
+  "reasoning": 1629,
+  "usd": 0.067492,
+  "models": {
+   "gpt-5.1": 6
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "sqlite-db-truncate",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 261.213311,
+  "reported": {
+   "n_input_tokens": 453564,
+   "n_cache_tokens": 391936,
+   "n_output_tokens": 15781,
+   "cost_usd": 0.28383699999999995
+  },
+  "version": "0.170.0",
+  "requests": 21,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 453564,
+  "cached": 391936,
+  "output": 15781,
+  "reasoning": 12668,
+  "usd": 0.283836,
+  "models": {
+   "gpt-5.1": 21
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "build-pmars",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 110.679892,
+  "reported": {
+   "n_input_tokens": 266600,
+   "n_cache_tokens": 207232,
+   "n_output_tokens": 4262,
+   "cost_usd": 0.142734
+  },
+  "version": "1.60.1",
+  "requests": 23,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 266600,
+  "cached": 207232,
+  "output": 4262,
+  "reasoning": 2393,
+  "usd": 0.142735,
+  "models": {
+   "gpt-5.1": 23
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "configure-git-webserver",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 19.805769,
+  "reported": {
+   "n_input_tokens": 1888,
+   "n_cache_tokens": 0,
+   "n_output_tokens": 1508,
+   "cost_usd": 0.01744
+  },
+  "version": "1.60.1",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 1888,
+  "cached": 0,
+  "output": 1508,
+  "reasoning": 548,
+  "usd": 0.01744,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "db-wal-recovery",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 168.254821,
+  "reported": {
+   "n_input_tokens": 837273,
+   "n_cache_tokens": 731648,
+   "n_output_tokens": 7212,
+   "cost_usd": 0.29560725
+  },
+  "version": "1.60.1",
+  "requests": 36,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 837273,
+  "cached": 731648,
+  "output": 7212,
+  "reasoning": 5118,
+  "usd": 0.295606,
+  "models": {
+   "gpt-5.1": 36
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "git-leak-recovery",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 61.601912,
+  "reported": {
+   "n_input_tokens": 64701,
+   "n_cache_tokens": 56320,
+   "n_output_tokens": 2703,
+   "cost_usd": 0.04454625
+  },
+  "version": "1.60.1",
+  "requests": 17,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 64701,
+  "cached": 56320,
+  "output": 2703,
+  "reasoning": 1377,
+  "usd": 0.044546,
+  "models": {
+   "gpt-5.1": 17
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "hf-model-inference",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 76.793785,
+  "reported": {
+   "n_input_tokens": 24005,
+   "n_cache_tokens": 15872,
+   "n_output_tokens": 3788,
+   "cost_usd": 0.05003025
+  },
+  "version": "1.60.1",
+  "requests": 5,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 24005,
+  "cached": 15872,
+  "output": 3788,
+  "reasoning": 1545,
+  "usd": 0.050029000000000004,
+  "models": {
+   "gpt-5.1": 5
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "kv-store-grpc",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 33.11754,
+  "reported": {
+   "n_input_tokens": 16491,
+   "n_cache_tokens": 14208,
+   "n_output_tokens": 1627,
+   "cost_usd": 0.02089975
+  },
+  "version": "1.60.1",
+  "requests": 5,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 16491,
+  "cached": 14208,
+  "output": 1627,
+  "reasoning": 486,
+  "usd": 0.020900000000000002,
+  "models": {
+   "gpt-5.1": 5
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "largest-eigenval",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 117.553236,
+  "reported": {
+   "n_input_tokens": 45022,
+   "n_cache_tokens": 29696,
+   "n_output_tokens": 7693,
+   "cost_usd": 0.09979950000000001
+  },
+  "version": "1.60.1",
+  "requests": 9,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 45022,
+  "cached": 29696,
+  "output": 7693,
+  "reasoning": 6349,
+  "usd": 0.099799,
+  "models": {
+   "gpt-5.1": 9
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "log-summary-date-ranges",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 40.320321,
+  "reported": {
+   "n_input_tokens": 38013,
+   "n_cache_tokens": 32768,
+   "n_output_tokens": 2901,
+   "cost_usd": 0.03966225
+  },
+  "version": "1.60.1",
+  "requests": 8,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 38013,
+  "cached": 32768,
+  "output": 2901,
+  "reasoning": 999,
+  "usd": 0.039662,
+  "models": {
+   "gpt-5.1": 8
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "model-extraction-relu-logits",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 30.383135,
+  "reported": {
+   "n_input_tokens": 16503,
+   "n_cache_tokens": 14720,
+   "n_output_tokens": 1933,
+   "cost_usd": 0.02339875
+  },
+  "version": "1.60.1",
+  "requests": 6,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 16503,
+  "cached": 14720,
+  "output": 1933,
+  "reasoning": 1474,
+  "usd": 0.0234,
+  "models": {
+   "gpt-5.1": 6
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "multi-source-data-merger",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 36.528235,
+  "reported": {
+   "n_input_tokens": 8557,
+   "n_cache_tokens": 4480,
+   "n_output_tokens": 2431,
+   "cost_usd": 0.02996625
+  },
+  "version": "1.60.1",
+  "requests": 3,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 8557,
+  "cached": 4480,
+  "output": 2431,
+  "reasoning": 90,
+  "usd": 0.029965000000000002,
+  "models": {
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "nginx-request-logging",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 69.496037,
+  "reported": {
+   "n_input_tokens": 8545,
+   "n_cache_tokens": 6912,
+   "n_output_tokens": 5036,
+   "cost_usd": 0.05326525
+  },
+  "version": "1.60.1",
+  "requests": 2,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 8545,
+  "cached": 6912,
+  "output": 5036,
+  "reasoning": 3353,
+  "usd": 0.053265,
+  "models": {
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "openssl-selfsigned-cert",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 47.214973,
+  "reported": {
+   "n_input_tokens": 10558,
+   "n_cache_tokens": 7296,
+   "n_output_tokens": 3265,
+   "cost_usd": 0.037639500000000006
+  },
+  "version": "1.60.1",
+  "requests": 3,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 10558,
+  "cached": 7296,
+  "output": 3265,
+  "reasoning": 1205,
+  "usd": 0.03764000000000001,
+  "models": {
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "polyglot-rust-c",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 183.844502,
+  "reported": {
+   "n_input_tokens": 186106,
+   "n_cache_tokens": 154112,
+   "n_output_tokens": 10438,
+   "cost_usd": 0.1636365
+  },
+  "version": "1.60.1",
+  "requests": 16,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 186106,
+  "cached": 154112,
+  "output": 10438,
+  "reasoning": 8486,
+  "usd": 0.16363699999999998,
+  "models": {
+   "gpt-5.1": 16
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "prove-plus-comm",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 77.312402,
+  "reported": {
+   "n_input_tokens": 47569,
+   "n_cache_tokens": 42496,
+   "n_output_tokens": 3210,
+   "cost_usd": 0.04375325000000001
+  },
+  "version": "1.60.1",
+  "requests": 14,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 47569,
+  "cached": 42496,
+  "output": 3210,
+  "reasoning": 1912,
+  "usd": 0.043755,
+  "models": {
+   "gpt-5.1": 14
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "pypi-server",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 331.723846,
+  "reported": {
+   "n_input_tokens": 329099,
+   "n_cache_tokens": 305664,
+   "n_output_tokens": 16511,
+   "cost_usd": 0.23261175
+  },
+  "version": "1.60.1",
+  "requests": 31,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 329099,
+  "cached": 305664,
+  "output": 16511,
+  "reasoning": 9644,
+  "usd": 0.232612,
+  "models": {
+   "gpt-5.1": 31
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "pytorch-model-recovery",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 756.064537,
+  "reported": {
+   "n_input_tokens": 42277,
+   "n_cache_tokens": 27520,
+   "n_output_tokens": 9667,
+   "cost_usd": 0.11855625
+  },
+  "version": "1.60.1",
+  "requests": 7,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 42277,
+  "cached": 27520,
+  "output": 9667,
+  "reasoning": 4380,
+  "usd": 0.118556,
+  "models": {
+   "gpt-5.1": 7
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "regex-log",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 118.805229,
+  "reported": {
+   "n_input_tokens": 9936,
+   "n_cache_tokens": 9088,
+   "n_output_tokens": 6222,
+   "cost_usd": 0.064416
+  },
+  "version": "1.60.1",
+  "requests": 2,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 9936,
+  "cached": 9088,
+  "output": 6222,
+  "reasoning": 5692,
+  "usd": 0.064416,
+  "models": {
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "sanitize-git-repo",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 146.345196,
+  "reported": {
+   "n_input_tokens": 1406453,
+   "n_cache_tokens": 1312896,
+   "n_output_tokens": 7681,
+   "cost_usd": 0.35786825000000005
+  },
+  "version": "1.60.1",
+  "requests": 22,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 1406453,
+  "cached": 1312896,
+  "output": 7681,
+  "reasoning": 4270,
+  "usd": 0.357868,
+  "models": {
+   "gpt-5.1": 22
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "sqlite-db-truncate",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 119.234311,
+  "reported": {
+   "n_input_tokens": 71713,
+   "n_cache_tokens": 54912,
+   "n_output_tokens": 5834,
+   "cost_usd": 0.08620525000000001
+  },
+  "version": "1.60.1",
+  "requests": 13,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 71713,
+  "cached": 54912,
+  "output": 5834,
+  "reasoning": 4302,
+  "usd": 0.086207,
+  "models": {
+   "gpt-5.1": 13
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "build-pmars",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 150.728811,
+  "reported": {
+   "n_input_tokens": 225804,
+   "n_cache_tokens": 199808,
+   "n_output_tokens": 9734,
+   "cost_usd": 0.154811
+  },
+  "version": "2.4.6",
+  "requests": 19,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 225804,
+  "cached": 199808,
+  "output": 9734,
+  "reasoning": 6368,
+  "usd": 0.154812,
+  "models": {
+   "gpt-5.1": 19
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "configure-git-webserver",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 192.515892,
+  "reported": {
+   "n_input_tokens": 65225,
+   "n_cache_tokens": 51712,
+   "n_output_tokens": 10836,
+   "cost_usd": 0.13171524999999998
+  },
+  "version": "2.4.6",
+  "requests": 15,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 65225,
+  "cached": 51712,
+  "output": 10836,
+  "reasoning": 7779,
+  "usd": 0.13171599999999997,
+  "models": {
+   "gpt-5.1": 15
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "db-wal-recovery",
+  "reward": 0.0,
+  "error": "AgentTimeoutError",
+  "agent_seconds": 900.008581,
+  "reported": {
+   "n_input_tokens": 1149675,
+   "n_cache_tokens": 1077120,
+   "n_output_tokens": 38894,
+   "cost_usd": 0.61427375
+  },
+  "version": "2.4.6",
+  "requests": 48,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 1280442,
+  "cached": 1206912,
+  "output": 43621,
+  "reasoning": 41026,
+  "usd": 0.6789879999999999,
+  "models": {
+   "gpt-5.1": 48
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "git-leak-recovery",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 136.610742,
+  "reported": {
+   "n_input_tokens": 11821,
+   "n_cache_tokens": 6912,
+   "n_output_tokens": 8023,
+   "cost_usd": 0.08723025
+  },
+  "version": "2.4.6",
+  "requests": 8,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 11821,
+  "cached": 6912,
+  "output": 8023,
+  "reasoning": 7372,
+  "usd": 0.08723099999999999,
+  "models": {
+   "gpt-5.1": 8
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "hf-model-inference",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 174.214558,
+  "reported": {
+   "n_input_tokens": 33189,
+   "n_cache_tokens": 27520,
+   "n_output_tokens": 5795,
+   "cost_usd": 0.06847625
+  },
+  "version": "2.4.6",
+  "requests": 9,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 33189,
+  "cached": 27520,
+  "output": 5795,
+  "reasoning": 3630,
+  "usd": 0.068476,
+  "models": {
+   "gpt-5.1": 9
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "kv-store-grpc",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 105.499229,
+  "reported": {
+   "n_input_tokens": 20869,
+   "n_cache_tokens": 13440,
+   "n_output_tokens": 4910,
+   "cost_usd": 0.060066249999999995
+  },
+  "version": "2.4.6",
+  "requests": 9,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 20869,
+  "cached": 13440,
+  "output": 4910,
+  "reasoning": 3731,
+  "usd": 0.060065999999999994,
+  "models": {
+   "gpt-5.1": 9
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "largest-eigenval",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 580.765295,
+  "reported": {
+   "n_input_tokens": 384203,
+   "n_cache_tokens": 359424,
+   "n_output_tokens": 24983,
+   "cost_usd": 0.32573175000000004
+  },
+  "version": "2.4.6",
+  "requests": 38,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 384203,
+  "cached": 359424,
+  "output": 24983,
+  "reasoning": 14304,
+  "usd": 0.32572999999999996,
+  "models": {
+   "gpt-5.1": 38
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "log-summary-date-ranges",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 68.265259,
+  "reported": {
+   "n_input_tokens": 20640,
+   "n_cache_tokens": 15104,
+   "n_output_tokens": 3941,
+   "cost_usd": 0.048218000000000004
+  },
+  "version": "2.4.6",
+  "requests": 7,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 20640,
+  "cached": 15104,
+  "output": 3941,
+  "reasoning": 2948,
+  "usd": 0.048216999999999996,
+  "models": {
+   "gpt-5.1": 7
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "model-extraction-relu-logits",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 197.860949,
+  "reported": {
+   "n_input_tokens": 21310,
+   "n_cache_tokens": 12032,
+   "n_output_tokens": 14883,
+   "cost_usd": 0.1619315
+  },
+  "version": "2.4.6",
+  "requests": 6,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 21310,
+  "cached": 12032,
+  "output": 14883,
+  "reasoning": 14377,
+  "usd": 0.16193000000000002,
+  "models": {
+   "gpt-5.1": 6
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "multi-source-data-merger",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 99.11667,
+  "reported": {
+   "n_input_tokens": 34422,
+   "n_cache_tokens": 25600,
+   "n_output_tokens": 7125,
+   "cost_usd": 0.08547750000000001
+  },
+  "version": "2.4.6",
+  "requests": 7,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 34422,
+  "cached": 25600,
+  "output": 7125,
+  "reasoning": 4716,
+  "usd": 0.085479,
+  "models": {
+   "gpt-5.1": 7
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "nginx-request-logging",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 57.656088,
+  "reported": {
+   "n_input_tokens": 10468,
+   "n_cache_tokens": 5504,
+   "n_output_tokens": 4365,
+   "cost_usd": 0.050543000000000005
+  },
+  "version": "2.4.6",
+  "requests": 3,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 10468,
+  "cached": 5504,
+  "output": 4365,
+  "reasoning": 3605,
+  "usd": 0.050543000000000005,
+  "models": {
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "openssl-selfsigned-cert",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 44.045974,
+  "reported": {
+   "n_input_tokens": 3728,
+   "n_cache_tokens": 1024,
+   "n_output_tokens": 3183,
+   "cost_usd": 0.035338
+  },
+  "version": "2.4.6",
+  "requests": 2,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 3728,
+  "cached": 1024,
+  "output": 3183,
+  "reasoning": 2003,
+  "usd": 0.035337999999999994,
+  "models": {
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "polyglot-rust-c",
+  "reward": 0.0,
+  "error": "AgentTimeoutError",
+  "agent_seconds": 900.017855,
+  "reported": {
+   "n_input_tokens": 37219,
+   "n_cache_tokens": 31360,
+   "n_output_tokens": 64325,
+   "cost_usd": 0.6544937500000001
+  },
+  "version": "2.4.6",
+  "requests": 16,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 37219,
+  "cached": 31360,
+  "output": 64325,
+  "reasoning": 62959,
+  "usd": 0.6544929999999999,
+  "models": {
+   "gpt-5.1": 16
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "prove-plus-comm",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 53.728426,
+  "reported": {
+   "n_input_tokens": 11255,
+   "n_cache_tokens": 6912,
+   "n_output_tokens": 3870,
+   "cost_usd": 0.044992750000000005
+  },
+  "version": "2.4.6",
+  "requests": 8,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 11255,
+  "cached": 6912,
+  "output": 3870,
+  "reasoning": 3336,
+  "usd": 0.044992000000000004,
+  "models": {
+   "gpt-5.1": 8
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "pypi-server",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 161.940435,
+  "reported": {
+   "n_input_tokens": 20685,
+   "n_cache_tokens": 9728,
+   "n_output_tokens": 8123,
+   "cost_usd": 0.09614225000000003
+  },
+  "version": "2.4.6",
+  "requests": 8,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 20685,
+  "cached": 9728,
+  "output": 8123,
+  "reasoning": 6695,
+  "usd": 0.09614200000000002,
+  "models": {
+   "gpt-5.1": 8
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "pytorch-model-recovery",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 417.624591,
+  "reported": {
+   "n_input_tokens": 122477,
+   "n_cache_tokens": 100352,
+   "n_output_tokens": 21544,
+   "cost_usd": 0.25564025
+  },
+  "version": "2.4.6",
+  "requests": 11,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 122477,
+  "cached": 100352,
+  "output": 21544,
+  "reasoning": 10047,
+  "usd": 0.25564000000000003,
+  "models": {
+   "gpt-5.1": 11
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "regex-log",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 142.556494,
+  "reported": {
+   "n_input_tokens": 3529,
+   "n_cache_tokens": 1024,
+   "n_output_tokens": 6930,
+   "cost_usd": 0.07255925000000002
+  },
+  "version": "2.4.6",
+  "requests": 3,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 3529,
+  "cached": 1024,
+  "output": 6930,
+  "reasoning": 6638,
+  "usd": 0.07256,
+  "models": {
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "sanitize-git-repo",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 203.932596,
+  "reported": {
+   "n_input_tokens": 103770,
+   "n_cache_tokens": 83840,
+   "n_output_tokens": 10767,
+   "cost_usd": 0.14306249999999998
+  },
+  "version": "2.4.6",
+  "requests": 10,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 103770,
+  "cached": 83840,
+  "output": 10767,
+  "reasoning": 9297,
+  "usd": 0.143062,
+  "models": {
+   "gpt-5.1": 10
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "sqlite-db-truncate",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 340.647027,
+  "reported": {
+   "n_input_tokens": 148104,
+   "n_cache_tokens": 131712,
+   "n_output_tokens": 24165,
+   "cost_usd": 0.278604
+  },
+  "version": "2.4.6",
+  "requests": 20,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 148104,
+  "cached": 131712,
+  "output": 24165,
+  "reasoning": 20905,
+  "usd": 0.278605,
+  "models": {
+   "gpt-5.1": 20
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "build-pmars",
+  "reward": 1.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 149.75962,
+  "reported": {
+   "n_input_tokens": 211323,
+   "n_cache_tokens": 188800,
+   "n_output_tokens": 2299,
+   "cost_usd": 0.10012375
+  },
+  "version": "1.19.6",
+  "requests": 20,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 212001,
+  "cached": 188800,
+  "output": 4851,
+  "reasoning": 2538,
+  "usd": 0.100277,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 19
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "configure-git-webserver",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 26.151624,
+  "reported": {
+   "n_input_tokens": 6009,
+   "n_cache_tokens": 0,
+   "n_output_tokens": 613,
+   "cost_usd": 0.02081125
+  },
+  "version": "1.19.6",
+  "requests": 2,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 6652,
+  "cached": 0,
+  "output": 1346,
+  "reasoning": 717,
+  "usd": 0.02096,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "db-wal-recovery",
+  "reward": 0.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 327.985591,
+  "reported": {
+   "n_input_tokens": 279147,
+   "n_cache_tokens": 240384,
+   "n_output_tokens": 1206,
+   "cost_usd": 0.16024175000000002
+  },
+  "version": "1.19.6",
+  "requests": 22,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 279851,
+  "cached": 240384,
+  "output": 8185,
+  "reasoning": 6968,
+  "usd": 0.16040000000000001,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 21
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "git-leak-recovery",
+  "reward": 1.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 84.60393,
+  "reported": {
+   "n_input_tokens": 43362,
+   "n_cache_tokens": 35200,
+   "n_output_tokens": 575,
+   "cost_usd": 0.030352499999999998
+  },
+  "version": "1.19.6",
+  "requests": 7,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 43999,
+  "cached": 35200,
+  "output": 1587,
+  "reasoning": 1000,
+  "usd": 0.030493999999999997,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 6
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "hf-model-inference",
+  "reward": 1.0,
+  "error": "ApiRateLimitError",
+  "agent_seconds": 113.582257,
+  "reported": {
+   "n_input_tokens": 40656,
+   "n_cache_tokens": 28544,
+   "n_output_tokens": 1472,
+   "cost_usd": 0.036087999999999995
+  },
+  "version": "1.19.6",
+  "requests": 5,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 41490,
+  "cached": 28544,
+  "output": 1751,
+  "reasoning": 266,
+  "usd": 0.036270000000000004,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "kv-store-grpc",
+  "reward": 0.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 166.592701,
+  "reported": {
+   "n_input_tokens": 54140,
+   "n_cache_tokens": 45568,
+   "n_output_tokens": 1111,
+   "cost_usd": 0.033750999999999996
+  },
+  "version": "1.19.6",
+  "requests": 8,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 54939,
+  "cached": 45568,
+  "output": 1749,
+  "reasoning": 623,
+  "usd": 0.033930999999999996,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 7
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "largest-eigenval",
+  "reward": 0.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 427.174191,
+  "reported": {
+   "n_input_tokens": 560175,
+   "n_cache_tokens": 512128,
+   "n_output_tokens": 12716,
+   "cost_usd": 0.37807474999999996
+  },
+  "version": "1.19.6",
+  "requests": 27,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 560866,
+  "cached": 512128,
+  "output": 25412,
+  "reasoning": 12684,
+  "usd": 0.37822500000000003,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 26
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "log-summary-date-ranges",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 32.486301,
+  "reported": {
+   "n_input_tokens": 23732,
+   "n_cache_tokens": 20480,
+   "n_output_tokens": 827,
+   "cost_usd": 0.021124999999999998
+  },
+  "version": "1.19.6",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 24601,
+  "cached": 20480,
+  "output": 1461,
+  "reasoning": 623,
+  "usd": 0.021313,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "model-extraction-relu-logits",
+  "reward": 0.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 100.121295,
+  "reported": {
+   "n_input_tokens": 38327,
+   "n_cache_tokens": 29824,
+   "n_output_tokens": 1696,
+   "cost_usd": 0.07641675
+  },
+  "version": "1.19.6",
+  "requests": 5,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 38994,
+  "cached": 29824,
+  "output": 6219,
+  "reasoning": 4510,
+  "usd": 0.076566,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "multi-source-data-merger",
+  "reward": 1.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 44.491243,
+  "reported": {
+   "n_input_tokens": 40570,
+   "n_cache_tokens": 30592,
+   "n_output_tokens": 2911,
+   "cost_usd": 0.0464765
+  },
+  "version": "1.19.6",
+  "requests": 6,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 41549,
+  "cached": 30592,
+  "output": 3032,
+  "reasoning": 107,
+  "usd": 0.04669,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 5
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "nginx-request-logging",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 112.275642,
+  "reported": {
+   "n_input_tokens": 20415,
+   "n_cache_tokens": 11008,
+   "n_output_tokens": 1511,
+   "cost_usd": 0.07680475
+  },
+  "version": "1.19.6",
+  "requests": 3,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 21371,
+  "cached": 11008,
+  "output": 6382,
+  "reasoning": 4856,
+  "usd": 0.077014,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "openssl-selfsigned-cert",
+  "reward": 1.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 54.779295,
+  "reported": {
+   "n_input_tokens": 38576,
+   "n_cache_tokens": 29696,
+   "n_output_tokens": 2107,
+   "cost_usd": 0.048532000000000006
+  },
+  "version": "1.19.6",
+  "requests": 6,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 39414,
+  "cached": 29696,
+  "output": 3386,
+  "reasoning": 1265,
+  "usd": 0.048718,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 5
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "polyglot-rust-c",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 223.860475,
+  "reported": {
+   "n_input_tokens": 267028,
+   "n_cache_tokens": 236032,
+   "n_output_tokens": 1639,
+   "cost_usd": 0.20209899999999997
+  },
+  "version": "1.19.6",
+  "requests": 12,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 267693,
+  "cached": 236032,
+  "output": 13399,
+  "reasoning": 11746,
+  "usd": 0.20224799999999998,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 11
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "prove-plus-comm",
+  "reward": 1.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 192.03447,
+  "reported": {
+   "n_input_tokens": 149460,
+   "n_cache_tokens": 139264,
+   "n_output_tokens": 1841,
+   "cost_usd": 0.144903
+  },
+  "version": "1.19.6",
+  "requests": 14,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 150112,
+  "cached": 139264,
+  "output": 11489,
+  "reasoning": 9634,
+  "usd": 0.145051,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 13
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "pypi-server",
+  "reward": 0.0,
+  "error": "NetworkConnectionError",
+  "agent_seconds": 258.480957,
+  "reported": {
+   "n_input_tokens": 83282,
+   "n_cache_tokens": 73216,
+   "n_output_tokens": 1674,
+   "cost_usd": 0.07877450000000001
+  },
+  "version": "1.19.6",
+  "requests": 9,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 84005,
+  "cached": 73216,
+  "output": 5717,
+  "reasoning": 4030,
+  "usd": 0.078935,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 8
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "pytorch-model-recovery",
+  "reward": 1.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 685.485095,
+  "reported": {
+   "n_input_tokens": 109274,
+   "n_cache_tokens": 91392,
+   "n_output_tokens": 4027,
+   "cost_usd": 0.1132865
+  },
+  "version": "1.19.6",
+  "requests": 10,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 110116,
+  "cached": 91392,
+  "output": 7965,
+  "reasoning": 3924,
+  "usd": 0.11347299999999999,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 9
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "regex-log",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 53.699735,
+  "reported": {
+   "n_input_tokens": 15747,
+   "n_cache_tokens": 9216,
+   "n_output_tokens": 628,
+   "cost_usd": 0.04741575
+  },
+  "version": "1.19.6",
+  "requests": 3,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 16507,
+  "cached": 9216,
+  "output": 3824,
+  "reasoning": 3182,
+  "usd": 0.047585,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "sanitize-git-repo",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 50.919896,
+  "reported": {
+   "n_input_tokens": 31861,
+   "n_cache_tokens": 17152,
+   "n_output_tokens": 505,
+   "cost_usd": 0.03365025
+  },
+  "version": "1.19.6",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 32561,
+  "cached": 17152,
+  "output": 1324,
+  "reasoning": 807,
+  "usd": 0.033805,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "sqlite-db-truncate",
+  "reward": 1.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 87.901289,
+  "reported": {
+   "n_input_tokens": 73364,
+   "n_cache_tokens": 59264,
+   "n_output_tokens": 2820,
+   "cost_usd": 0.085473
+  },
+  "version": "1.19.6",
+  "requests": 9,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 73964,
+  "cached": 59264,
+  "output": 6058,
+  "reasoning": 3224,
+  "usd": 0.08561200000000001,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 8
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "build-pmars",
+  "reward": 0.0,
+  "error": "AgentTimeoutError",
+  "agent_seconds": 900.005902,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "1.62.0",
+  "requests": 16,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 295438,
+  "cached": 242176,
+  "output": 5993,
+  "reasoning": 4701,
+  "usd": 0.15677800000000003,
+  "models": {
+   "gpt-5.1": 16
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "configure-git-webserver",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 44.845322,
+  "reported": {
+   "n_input_tokens": 5945,
+   "n_cache_tokens": 0,
+   "n_output_tokens": 3458,
+   "cost_usd": 0.04201125
+  },
+  "version": "1.62.0",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 5945,
+  "cached": 0,
+  "output": 3458,
+  "reasoning": 2378,
+  "usd": 0.042011,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "db-wal-recovery",
+  "reward": 0.0,
+  "error": "AgentTimeoutError",
+  "agent_seconds": 900.015044,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "1.62.0",
+  "requests": 24,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 542162,
+  "cached": 468864,
+  "output": 14162,
+  "reasoning": 12601,
+  "usd": 0.291851,
+  "models": {
+   "gpt-5.1": 24
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "git-leak-recovery",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 111.013918,
+  "reported": {
+   "n_input_tokens": 46340,
+   "n_cache_tokens": 38912,
+   "n_output_tokens": 7669,
+   "cost_usd": 0.09083900000000002
+  },
+  "version": "1.62.0",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 46340,
+  "cached": 38912,
+  "output": 7669,
+  "reasoning": 7071,
+  "usd": 0.090839,
+  "models": {
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "hf-model-inference",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 101.210244,
+  "reported": {
+   "n_input_tokens": 114018,
+   "n_cache_tokens": 103680,
+   "n_output_tokens": 5533,
+   "cost_usd": 0.0812125
+  },
+  "version": "1.62.0",
+  "requests": 10,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 114018,
+  "cached": 103680,
+  "output": 5533,
+  "reasoning": 3303,
+  "usd": 0.08121300000000001,
+  "models": {
+   "gpt-5.1": 10
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "kv-store-grpc",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 61.451443,
+  "reported": {
+   "n_input_tokens": 71615,
+   "n_cache_tokens": 61184,
+   "n_output_tokens": 3216,
+   "cost_usd": 0.05284674999999999
+  },
+  "version": "1.62.0",
+  "requests": 7,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 71615,
+  "cached": 61184,
+  "output": 3216,
+  "reasoning": 1803,
+  "usd": 0.052847,
+  "models": {
+   "gpt-5.1": 7
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "largest-eigenval",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 297.219705,
+  "reported": {
+   "n_input_tokens": 371409,
+   "n_cache_tokens": 320128,
+   "n_output_tokens": 23098,
+   "cost_usd": 0.33509725
+  },
+  "version": "1.62.0",
+  "requests": 15,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 371409,
+  "cached": 320128,
+  "output": 23098,
+  "reasoning": 18123,
+  "usd": 0.335099,
+  "models": {
+   "gpt-5.1": 15
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "log-summary-date-ranges",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 43.298603,
+  "reported": {
+   "n_input_tokens": 16982,
+   "n_cache_tokens": 8448,
+   "n_output_tokens": 3152,
+   "cost_usd": 0.043243500000000004
+  },
+  "version": "1.62.0",
+  "requests": 2,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 16982,
+  "cached": 8448,
+  "output": 3152,
+  "reasoning": 2389,
+  "usd": 0.043244000000000005,
+  "models": {
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "model-extraction-relu-logits",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 119.132127,
+  "reported": {
+   "n_input_tokens": 58017,
+   "n_cache_tokens": 54144,
+   "n_output_tokens": 10888,
+   "cost_usd": 0.12048925
+  },
+  "version": "1.62.0",
+  "requests": 5,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 58017,
+  "cached": 54144,
+  "output": 10888,
+  "reasoning": 9362,
+  "usd": 0.12049,
+  "models": {
+   "gpt-5.1": 5
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "multi-source-data-merger",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 141.624887,
+  "reported": {
+   "n_input_tokens": 34876,
+   "n_cache_tokens": 24192,
+   "n_output_tokens": 11799,
+   "cost_usd": 0.13436900000000002
+  },
+  "version": "1.62.0",
+  "requests": 3,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 34876,
+  "cached": 24192,
+  "output": 11799,
+  "reasoning": 8859,
+  "usd": 0.13437,
+  "models": {
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "nginx-request-logging",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 142.447735,
+  "reported": {
+   "n_input_tokens": 117986,
+   "n_cache_tokens": 109440,
+   "n_output_tokens": 8407,
+   "cost_usd": 0.1084325
+  },
+  "version": "1.62.0",
+  "requests": 8,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 117986,
+  "cached": 109440,
+  "output": 8407,
+  "reasoning": 6382,
+  "usd": 0.10843199999999999,
+  "models": {
+   "gpt-5.1": 8
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "openssl-selfsigned-cert",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 59.096075,
+  "reported": {
+   "n_input_tokens": 33349,
+   "n_cache_tokens": 24448,
+   "n_output_tokens": 3578,
+   "cost_usd": 0.04996225
+  },
+  "version": "1.62.0",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 33349,
+  "cached": 24448,
+  "output": 3578,
+  "reasoning": 1943,
+  "usd": 0.04996199999999999,
+  "models": {
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "polyglot-rust-c",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 716.597516,
+  "reported": {
+   "n_input_tokens": 2325374,
+   "n_cache_tokens": 2206080,
+   "n_output_tokens": 38297,
+   "cost_usd": 0.8078475000000002
+  },
+  "version": "1.62.0",
+  "requests": 35,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2325374,
+  "cached": 2206080,
+  "output": 38297,
+  "reasoning": 32895,
+  "usd": 0.807847,
+  "models": {
+   "gpt-5.1": 35
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "prove-plus-comm",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 89.620656,
+  "reported": {
+   "n_input_tokens": 83515,
+   "n_cache_tokens": 75776,
+   "n_output_tokens": 4550,
+   "cost_usd": 0.06464575000000002
+  },
+  "version": "1.62.0",
+  "requests": 10,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 83515,
+  "cached": 75776,
+  "output": 4550,
+  "reasoning": 3142,
+  "usd": 0.06464600000000001,
+  "models": {
+   "gpt-5.1": 10
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "pypi-server",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 93.905222,
+  "reported": {
+   "n_input_tokens": 97969,
+   "n_cache_tokens": 86912,
+   "n_output_tokens": 5933,
+   "cost_usd": 0.08401525000000001
+  },
+  "version": "1.62.0",
+  "requests": 9,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 97969,
+  "cached": 86912,
+  "output": 5933,
+  "reasoning": 3819,
+  "usd": 0.08401600000000001,
+  "models": {
+   "gpt-5.1": 9
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "pytorch-model-recovery",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 242.318149,
+  "reported": {
+   "n_input_tokens": 150405,
+   "n_cache_tokens": 128896,
+   "n_output_tokens": 22478,
+   "cost_usd": 0.26777825
+  },
+  "version": "1.62.0",
+  "requests": 8,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 150405,
+  "cached": 128896,
+  "output": 22478,
+  "reasoning": 14894,
+  "usd": 0.267778,
+  "models": {
+   "gpt-5.1": 8
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "regex-log",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 285.745466,
+  "reported": {
+   "n_input_tokens": 21529,
+   "n_cache_tokens": 15104,
+   "n_output_tokens": 9687,
+   "cost_usd": 0.10678925000000002
+  },
+  "version": "1.62.0",
+  "requests": 2,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 21529,
+  "cached": 15104,
+  "output": 9687,
+  "reasoning": 9121,
+  "usd": 0.10679000000000001,
+  "models": {
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "sanitize-git-repo",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 312.195158,
+  "reported": {
+   "n_input_tokens": 1639508,
+   "n_cache_tokens": 1579648,
+   "n_output_tokens": 21152,
+   "cost_usd": 0.48380099999999987
+  },
+  "version": "1.62.0",
+  "requests": 41,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 1639508,
+  "cached": 1579648,
+  "output": 21152,
+  "reasoning": 14205,
+  "usd": 0.48380300000000004,
+  "models": {
+   "gpt-5.1": 41
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "sqlite-db-truncate",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 159.539406,
+  "reported": {
+   "n_input_tokens": 177067,
+   "n_cache_tokens": 134528,
+   "n_output_tokens": 15004,
+   "cost_usd": 0.22002975000000002
+  },
+  "version": "1.62.0",
+  "requests": 13,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 177067,
+  "cached": 134528,
+  "output": 15004,
+  "reasoning": 11199,
+  "usd": 0.220028,
+  "models": {
+   "gpt-5.1": 13
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "build-pmars",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 446.262603,
+  "reported": {
+   "n_input_tokens": 113646,
+   "n_cache_tokens": 89216,
+   "n_output_tokens": 13650,
+   "cost_usd": 0.1781895
+  },
+  "version": "2.0.0",
+  "requests": 8,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 113646,
+  "cached": 89216,
+  "output": 13650,
+  "reasoning": 7571,
+  "usd": 0.178189,
+  "models": {
+   "gpt-5.1": 8
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "configure-git-webserver",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 215.850325,
+  "reported": {
+   "n_input_tokens": 73300,
+   "n_cache_tokens": 58368,
+   "n_output_tokens": 10453,
+   "cost_usd": 0.130491
+  },
+  "version": "2.0.0",
+  "requests": 10,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 73300,
+  "cached": 58368,
+  "output": 10453,
+  "reasoning": 5680,
+  "usd": 0.130493,
+  "models": {
+   "gpt-5.1": 10
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "db-wal-recovery",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 630.820544,
+  "reported": {
+   "n_input_tokens": 325685,
+   "n_cache_tokens": 279552,
+   "n_output_tokens": 34951,
+   "cost_usd": 0.4421202500000001
+  },
+  "version": "2.0.0",
+  "requests": 19,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 325685,
+  "cached": 279552,
+  "output": 34951,
+  "reasoning": 23988,
+  "usd": 0.44212,
+  "models": {
+   "gpt-5.1": 19
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "git-leak-recovery",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 110.683597,
+  "reported": {
+   "n_input_tokens": 9615,
+   "n_cache_tokens": 4864,
+   "n_output_tokens": 6356,
+   "cost_usd": 0.07010675
+  },
+  "version": "2.0.0",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 9615,
+  "cached": 4864,
+  "output": 6356,
+  "reasoning": 4340,
+  "usd": 0.07010599999999999,
+  "models": {
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "hf-model-inference",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 210.641546,
+  "reported": {
+   "n_input_tokens": 30801,
+   "n_cache_tokens": 20480,
+   "n_output_tokens": 6226,
+   "cost_usd": 0.07772125
+  },
+  "version": "2.0.0",
+  "requests": 5,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 30801,
+  "cached": 20480,
+  "output": 6226,
+  "reasoning": 3079,
+  "usd": 0.077721,
+  "models": {
+   "gpt-5.1": 5
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "kv-store-grpc",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 74.979182,
+  "reported": {
+   "n_input_tokens": 9468,
+   "n_cache_tokens": 3584,
+   "n_output_tokens": 3007,
+   "cost_usd": 0.037873000000000004
+  },
+  "version": "2.0.0",
+  "requests": 3,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 9468,
+  "cached": 3584,
+  "output": 3007,
+  "reasoning": 1197,
+  "usd": 0.037874000000000005,
+  "models": {
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "largest-eigenval",
+  "reward": 0.0,
+  "error": "AgentTimeoutError",
+  "agent_seconds": 900.016128,
+  "reported": {
+   "n_input_tokens": 120316,
+   "n_cache_tokens": 78208,
+   "n_output_tokens": 46340,
+   "cost_usd": 0.525811
+  },
+  "version": "2.0.0",
+  "requests": 10,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 120316,
+  "cached": 78208,
+  "output": 46340,
+  "reasoning": 34332,
+  "usd": 0.52581,
+  "models": {
+   "gpt-5.1": 10
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "log-summary-date-ranges",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 69.691804,
+  "reported": {
+   "n_input_tokens": 16130,
+   "n_cache_tokens": 8960,
+   "n_output_tokens": 3811,
+   "cost_usd": 0.048192500000000006
+  },
+  "version": "2.0.0",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 16130,
+  "cached": 8960,
+  "output": 3811,
+  "reasoning": 1845,
+  "usd": 0.048192000000000006,
+  "models": {
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "model-extraction-relu-logits",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 43.356366,
+  "reported": {
+   "n_input_tokens": 10666,
+   "n_cache_tokens": 3712,
+   "n_output_tokens": 2875,
+   "cost_usd": 0.0379065
+  },
+  "version": "2.0.0",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 10666,
+  "cached": 3712,
+  "output": 2875,
+  "reasoning": 1514,
+  "usd": 0.037906,
+  "models": {
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "multi-source-data-merger",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 106.997299,
+  "reported": {
+   "n_input_tokens": 14199,
+   "n_cache_tokens": 6784,
+   "n_output_tokens": 7570,
+   "cost_usd": 0.08581675000000001
+  },
+  "version": "2.0.0",
+  "requests": 3,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 14199,
+  "cached": 6784,
+  "output": 7570,
+  "reasoning": 4528,
+  "usd": 0.085816,
+  "models": {
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "nginx-request-logging",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 127.882958,
+  "reported": {
+   "n_input_tokens": 19610,
+   "n_cache_tokens": 11264,
+   "n_output_tokens": 5785,
+   "cost_usd": 0.0696905
+  },
+  "version": "2.0.0",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 19610,
+  "cached": 11264,
+  "output": 5785,
+  "reasoning": 3466,
+  "usd": 0.069691,
+  "models": {
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "openssl-selfsigned-cert",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 58.765283,
+  "reported": {
+   "n_input_tokens": 12626,
+   "n_cache_tokens": 6656,
+   "n_output_tokens": 3587,
+   "cost_usd": 0.0441645
+  },
+  "version": "2.0.0",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 12626,
+  "cached": 6656,
+  "output": 3587,
+  "reasoning": 1244,
+  "usd": 0.044163999999999995,
+  "models": {
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "polyglot-rust-c",
+  "reward": 0.0,
+  "error": "AgentTimeoutError",
+  "agent_seconds": 900.00816,
+  "reported": {
+   "n_input_tokens": 43179,
+   "n_cache_tokens": 33792,
+   "n_output_tokens": 62348,
+   "cost_usd": 0.63943775
+  },
+  "version": "2.0.0",
+  "requests": 10,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 43179,
+  "cached": 33792,
+  "output": 62348,
+  "reasoning": 57412,
+  "usd": 0.639439,
+  "models": {
+   "gpt-5.1": 10
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "prove-plus-comm",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 48.323983,
+  "reported": {
+   "n_input_tokens": 6906,
+   "n_cache_tokens": 3456,
+   "n_output_tokens": 2384,
+   "cost_usd": 0.028584500000000002
+  },
+  "version": "2.0.0",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 6906,
+  "cached": 3456,
+  "output": 2384,
+  "reasoning": 1363,
+  "usd": 0.028585,
+  "models": {
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "pypi-server",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 69.359377,
+  "reported": {
+   "n_input_tokens": 7977,
+   "n_cache_tokens": 3200,
+   "n_output_tokens": 3887,
+   "cost_usd": 0.045241250000000004
+  },
+  "version": "2.0.0",
+  "requests": 3,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 7977,
+  "cached": 3200,
+  "output": 3887,
+  "reasoning": 2447,
+  "usd": 0.045241,
+  "models": {
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "pytorch-model-recovery",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 277.604234,
+  "reported": {
+   "n_input_tokens": 74721,
+   "n_cache_tokens": 53632,
+   "n_output_tokens": 16801,
+   "cost_usd": 0.20107525
+  },
+  "version": "2.0.0",
+  "requests": 6,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 74721,
+  "cached": 53632,
+  "output": 16801,
+  "reasoning": 7286,
+  "usd": 0.201075,
+  "models": {
+   "gpt-5.1": 6
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "regex-log",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 122.470602,
+  "reported": {
+   "n_input_tokens": 2648,
+   "n_cache_tokens": 0,
+   "n_output_tokens": 7611,
+   "cost_usd": 0.07942
+  },
+  "version": "2.0.0",
+  "requests": 2,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2648,
+  "cached": 0,
+  "output": 7611,
+  "reasoning": 6317,
+  "usd": 0.07942,
+  "models": {
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "sanitize-git-repo",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 200.794168,
+  "reported": {
+   "n_input_tokens": 45566,
+   "n_cache_tokens": 29312,
+   "n_output_tokens": 14283,
+   "cost_usd": 0.1668115
+  },
+  "version": "2.0.0",
+  "requests": 5,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 45566,
+  "cached": 29312,
+  "output": 14283,
+  "reasoning": 9681,
+  "usd": 0.166812,
+  "models": {
+   "gpt-5.1": 5
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "sqlite-db-truncate",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 263.21101,
+  "reported": {
+   "n_input_tokens": 36274,
+   "n_cache_tokens": 19200,
+   "n_output_tokens": 15130,
+   "cost_usd": 0.17504250000000002
+  },
+  "version": "2.0.0",
+  "requests": 7,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 36274,
+  "cached": 19200,
+  "output": 15130,
+  "reasoning": 10079,
+  "usd": 0.17504300000000003,
+  "models": {
+   "gpt-5.1": 7
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "build-pmars",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 305.655351,
+  "reported": {
+   "n_input_tokens": 245155,
+   "n_cache_tokens": 154624,
+   "n_output_tokens": 7081,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 40,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 245155,
+  "cached": 154624,
+  "output": 7081,
+  "reasoning": 3995,
+  "usd": 0.20330100000000004,
+  "models": {
+   "gpt-5.1": 40
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "configure-git-webserver",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 22.889451,
+  "reported": {
+   "n_input_tokens": 924,
+   "n_cache_tokens": 0,
+   "n_output_tokens": 1571,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 2,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 924,
+  "cached": 0,
+  "output": 1571,
+  "reasoning": 747,
+  "usd": 0.016865,
+  "models": {
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "db-wal-recovery",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 495.630181,
+  "reported": {
+   "n_input_tokens": 134738,
+   "n_cache_tokens": 98560,
+   "n_output_tokens": 30041,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 36,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 134738,
+  "cached": 98560,
+  "output": 30041,
+  "reasoning": 27493,
+  "usd": 0.357953,
+  "models": {
+   "gpt-5.1": 36
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "git-leak-recovery",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 62.051377,
+  "reported": {
+   "n_input_tokens": 25498,
+   "n_cache_tokens": 20352,
+   "n_output_tokens": 3238,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 17,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 25498,
+  "cached": 20352,
+  "output": 3238,
+  "reasoning": 2107,
+  "usd": 0.041358000000000006,
+  "models": {
+   "gpt-5.1": 17
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "hf-model-inference",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 60.102856,
+  "reported": {
+   "n_input_tokens": 11535,
+   "n_cache_tokens": 6528,
+   "n_output_tokens": 2928,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 6,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 11535,
+  "cached": 6528,
+  "output": 2928,
+  "reasoning": 1090,
+  "usd": 0.036354,
+  "models": {
+   "gpt-5.1": 6
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "kv-store-grpc",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 45.344106,
+  "reported": {
+   "n_input_tokens": 14041,
+   "n_cache_tokens": 10368,
+   "n_output_tokens": 1897,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 8,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 14041,
+  "cached": 10368,
+  "output": 1897,
+  "reasoning": 815,
+  "usd": 0.024856999999999997,
+  "models": {
+   "gpt-5.1": 8
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "largest-eigenval",
+  "reward": 0.0,
+  "error": "AgentTimeoutError",
+  "agent_seconds": 900.01087,
+  "reported": {
+   "n_input_tokens": 375889,
+   "n_cache_tokens": 310784,
+   "n_output_tokens": 46281,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 40,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 420906,
+  "cached": 350592,
+  "output": 67441,
+  "reasoning": 52229,
+  "usd": 0.8061229999999998,
+  "models": {
+   "gpt-5.1": 40
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "log-summary-date-ranges",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 136.450633,
+  "reported": {
+   "n_input_tokens": 45696,
+   "n_cache_tokens": 5248,
+   "n_output_tokens": 3556,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 7,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 45696,
+  "cached": 5248,
+  "output": 3556,
+  "reasoning": 1878,
+  "usd": 0.086775,
+  "models": {
+   "gpt-5.1": 7
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "model-extraction-relu-logits",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 203.957788,
+  "reported": {
+   "n_input_tokens": 12369,
+   "n_cache_tokens": 5248,
+   "n_output_tokens": 12103,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 6,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 12369,
+  "cached": 5248,
+  "output": 12103,
+  "reasoning": 10365,
+  "usd": 0.130586,
+  "models": {
+   "gpt-5.1": 6
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "multi-source-data-merger",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 100.463068,
+  "reported": {
+   "n_input_tokens": 15007,
+   "n_cache_tokens": 10880,
+   "n_output_tokens": 8128,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 7,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 15007,
+  "cached": 10880,
+  "output": 8128,
+  "reasoning": 3957,
+  "usd": 0.0878,
+  "models": {
+   "gpt-5.1": 7
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "nginx-request-logging",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 46.367593,
+  "reported": {
+   "n_input_tokens": 1237,
+   "n_cache_tokens": 0,
+   "n_output_tokens": 3212,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 2,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 1237,
+  "cached": 0,
+  "output": 3212,
+  "reasoning": 2306,
+  "usd": 0.033666,
+  "models": {
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "openssl-selfsigned-cert",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 50.620657,
+  "reported": {
+   "n_input_tokens": 16922,
+   "n_cache_tokens": 14080,
+   "n_output_tokens": 2960,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 11,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 16922,
+  "cached": 14080,
+  "output": 2960,
+  "reasoning": 1162,
+  "usd": 0.034914,
+  "models": {
+   "gpt-5.1": 11
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "polyglot-rust-c",
+  "reward": 0.0,
+  "error": "AgentTimeoutError",
+  "agent_seconds": 900.005971,
+  "reported": {
+   "n_input_tokens": 9246,
+   "n_cache_tokens": 4992,
+   "n_output_tokens": 37605,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 11,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 14371,
+  "cached": 8704,
+  "output": 56516,
+  "reasoning": 55698,
+  "usd": 0.5733319999999998,
+  "models": {
+   "gpt-5.1": 11
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "prove-plus-comm",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 21.918051,
+  "reported": {
+   "n_input_tokens": 6191,
+   "n_cache_tokens": 2432,
+   "n_output_tokens": 1904,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 6,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 6191,
+  "cached": 2432,
+  "output": 1904,
+  "reasoning": 1283,
+  "usd": 0.024043000000000002,
+  "models": {
+   "gpt-5.1": 6
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "pypi-server",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 157.932088,
+  "reported": {
+   "n_input_tokens": 28400,
+   "n_cache_tokens": 13824,
+   "n_output_tokens": 3779,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 9,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 28400,
+  "cached": 13824,
+  "output": 3779,
+  "reasoning": 1714,
+  "usd": 0.057737,
+  "models": {
+   "gpt-5.1": 9
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "pytorch-model-recovery",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 804.250938,
+  "reported": {
+   "n_input_tokens": 44138,
+   "n_cache_tokens": 24832,
+   "n_output_tokens": 12125,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 10,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 44138,
+  "cached": 24832,
+  "output": 12125,
+  "reasoning": 7421,
+  "usd": 0.148487,
+  "models": {
+   "gpt-5.1": 10
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "regex-log",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 64.260052,
+  "reported": {
+   "n_input_tokens": 2754,
+   "n_cache_tokens": 0,
+   "n_output_tokens": 5591,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 3,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2754,
+  "cached": 0,
+  "output": 5591,
+  "reasoning": 4776,
+  "usd": 0.059351999999999995,
+  "models": {
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "sanitize-git-repo",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 241.402317,
+  "reported": {
+   "n_input_tokens": 277241,
+   "n_cache_tokens": 174976,
+   "n_output_tokens": 13575,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 27,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 277241,
+  "cached": 174976,
+  "output": 13575,
+  "reasoning": 9650,
+  "usd": 0.28545499999999996,
+  "models": {
+   "gpt-5.1": 27
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "sqlite-db-truncate",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 36.943459,
+  "reported": {
+   "n_input_tokens": 16523,
+   "n_cache_tokens": 8704,
+   "n_output_tokens": 2465,
+   "cost_usd": null
+  },
+  "version": "68b697b6dd2f1c2a5e9957124812c9d7df81915e",
+  "requests": 9,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 16523,
+  "cached": 8704,
+  "output": 2465,
+  "reasoning": 1175,
+  "usd": 0.035513,
+  "models": {
+   "gpt-5.1": 9
+  }
+ }
+]

@@ -56,7 +56,9 @@ def markdown(table):
         solved = "n/a" if row["usd_per_solved"] is None else f"${row['usd_per_solved']:.3f}"
         took = "n/a" if row["seconds"] is None else f"{row['seconds']:.0f} s"
         name = f"**{row['name']}**" if row["agent"] == "turnloom" else row["name"]
-        lines.append(f"| {name} | {row['version'] or ''} | {row['solved']} of {row['tasks']} | {row['low']:.0%} to {row['high']:.0%} "
+        version = row["version"] or ""
+        version = f"`{version[:7]}`" if len(version) == 40 else version  # a commit, for an agent installed from source
+        lines.append(f"| {name} | {version} | {row['solved']} of {row['tasks']} | {row['low']:.0%} to {row['high']:.0%} "
                      f"| ${row['usd_per_task']:.3f} | {solved} | {row['input']:,.0f} ({row['cached']:,.0f}) | {row['output']:,.0f} "
                      f"| {row['calls']:.1f} | {took} |")
     return "\n".join(lines) + "\n"
@@ -76,10 +78,10 @@ def grid(rows, table):
                 marks.append("not run")
             elif cell["reward"] == 1.0:
                 marks.append("pass")
-            elif cell.get("error"):
-                marks.append("time limit" if cell["error"] == "AgentTimeoutError" else "error")
-            else:
-                marks.append("fail")
+            elif cell.get("error") == "AgentTimeoutError":
+                marks.append("time limit")
+            else:  # an agent that exits non-zero after finishing was still checked; only an unchecked trial is an error
+                marks.append("error" if cell["reward"] is None else "fail")
         lines.append(f"| `{task}` | " + " | ".join(marks) + f" | {marks.count('pass')} of {len(order)} |")
     return "\n".join(lines) + "\n"
 
@@ -124,7 +126,7 @@ def figure(table, model, title):
         out.append(bar(cost_x, middle - 7, length, 14, color))
         out.append(f'<text x="{cost_x + length + 8}" y="{middle + 5}" font-size="14" font-weight="{weight}" fill="{INK}">${row["usd_per_task"]:.3f}</text>')
     foot = top + row_height * len(table) + 28
-    out.append(f'<text x="{name_x}" y="{foot}" font-size="12.5" fill="{MUTED}">One attempt per task. Every agent used the same model and reasoning effort; '
+    out.append(f'<text x="{name_x}" y="{foot}" font-size="12.5" fill="{MUTED}">One attempt per task. Every agent used the same model; '
                'tokens are the provider\'s own usage figures, priced at list rates.</text>')
     out.append(f'<text x="{name_x}" y="{foot + 18}" font-size="12.5" fill="{MUTED}">With {tasks} tasks, a difference of two or three solved is within '
                'chance. Method, per-task results and scripts: benchmarks/README.md</text>')

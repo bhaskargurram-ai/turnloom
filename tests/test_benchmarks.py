@@ -69,6 +69,19 @@ class BenchmarkScriptTests(unittest.TestCase):
         self.assertIn("$0.200", figure)
         self.assertIn("| **Turnloom** | 0.7.1 | 1 of 2 |", report.markdown(table))
 
+    def test_the_task_grid_calls_a_checked_trial_a_failure_and_an_unchecked_one_an_error(self):
+        report = load("report")
+        commit = "634494002df4db514d9b5749c47de7f3861c6589"
+        rows = [{"agent": "turnloom", "task": "a", "reward": 1.0, "error": None, "agent_seconds": 50, "usd": 0.1, "version": commit},
+                {"agent": "turnloom", "task": "b", "reward": 0.0, "error": "AgentTimeoutError", "agent_seconds": 900, "usd": 0.1},
+                {"agent": "opencode", "task": "a", "reward": 0.0, "error": "NonZeroAgentExitCodeError", "agent_seconds": 40, "usd": 0.1},
+                {"agent": "opencode", "task": "b", "reward": None, "error": "AgentSetupTimeoutError", "agent_seconds": None, "usd": 0.0}]
+        table = report.summarise(rows)
+        grid = report.grid(rows, table)
+        self.assertIn("| `a` | pass | fail | 1 of 2 |", grid)
+        self.assertIn("| `b` | time limit | error | 0 of 2 |", grid)
+        self.assertIn("| **Turnloom** | `6344940` |", report.markdown(table))
+
     def test_meter_reads_usage_from_both_api_shapes(self):
         try:
             meter = load("meter")

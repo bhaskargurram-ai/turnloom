@@ -9,7 +9,7 @@ The [Harness Leaderboard](https://huggingface.co/spaces/joelniklaus/harness-lead
 | Piece | Where | Checked how |
 | --- | --- | --- |
 | Headless agent | `turnloom-agent`, also `python -m turnloom.agent` | Unit tests, plus a live run against a hosted model |
-| Harbor adapter | [`integrations/harbor/turnloom_harbor.py`](../integrations/harbor/turnloom_harbor.py) | Imports and instantiates under Harbor 0.24.0, the board's pinned version. Not yet run inside a task container. |
+| Harbor adapter | [`integrations/harbor/turnloom_harbor.py`](../integrations/harbor/turnloom_harbor.py) | Run under Harbor 0.24.0, the board's pinned version, on Terminal-Bench 2.1 tasks in Docker. Results and method are in [benchmarks](../benchmarks/README.md). |
 | ATIF trajectory | `--atif PATH`, `turnloom atif TRANSCRIPT OUTPUT` | Accepted by `python -m harbor.utils.trajectory_validator` |
 
 The headless agent reads the same settings the board gives every harness.
@@ -17,9 +17,9 @@ The headless agent reads the same settings the board gives every harness.
 | Fact | Variable | Fallback |
 | --- | --- | --- |
 | Endpoint and key | `TURNLOOM_ENDPOINT`, `TURNLOOM_API_KEY` | `HARNESS_ENDPOINT`, `HARNESS_API_KEY`, then `OPENAI_BASE_URL`, `OPENAI_API_KEY` |
-| Context window | `HLB_CONTEXT_WINDOW` | `HARNESS_CONTEXT_TOKENS`, then 128,000 |
-| Longest reply | `HLB_MAX_OUTPUT_TOKENS` | `HARNESS_MAX_REPLY_TOKENS`, then 16,384 |
-| Reasoning effort | `HLB_REASONING_EFFORT` | `HARNESS_REASONING_EFFORT`, then unset |
+| Context window | `HARNESS_CONTEXT_TOKENS` | `HLB_CONTEXT_WINDOW`, then 128,000 |
+| Longest reply | `HARNESS_MAX_REPLY_TOKENS` | `HLB_MAX_OUTPUT_TOKENS`, then 16,384 |
+| Reasoning effort | `HARNESS_REASONING_EFFORT` | `HLB_REASONING_EFFORT`, then unset |
 
 Behavior that matters under the board's rules:
 
@@ -41,16 +41,16 @@ export PYTHONPATH=integrations/harbor
 harbor run -d terminal-bench@2.1 -a turnloom_harbor:Turnloom -m openai/MODEL_ID \
   --ae OPENAI_API_KEY=$KEY --ae OPENAI_BASE_URL=https://PROVIDER/v1 \
   --ae HLB_CONTEXT_WINDOW=1048576 --ae HLB_MAX_OUTPUT_TOKENS=131072 \
-  --ak version=v0.7.0 --n-attempts 3
+  --ak version=v0.7.1 --n-attempts 3
 ```
 
-The dataset name is the one Harbor's registry uses and has not been run from this repository. The board itself pins the task repositories by commit: `harbor-framework/terminal-bench-2-1` at `d49e28f` and `datacurve-ai/deep-swe` at `0b9fabb`.
+The dataset name is the one Harbor's registry uses. This repository's own runs use a checkout of the task repository instead; see [benchmarks](../benchmarks/README.md). The board itself pins the task repositories by commit: `harbor-framework/terminal-bench-2-1` at `d49e28f` and `datacurve-ai/deep-swe` at `0b9fabb`.
 
 The adapter installs Turnloom with `uv tool install` from this repository at the tag you pass as `version`, on its own Python 3.12, and finishes every download during install. The run phase needs only the model endpoint, which is what DeepSWE's offline agent phase allows.
 
 ## Before asking for a run
 
-1. Use a tagged release, `v0.7.0` or later, so the version can be pinned.
+1. Use a tagged release, `v0.7.1` or later, so the version can be pinned.
 2. Run both benchmarks locally on one of the board's models with three attempts, and keep the trajectories.
 3. Run `atif-scan` over them and read anything it flags.
 4. Share the adapter, the pinned tag and your local numbers with the board's owner. The board's notes put a new harness at about 330 USD of inference plus GPU time, and they rank open-source harnesses ahead of closed ones.

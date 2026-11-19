@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 454" role="img" aria-labelledby="t d" font-family="system-ui,'Segoe UI',Helvetica,Arial,sans-serif">
+<title id="t">Eight coding agents, one model, the same 19 tasks</title>
+<desc id="d">OpenCode solved 11 of 19 at $0.091 per task; Goose solved 11 of 19 at $0.101 per task; Terminus 2 solved 11 of 19 at $0.162 per task; Turnloom solved 10 of 19 at $0.160 per task; mini-SWE-agent solved 10 of 19 at $0.181 per task; OpenHands SDK solved 9 of 19 at $0.186 per task; Codex CLI solved 6 of 19 at $0.156 per task; Aider solved 1 of 19 at $0.061 per task</desc>
+<rect width="960" height="454" fill="#f4f2ec"/>
+<rect x="1" y="1" width="958" height="452" fill="none" stroke="#1c1b18" stroke-width="2"/>
+<text x="32" y="44" font-size="22" font-weight="700" fill="#1c1b18">Eight coding agents, one model, the same 19 tasks</text>
+<text x="32" y="68" font-size="14" fill="#4d4a43">Terminal-Bench 2.1, seeded sample of 19 tasks · gpt-5.1 · one attempt per task</text>
+<text x="200" y="100" font-size="13" font-weight="600" fill="#1c1b18">Tasks solved, of 19</text>
+<text x="610" y="100" font-size="13" font-weight="600" fill="#1c1b18">Model cost per task, USD (lower is better)</text>
+<path d="M200 108v276M610 108v276" stroke="#1c1b18" stroke-width="1"/>
+<path d="M32 146H928" stroke="#d9d5c9" stroke-width="1"/>
+<text x="32" y="134.0" font-size="15" font-weight="400" fill="#1c1b18">OpenCode</text>
+<path d="M200 122.0h169.7a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-169.7z" fill="#8c887b"/>
+<text x="381.6842105263158" y="134.0" font-size="14" font-weight="400" fill="#1c1b18">11</text>
+<path d="M610 122.0h108.8a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-108.8z" fill="#8c887b"/>
+<text x="730.8276243886298" y="134.0" font-size="14" font-weight="400" fill="#1c1b18">$0.091</text>
+<path d="M32 180H928" stroke="#d9d5c9" stroke-width="1"/>
+<text x="32" y="168.0" font-size="15" font-weight="400" fill="#1c1b18">Goose</text>
+<path d="M200 156.0h169.7a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-169.7z" fill="#8c887b"/>
+<text x="381.6842105263158" y="168.0" font-size="14" font-weight="400" fill="#1c1b18">11</text>
+<path d="M610 156.0h120.8a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-120.8z" fill="#8c887b"/>
+<text x="742.8061119511784" y="168.0" font-size="14" font-weight="400" fill="#1c1b18">$0.101</text>
+<path d="M32 214H928" stroke="#d9d5c9" stroke-width="1"/>
+<text x="32" y="202.0" font-size="15" font-weight="400" fill="#1c1b18">Terminus 2</text>
+<path d="M200 190.0h169.7a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-169.7z" fill="#8c887b"/>
+<text x="381.6842105263158" y="202.0" font-size="14" font-weight="400" fill="#1c1b18">11</text>
+<path d="M610 190.0h196.2a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-196.2z" fill="#8c887b"/>
+<text x="818.2375775117418" y="202.0" font-size="14" font-weight="400" fill="#1c1b18">$0.162</text>
+<path d="M32 248H928" stroke="#d9d5c9" stroke-width="1"/>
+<text x="32" y="236.0" font-size="15" font-weight="700" fill="#1c1b18">Turnloom</text>
+<path d="M200 224.0h153.9a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-153.9z" fill="#1f3fbf"/>
+<text x="365.89473684210526" y="236.0" font-size="14" font-weight="700" fill="#1c1b18">10</text>
+<path d="M610 224.0h193.7a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-193.7z" fill="#1f3fbf"/>
+<text x="815.690466295732" y="236.0" font-size="14" font-weight="700" fill="#1c1b18">$0.160</text>
+<path d="M32 282H928" stroke="#d9d5c9" stroke-width="1"/>
+<text x="32" y="270.0" font-size="15" font-weight="400" fill="#1c1b18">mini-SWE-agent</text>
+<path d="M200 258.0h153.9a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-153.9z" fill="#8c887b"/>
+<text x="365.89473684210526" y="270.0" font-size="14" font-weight="400" fill="#1c1b18">10</text>
+<path d="M610 258.0h219.0a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-219.0z" fill="#8c887b"/>
+<text x="840.9855416815827" y="270.0" font-size="14" font-weight="400" fill="#1c1b18">$0.181</text>
+<path d="M32 316H928" stroke="#d9d5c9" stroke-width="1"/>
+<text x="32" y="304.0" font-size="15" font-weight="400" fill="#1c1b18">OpenHands SDK</text>
+<path d="M200 292.0h138.1a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-138.1z" fill="#8c887b"/>
+<text x="350.10526315789474" y="304.0" font-size="14" font-weight="400" fill="#1c1b18">9</text>
+<path d="M610 292.0h226.0a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-226.0z" fill="#8c887b"/>
+<text x="848.0" y="304.0" font-size="14" font-weight="400" fill="#1c1b18">$0.186</text>
+<path d="M32 350H928" stroke="#d9d5c9" stroke-width="1"/>
+<text x="32" y="338.0" font-size="15" font-weight="400" fill="#1c1b18">Codex CLI</text>
+<path d="M200 326.0h90.7a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-90.7z" fill="#8c887b"/>
+<text x="302.7368421052632" y="338.0" font-size="14" font-weight="400" fill="#1c1b18">6</text>
+<path d="M610 326.0h188.7a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-188.7z" fill="#8c887b"/>
+<text x="810.7198137572543" y="338.0" font-size="14" font-weight="400" fill="#1c1b18">$0.156</text>
+<path d="M32 384H928" stroke="#d9d5c9" stroke-width="1"/>
+<text x="32" y="372.0" font-size="15" font-weight="400" fill="#1c1b18">Aider</text>
+<path d="M200 360.0h11.8a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-11.8z" fill="#8c887b"/>
+<text x="223.78947368421052" y="372.0" font-size="14" font-weight="400" fill="#1c1b18">1</text>
+<path d="M610 360.0h71.5a4 4 0 0 1 4 4v6a4 4 0 0 1 -4 4h-71.5z" fill="#8c887b"/>
+<text x="693.5138671343439" y="372.0" font-size="14" font-weight="400" fill="#1c1b18">$0.061</text>
+<text x="32" y="412" font-size="12.5" fill="#4d4a43">One attempt per task. Every agent used the same model; tokens are the provider's own usage figures, priced at list rates.</text>
+<text x="32" y="430" font-size="12.5" fill="#4d4a43">With 19 tasks, a difference of two or three solved is within chance. Method, per-task results and scripts: benchmarks/README.md</text>
+</svg>

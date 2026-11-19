@@ -1,0 +1,827 @@
+[
+ {
+  "agent": "aider",
+  "task": "chess-best-move",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 24.165931,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2502,
+  "cached": 1536,
+  "output": 687,
+  "reasoning": 580,
+  "usd": 0.00827,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "extract-elf",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 74.046008,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 2,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 5558,
+  "cached": 0,
+  "output": 4464,
+  "reasoning": 3231,
+  "usd": 0.043826,
+  "models": {
+   "gpt-5.1": 1,
+   "gpt-5-nano": 1
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "polyglot-c-py",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 491.164927,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 15228,
+  "cached": 6016,
+  "output": 27172,
+  "reasoning": 26558,
+  "usd": 0.283986,
+  "models": {
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "aider",
+  "task": "raman-fitting",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 60.438339,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "0.86.2",
+  "requests": 1,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 2586,
+  "cached": 0,
+  "output": 4356,
+  "reasoning": 2768,
+  "usd": 0.046793,
+  "models": {
+   "gpt-5.1": 1
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "chess-best-move",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 133.653242,
+  "reported": {
+   "n_input_tokens": 47925,
+   "n_cache_tokens": 23680,
+   "n_output_tokens": 11539,
+   "cost_usd": 0.14865625000000002
+  },
+  "version": "0.170.0",
+  "requests": 3,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 47925,
+  "cached": 23680,
+  "output": 11539,
+  "reasoning": 11350,
+  "usd": 0.14865599999999998,
+  "models": {
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "extract-elf",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 134.542796,
+  "reported": {
+   "n_input_tokens": 168981,
+   "n_cache_tokens": 150912,
+   "n_output_tokens": 5882,
+   "cost_usd": 0.10027025
+  },
+  "version": "0.170.0",
+  "requests": 11,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 168981,
+  "cached": 150912,
+  "output": 5882,
+  "reasoning": 3692,
+  "usd": 0.10027200000000001,
+  "models": {
+   "gpt-5.1": 11
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "polyglot-c-py",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 272.549851,
+  "reported": {
+   "n_input_tokens": 176537,
+   "n_cache_tokens": 132736,
+   "n_output_tokens": 18221,
+   "cost_usd": 0.25355325
+  },
+  "version": "0.170.0",
+  "requests": 6,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 176537,
+  "cached": 132736,
+  "output": 18221,
+  "reasoning": 16597,
+  "usd": 0.25355300000000003,
+  "models": {
+   "gpt-5.1": 6
+  }
+ },
+ {
+  "agent": "codex",
+  "task": "raman-fitting",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 105.418385,
+  "reported": {
+   "n_input_tokens": 167635,
+   "n_cache_tokens": 151936,
+   "n_output_tokens": 4729,
+   "cost_usd": 0.08590575000000002
+  },
+  "version": "0.170.0",
+  "requests": 12,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 167635,
+  "cached": 151936,
+  "output": 4729,
+  "reasoning": 2720,
+  "usd": 0.085908,
+  "models": {
+   "gpt-5.1": 12
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "chess-best-move",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 83.472764,
+  "reported": {
+   "n_input_tokens": 21639,
+   "n_cache_tokens": 17152,
+   "n_output_tokens": 6865,
+   "cost_usd": 0.07640275
+  },
+  "version": "1.60.1",
+  "requests": 5,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 21639,
+  "cached": 17152,
+  "output": 6865,
+  "reasoning": 6707,
+  "usd": 0.07640299999999998,
+  "models": {
+   "gpt-5.1": 5
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "extract-elf",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 43.624754,
+  "reported": {
+   "n_input_tokens": 7391,
+   "n_cache_tokens": 5504,
+   "n_output_tokens": 3670,
+   "cost_usd": 0.03974675
+  },
+  "version": "1.60.1",
+  "requests": 2,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 7391,
+  "cached": 5504,
+  "output": 3670,
+  "reasoning": 2219,
+  "usd": 0.039747,
+  "models": {
+   "gpt-5.1": 2
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "polyglot-c-py",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 111.397078,
+  "reported": {
+   "n_input_tokens": 18312,
+   "n_cache_tokens": 15616,
+   "n_output_tokens": 7127,
+   "cost_usd": 0.07659200000000001
+  },
+  "version": "1.60.1",
+  "requests": 3,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 18312,
+  "cached": 15616,
+  "output": 7127,
+  "reasoning": 5822,
+  "usd": 0.07659200000000001,
+  "models": {
+   "gpt-5.1": 3
+  }
+ },
+ {
+  "agent": "goose",
+  "task": "raman-fitting",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 149.531329,
+  "reported": {
+   "n_input_tokens": 286180,
+   "n_cache_tokens": 245632,
+   "n_output_tokens": 13656,
+   "cost_usd": 0.217949
+  },
+  "version": "1.60.1",
+  "requests": 21,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 286180,
+  "cached": 245632,
+  "output": 13656,
+  "reasoning": 7926,
+  "usd": 0.217949,
+  "models": {
+   "gpt-5.1": 21
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "chess-best-move",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 678.387355,
+  "reported": {
+   "n_input_tokens": 1789550,
+   "n_cache_tokens": 1686400,
+   "n_output_tokens": 25897,
+   "cost_usd": 0.5987075000000002
+  },
+  "version": "2.4.6",
+  "requests": 46,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 1789550,
+  "cached": 1686400,
+  "output": 25897,
+  "reasoning": 22083,
+  "usd": 0.598706,
+  "models": {
+   "gpt-5.1": 46
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "extract-elf",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 118.918132,
+  "reported": {
+   "n_input_tokens": 33865,
+   "n_cache_tokens": 24576,
+   "n_output_tokens": 4509,
+   "cost_usd": 0.05977325000000001
+  },
+  "version": "2.4.6",
+  "requests": 7,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 33865,
+  "cached": 24576,
+  "output": 4509,
+  "reasoning": 3062,
+  "usd": 0.059774,
+  "models": {
+   "gpt-5.1": 7
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "polyglot-c-py",
+  "reward": 1.0,
+  "error": "AgentTimeoutError",
+  "agent_seconds": 900.045657,
+  "reported": {
+   "n_input_tokens": 76463,
+   "n_cache_tokens": 66304,
+   "n_output_tokens": 50700,
+   "cost_usd": 0.52798675
+  },
+  "version": "2.4.6",
+  "requests": 22,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 91953,
+  "cached": 80512,
+  "output": 56516,
+  "reasoning": 52993,
+  "usd": 0.5895279999999999,
+  "models": {
+   "gpt-5.1": 22
+  }
+ },
+ {
+  "agent": "mini-swe-agent",
+  "task": "raman-fitting",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 92.793792,
+  "reported": {
+   "n_input_tokens": 25439,
+   "n_cache_tokens": 12160,
+   "n_output_tokens": 7382,
+   "cost_usd": 0.09193875
+  },
+  "version": "2.4.6",
+  "requests": 10,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 25439,
+  "cached": 12160,
+  "output": 7382,
+  "reasoning": 4146,
+  "usd": 0.091938,
+  "models": {
+   "gpt-5.1": 10
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "chess-best-move",
+  "reward": 0.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 203.037716,
+  "reported": {
+   "n_input_tokens": 46718,
+   "n_cache_tokens": 16896,
+   "n_output_tokens": 189,
+   "cost_usd": 0.1432495
+  },
+  "version": "1.19.6",
+  "requests": 5,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 47313,
+  "cached": 16896,
+  "output": 10398,
+  "reasoning": 10197,
+  "usd": 0.143383,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "extract-elf",
+  "reward": 0.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 79.472716,
+  "reported": {
+   "n_input_tokens": 62431,
+   "n_cache_tokens": 51328,
+   "n_output_tokens": 2572,
+   "cost_usd": 0.06840475
+  },
+  "version": "1.19.6",
+  "requests": 8,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 63112,
+  "cached": 51328,
+  "output": 4824,
+  "reasoning": 2239,
+  "usd": 0.06855499999999999,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 7
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "polyglot-c-py",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 216.732186,
+  "reported": {
+   "n_input_tokens": 362460,
+   "n_cache_tokens": 322048,
+   "n_output_tokens": 1132,
+   "cost_usd": 0.23995100000000003
+  },
+  "version": "1.19.6",
+  "requests": 13,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 363107,
+  "cached": 322048,
+  "output": 14931,
+  "reasoning": 13786,
+  "usd": 0.240097,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 12
+  }
+ },
+ {
+  "agent": "opencode",
+  "task": "raman-fitting",
+  "reward": 0.0,
+  "error": "NonZeroAgentExitCodeError",
+  "agent_seconds": 143.442305,
+  "reported": {
+   "n_input_tokens": 109302,
+   "n_cache_tokens": 102784,
+   "n_output_tokens": 3937,
+   "cost_usd": 0.11734549999999999
+  },
+  "version": "1.19.6",
+  "requests": 12,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 109983,
+  "cached": 102784,
+  "output": 9647,
+  "reasoning": 5698,
+  "usd": 0.11749699999999999,
+  "models": {
+   "gpt-5.4-nano": 1,
+   "gpt-5.1": 11
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "chess-best-move",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 162.462178,
+  "reported": {
+   "n_input_tokens": 231570,
+   "n_cache_tokens": 199552,
+   "n_output_tokens": 10801,
+   "cost_usd": 0.1729765
+  },
+  "version": "1.62.0",
+  "requests": 10,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 231570,
+  "cached": 199552,
+  "output": 10801,
+  "reasoning": 9220,
+  "usd": 0.17297600000000002,
+  "models": {
+   "gpt-5.1": 10
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "extract-elf",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 112.119439,
+  "reported": {
+   "n_input_tokens": 56673,
+   "n_cache_tokens": 46592,
+   "n_output_tokens": 8875,
+   "cost_usd": 0.10717525000000001
+  },
+  "version": "1.62.0",
+  "requests": 5,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 56673,
+  "cached": 46592,
+  "output": 8875,
+  "reasoning": 6622,
+  "usd": 0.107175,
+  "models": {
+   "gpt-5.1": 5
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "polyglot-c-py",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 72.795814,
+  "reported": {
+   "n_input_tokens": 36950,
+   "n_cache_tokens": 29696,
+   "n_output_tokens": 5185,
+   "cost_usd": 0.06462949999999999
+  },
+  "version": "1.62.0",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 36950,
+  "cached": 29696,
+  "output": 5185,
+  "reasoning": 3839,
+  "usd": 0.06462999999999999,
+  "models": {
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "openhands",
+  "task": "raman-fitting",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 192.00742,
+  "reported": {
+   "n_input_tokens": 380102,
+   "n_cache_tokens": 342656,
+   "n_output_tokens": 17091,
+   "cost_usd": 0.2605495000000001
+  },
+  "version": "1.62.0",
+  "requests": 13,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 380102,
+  "cached": 342656,
+  "output": 17091,
+  "reasoning": 12652,
+  "usd": 0.26054799999999995,
+  "models": {
+   "gpt-5.1": 13
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "chess-best-move",
+  "reward": 0.0,
+  "error": "AgentTimeoutError",
+  "agent_seconds": 900.038758,
+  "reported": {
+   "n_input_tokens": 367931,
+   "n_cache_tokens": 336896,
+   "n_output_tokens": 33549,
+   "cost_usd": 0.41639575000000006
+  },
+  "version": "2.0.0",
+  "requests": 24,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 367931,
+  "cached": 336896,
+  "output": 33549,
+  "reasoning": 26368,
+  "usd": 0.41639800000000005,
+  "models": {
+   "gpt-5.1": 24
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "extract-elf",
+  "reward": null,
+  "error": "RuntimeError",
+  "agent_seconds": null,
+  "reported": {
+   "n_input_tokens": null,
+   "n_cache_tokens": null,
+   "n_output_tokens": null,
+   "cost_usd": null
+  },
+  "version": "2.0.0"
+ },
+ {
+  "agent": "terminus-2",
+  "task": "polyglot-c-py",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 201.562255,
+  "reported": {
+   "n_input_tokens": 16311,
+   "n_cache_tokens": 9216,
+   "n_output_tokens": 12966,
+   "cost_usd": 0.13968075000000002
+  },
+  "version": "2.0.0",
+  "requests": 4,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 16311,
+  "cached": 9216,
+  "output": 12966,
+  "reasoning": 9839,
+  "usd": 0.13968,
+  "models": {
+   "gpt-5.1": 4
+  }
+ },
+ {
+  "agent": "terminus-2",
+  "task": "raman-fitting",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 161.223783,
+  "reported": {
+   "n_input_tokens": 37595,
+   "n_cache_tokens": 23424,
+   "n_output_tokens": 11394,
+   "cost_usd": 0.13458175
+  },
+  "version": "2.0.0",
+  "requests": 5,
+  "failed": 0,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 37595,
+  "cached": 23424,
+  "output": 11394,
+  "reasoning": 5296,
+  "usd": 0.13458099999999998,
+  "models": {
+   "gpt-5.1": 5
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "chess-best-move",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 725.019443,
+  "reported": {
+   "n_input_tokens": 272946,
+   "n_cache_tokens": 164480,
+   "n_output_tokens": 38088,
+   "cost_usd": null
+  },
+  "version": "634494002df4db514d9b5749c47de7f3861c6589",
+  "requests": 42,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 272946,
+  "cached": 164480,
+  "output": 38088,
+  "reasoning": 33128,
+  "usd": 0.537021,
+  "models": {
+   "gpt-5.1": 42
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "extract-elf",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 217.412997,
+  "reported": {
+   "n_input_tokens": 28153,
+   "n_cache_tokens": 17664,
+   "n_output_tokens": 13278,
+   "cost_usd": null
+  },
+  "version": "634494002df4db514d9b5749c47de7f3861c6589",
+  "requests": 14,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 28153,
+  "cached": 17664,
+  "output": 13278,
+  "reasoning": 11039,
+  "usd": 0.148099,
+  "models": {
+   "gpt-5.1": 14
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "polyglot-c-py",
+  "reward": 1.0,
+  "error": null,
+  "agent_seconds": 675.541849,
+  "reported": {
+   "n_input_tokens": 40590,
+   "n_cache_tokens": 32128,
+   "n_output_tokens": 42650,
+   "cost_usd": null
+  },
+  "version": "634494002df4db514d9b5749c47de7f3861c6589",
+  "requests": 16,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 40590,
+  "cached": 32128,
+  "output": 42650,
+  "reasoning": 40600,
+  "usd": 0.441092,
+  "models": {
+   "gpt-5.1": 16
+  }
+ },
+ {
+  "agent": "turnloom",
+  "task": "raman-fitting",
+  "reward": 0.0,
+  "error": null,
+  "agent_seconds": 71.47854,
+  "reported": {
+   "n_input_tokens": 20084,
+   "n_cache_tokens": 12544,
+   "n_output_tokens": 3654,
+   "cost_usd": null
+  },
+  "version": "634494002df4db514d9b5749c47de7f3861c6589",
+  "requests": 10,
+  "failed": 1,
+  "refused": 0,
+  "unmetered": 0,
+  "input": 20084,
+  "cached": 12544,
+  "output": 3654,
+  "reasoning": 2078,
+  "usd": 0.047532000000000005,
+  "models": {
+   "gpt-5.1": 10
+  }
+ }
+]

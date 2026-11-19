@@ -85,7 +85,7 @@ turnloom tools examples/mcp.json git git_status          # inspect a server with
 turnloom chat --mcp examples/mcp.json
 ```
 
-In Studio, put the same file at `.turnloom/mcp.json` in the workspace and switch servers on in the Tools view. Add `"unwind": true` to a process entry to route that server through Unwind.
+In Studio, put the same file at `.turnloom/mcp.json` in the workspace and switch servers on in the Tools view. In that file, and only there, add `"unwind": true` to a process entry to route that server through Unwind; a file passed with `--mcp` is refused if it has that key.
 
 The model gets two tools regardless of how many servers you configure: `mcp_search` lists a server's tool names and returns the schemas of the best five matches, and `mcp_call` invokes one. A server starts on first use and stays connected for the session. Every call asks for approval with its arguments shown. Results larger than the output limit are archived and reach the prompt as a preview with a reference. A server that fails is reconnected on the next call.
 
@@ -183,9 +183,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - id: turnloom
-        uses: bhaskargurram-ai/turnloom@v0.7.0
+        uses: bhaskargurram-ai/turnloom@v0.7.1
         with:
-          task: Review the changes in this checkout for bugs and report the three most important findings.
+          task: Review the code under src/ for bugs and report the three most important findings.
           persona: reviewer
           mode: read-only
           endpoint: https://openrouter.ai/api/v1
@@ -205,7 +205,7 @@ Each release publishes `ghcr.io/bhaskargurram-ai/turnloom`, an image with Turnlo
 ```sh
 docker run --rm -it -v "$PWD:/workspace" \
   -e TURNLOOM_ENDPOINT -e TURNLOOM_MODEL -e TURNLOOM_API_KEY \
-  ghcr.io/bhaskargurram-ai/turnloom:v0.7.0 run "Fix the failing test" --yes
+  ghcr.io/bhaskargurram-ai/turnloom:v0.7.1 run "Fix the failing test" --yes
 ```
 
 The repository's `Dockerfile` builds the same image locally with `docker build -t turnloom .`.

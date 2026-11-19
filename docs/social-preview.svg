@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">Turnloom</title>
+  <desc id="desc">The Turnloom mark, nine threads with five drawn tight into a cord, above the wordmark and the line: a coding agent whose context you can inspect.</desc>
+  <rect width="1280" height="640" fill="#f4f2ec"/>
+  <rect x="3" y="3" width="1274" height="634" fill="none" stroke="#1c1b18" stroke-width="6"/>
+  <g transform="translate(96 96) scale(1.9)">
+    <path d="M0 0v108M168 0v108" stroke="#1c1b18" stroke-width="2"/>
+    <path d="M56 0v108M112 0v108" stroke="#a8a396" stroke-width="1.5" stroke-dasharray="3 4"/>
+    <g fill="none" stroke-width="2.5" stroke-linejoin="round">
+      <g stroke="#1f3fbf">
+        <path d="M0 6H56L112 38H168"/>
+        <path d="M0 18H56L112 41H168"/>
+        <path d="M0 30H56L112 44H168"/>
+        <path d="M0 42H56L112 47H168"/>
+        <path d="M0 54H56L112 50H168"/>
+      </g>
+      <g stroke="#1c1b18">
+        <path d="M0 66H56L112 60H168"/>
+        <path d="M0 78H56L112 72H168"/>
+        <path d="M0 90H56L112 84H168"/>
+        <path d="M0 102H56L112 96H168"/>
+      </g>
+    </g>
+  </g>
+  <text x="472" y="226" font-family="system-ui,'Segoe UI',Helvetica,Arial,sans-serif" font-size="132" font-weight="700" letter-spacing="-3" fill="#1c1b18">Turnloom</text>
+  <text x="478" y="284" font-family="ui-monospace,'Cascadia Mono',Consolas,Menlo,monospace" font-size="26.5" fill="#4d4a43">A coding agent whose context you can inspect</text>
+  <path d="M96 372H1184" stroke="#1c1b18" stroke-width="2"/>
+  <g font-family="system-ui,'Segoe UI',Helvetica,Arial,sans-serif" fill="#1c1b18">
+    <text x="96" y="432" font-size="30" font-weight="600">Folded tool output stays recoverable</text>
+    <text x="96" y="482" font-size="30" font-weight="600">Every edit is a diff you approve and can undo</text>
+    <text x="96" y="532" font-size="30" font-weight="600">Every model call is metered</text>
+  </g>
+  <text x="1184" y="532" text-anchor="end" font-family="ui-monospace,'Cascadia Mono',Consolas,Menlo,monospace" font-size="26" fill="#1f3fbf">pipx install turnloom</text>
+  <text x="96" y="588" font-family="ui-monospace,'Cascadia Mono',Consolas,Menlo,monospace" font-size="22" fill="#4d4a43">Terminal · desktop Studio · MCP · ACP · any OpenAI-compatible model · MIT</text>
+</svg>

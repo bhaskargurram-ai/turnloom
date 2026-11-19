@@ -48,8 +48,10 @@ def sample(tasks, count, seed, max_timeout=900, max_memory=4096):
 def run_pair(options, name, task):
     spec = AGENTS[name]
     out = Path(options.out) / name
-    if (out / task / "result.json").is_file():
+    if any((out / task).glob("*__*/result.json")):  # a finished trial; Harbor's job-level file exists from the start
         return name, task, "kept"
+    if (out / task).exists():  # an interrupted job: set it aside so Harbor can use the name again
+        (out / task).rename(out / f"{task}.interrupted-{int(time.time())}")
     out.mkdir(parents=True, exist_ok=True)
     tag = f"{name}__{task}"
     host = "127.0.0.1" if spec.get("host") else "host.docker.internal"

@@ -4,17 +4,37 @@ Notable changes to Turnloom. Versions follow [Semantic Versioning](https://semve
 
 ## 0.7.1
 
+A release shaped by running Turnloom beside seven other agents on Terminal-Bench tasks, and by writing the reference documentation. Both turned up things to fix.
+
+### Security
+
+- **A policy rule that asks is always put to you.** With a `provio.yaml` in the workspace, a rule with the verdict `ask` was answered without a prompt when `--auto-edit`, an `--allow` pattern or an earlier "always" already covered the call. In the terminal, Studio and editors the question is now asked for that call, names the rule, and offers no "always". Under `turnloom serve` nobody is present to answer, so the call is refused, as it already was under `--yes`.
+
 ### Changed
 
 - A file tool asked for a path outside the workspace now says that the file tools reach only the project root and, in a session that has a shell, that the shell is the tool for other paths. Before, the bare refusal left the model retrying or guessing.
+- `turnloom-agent` tells the model that the session is unattended: nobody will act on advice in its reply, so it has to run the commands and start the services itself. Before, some tasks ended with instructions for a person who was not there.
+- The shell tool's description says that a long-running process belongs in the background.
+- `--budget` without known prices says how to supply them: pass `--input-rate` and `--output-rate`, or run `turnloom connect` again.
+- `turnloom-agent` no longer insists on an API key, so it works with a local endpoint that needs none.
+- The GitHub Action installs the `guard` extra, so a repository with a `provio.yaml` runs under its policy instead of stopping with an error.
+- Help text for the flags that had none: `--workspace`, `--reply`, `--deadline`, `--effort`, `--no-fold`, `--skills-dir`, `--tier`, `--search` and the proxy's `--port`.
 
 ### Fixed
 
 - An endpoint that refuses `max_tokens` and asks for `max_completion_tokens`, as OpenAI models do behind a gateway or proxy, is remembered for the rest of the process. Before, every model call was sent twice.
+- `turnloom personas` says "1 persona" when there is one.
+
+### Documentation
+
+- New pages: [quick start](docs/quickstart.md), [command reference](docs/cli.md), [configuration](docs/configuration.md), [recipes](docs/recipes.md) and [FAQ](docs/faq.md), with an [index](docs/README.md).
+- The README is rewritten around a first run, with copy-and-paste examples, and its links now work on PyPI.
+- [Benchmarks](benchmarks/README.md): the method, scripts and results of the comparison with other agents.
+- Corrections where a page disagreed with the code: the order of the `HARNESS_*` and `HLB_*` variables, what an MCP server inherits from your environment, where the `unwind` key is accepted, and examples that asked a read-only session to review a Git diff it cannot see.
 
 ### Project
 
-- A roadmap, a code of conduct and starter issues for contributors.
+- A roadmap, a code of conduct, a contributor guide that walks through a first pull request, and starter issues.
 
 ## 0.7.0
 
