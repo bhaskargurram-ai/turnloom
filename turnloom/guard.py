@@ -130,9 +130,13 @@ class Gate:
     ``approve(kind, detail)`` asks the operator and returns a bool; without one, an ask verdict is
     refused. ``confirm`` keeps the operator in the loop for allowed calls too. ``notify`` receives the
     verdict just before the operator is asked. A gate serves one agent loop, one call at a time.
+
+    ``ask(kind, detail, note)`` puts the question for an ask verdict. It exists because ``approve`` may
+    answer from a standing choice (auto-edit, an allow pattern, an earlier "always"), and a rule that
+    asks wants a decision about this call. Without one, ``approve`` is used.
     """
 
-    def __init__(self, workspace, approve=None, confirm=True, session=None, notify=None):
+    def __init__(self, workspace, approve=None, confirm=True, session=None, notify=None, ask=None):
         try:
             from provio_sdk import Caller, Provio
         except ImportError as error:
@@ -140,7 +144,7 @@ class Gate:
         from turnloom import __version__
         if not policy_path(workspace).is_file():
             raise ValueError("This workspace has no provio.yaml. Create one in Studio's Policy view or with provio init.")
-        self.approve, self.confirm, self.notify = approve, confirm, notify
+        self.approve, self.confirm, self.notify, self.ask = approve, confirm, notify, ask
         self.asked_operator = False
         self.quiet = False
         self.detail = ""
@@ -180,7 +184,10 @@ class Gate:
             kind, text = "edit", self.detail or f"Edit {arguments.get('path') or 'a file'}\nThe policy asks before this file is changed."
         else:
             kind, text = "mcp", f"{request.call.tool} {json.dumps(dict(arguments), ensure_ascii=False)}"
-        return Approval(bool(self.approve(kind, str(text))), approver="human:turnloom-operator")
+        decision = request.decision
+        note = f"Policy rule {decision.rule_id} asks before this runs" + (f": {decision.reason}" if decision.reason else ".")
+        granted = self.ask(kind, str(text), note) if self.ask else self.approve(kind, str(text))
+        return Approval(bool(granted), approver="human:turnloom-operator")
 
     def permits_read(self, path):
         """Whether the policy lets a search return lines from this file.

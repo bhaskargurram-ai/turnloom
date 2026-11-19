@@ -1,5 +1,6 @@
-include LICENSE CHANGELOG.md SECURITY.md CONTRIBUTING.md AGENTS.md action.yml Dockerfile
+include LICENSE CHANGELOG.md SECURITY.md CONTRIBUTING.md AGENTS.md ROADMAP.md CODE_OF_CONDUCT.md action.yml Dockerfile
 include *.cmd
+graft benchmarks
 graft docs
 graft examples
 graft integrations

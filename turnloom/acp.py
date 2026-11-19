@@ -227,14 +227,19 @@ class Turn:
         self.post({"sessionUpdate": "tool_call_update", "toolCallId": fields["toolCallId"],
                    **closed(name, json.loads(result), change, self.session.files)})
 
-    def approve(self, kind, detail):
-        """Decide an edit, command or MCP call on the worker thread, asking the editor unless the session already allows it."""
+    def approve(self, kind, detail, forced=False):
+        """Decide an edit, command or MCP call on the worker thread, asking the editor unless the session already allows it.
+
+        ``forced`` is a policy rule asking: the session's standing choices do not answer it, and there is no "always".
+        """
         session, fields = self.session, self.call[0]
         if self.stop.is_set() or (session.mode == "read-only" and kind != "mcp"):
             return False
-        if not (kind == "edit" and session.mode == "auto-edit") and (kind, detail) not in session.always:
+        if forced or (not (kind == "edit" and session.mode == "auto-edit") and (kind, detail) not in session.always):
             answer = Future()
             options = [("allow", "Allow", "allow_once"), ("always", ALWAYS[kind], "allow_always"), ("reject", "Reject", "reject_once")]
+            if forced:
+                del options[1]
             request = {"tool_call": {**fields, "content": fields.get("content") or [block(detail)]},
                        "options": [{"optionId": key, "name": label, "kind": hint} for key, label, hint in options]}
             if not self.post((request, answer)):
@@ -271,7 +276,8 @@ class Turn:
         if not guard.installed():
             return ("This workspace has a provio.yaml but Provio is not installed, so its policy cannot be applied. "
                     "Run `pip install \"turnloom[guard]\"` and send your message again.")
-        with guard.Gate(root, approve=config.approve, confirm=True, session=session.id) as config.gate:
+        asked = guarded(lambda kind, detail, note: self.approve(kind, detail, forced=True), False)
+        with guard.Gate(root, approve=config.approve, confirm=True, session=session.id, ask=asked) as config.gate:
             return run_agent(task, config, session.history, session.archive)
 
     def work(self, task):

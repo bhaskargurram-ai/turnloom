@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import tempfile
 import threading
@@ -114,6 +116,37 @@ class GateTests(unittest.TestCase):
         results, asked = self.run_turn([edit], False, False)
         self.assertEqual((self.root / "notes.txt").read_text(), "one\n")
         self.assertTrue(results[0].get("declined") or results[0].get("error"))
+
+    def test_a_rule_that_asks_is_not_answered_by_standing_choices(self):
+        (self.root / "provio.yaml").write_text(
+            guard.STARTER + 'rules:\n  - {id: ask-before-writes, when: "tool == \\"fs.write\\"", verdict: ask}\n',
+            encoding="utf-8")
+        (self.root / "notes.txt").write_text("one\n")
+        edit = ("edit_file", {"path": "notes.txt", "old_string": "one", "new_string": "two"})
+        from turnloom.cli import Approver
+        approver = Approver(auto_edit=True, allow=["*"])  # the operator's standing choices would approve this edit
+        self.assertTrue(approver("edit", "anything"))
+        for answer, expected in (("n\n", "one\n"), ("y\n", "two\n")):
+            with self.subTest(answer=answer):
+                (self.root / "notes.txt").write_text("one\n")
+                stdin, shown = io.StringIO(answer), io.StringIO()
+                stdin.isatty = lambda: True
+                with guard.Gate(self.root, approve=approver, confirm=True, session="test", ask=approver.ask) as gate:
+                    config = Config("local", "fixture", "", self.root, approve=approver, gate=gate)
+                    with patch("turnloom.agent.api_request", side_effect=[reply(None, [edit]), reply("done")]), \
+                            patch("sys.stdin", stdin), contextlib.redirect_stderr(shown):
+                        run_agent("task", config, [])
+                self.assertEqual((self.root / "notes.txt").read_text(), expected)
+                self.assertIn("Policy rule ask-before-writes asks before this runs", shown.getvalue())
+                self.assertIn("+two", shown.getvalue())
+        # With nobody at the terminal the rule's question has no answer, so the edit does not happen.
+        (self.root / "notes.txt").write_text("one\n")
+        with guard.Gate(self.root, approve=approver, confirm=True, session="test", ask=approver.ask) as gate:
+            config = Config("local", "fixture", "", self.root, approve=approver, gate=gate)
+            with patch("turnloom.agent.api_request", side_effect=[reply(None, [edit]), reply("done")]), \
+                    patch("sys.stdin", io.StringIO("y\n")):
+                run_agent("task", config, [])
+        self.assertEqual((self.root / "notes.txt").read_text(), "one\n")
 
     def test_shell_ask_verdict_is_put_to_the_operator_once(self):
         results, asked = self.run_turn([("shell", {"command": "git reset --hard"})], True, True)

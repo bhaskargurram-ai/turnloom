@@ -330,7 +330,8 @@ def command(args):
 
 
 def register(commands):
-    commands.add_parser("providers", help="Browse inference providers").add_argument("--search", default="")
+    commands.add_parser("providers", help="Browse inference providers").add_argument(
+        "--search", default="", help="Show only providers whose name or ID contains this text")
     commands.add_parser("connection", help="Show the saved model selection")
     commands.add_parser("disconnect", help="Clear the active model selection").add_argument(
         "--forget-key", action="store_true", help="Also delete this provider's key from the OS credential store")
@@ -338,8 +339,8 @@ def register(commands):
         sub = commands.add_parser(name, help="Browse the model catalog" if name == "models" else "Choose a provider and save a model")
         sub.add_argument("provider", nargs="?" if name == "connect" else None, metavar="PROVIDER",
                          help="A preset id from turnloom providers, or litellm:<provider> for a native API")
-        sub.add_argument("--tier", choices=["all", "free", "paid", "unknown"], default="all")
-        sub.add_argument("--search", default="")
+        sub.add_argument("--tier", choices=["all", "free", "paid", "unknown"], default="all", help="Show only models in this price tier")
+        sub.add_argument("--search", default="", help="Show only models whose ID contains this text")
         sub.add_argument("--open-weights", action="store_true", help="Show model IDs marked open weights in Models.dev")
         if name == "connect":
             sub.add_argument("--model", help="Select an exact catalog ID without the menu")

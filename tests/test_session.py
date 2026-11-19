@@ -281,6 +281,10 @@ class SessionTests(unittest.TestCase):
         self.assertEqual((self.workspace / "notes.txt").read_text(), "two\n")
         system = Provider.requests[0]["messages"][0]["content"]
         self.assertIn("evaluation task", system)
+        # Nobody reads a headless run's reply, so the agent is told to do the work, not describe it.
+        self.assertIn("This session is unattended", system)
+        shell = next(tool["function"] for tool in Provider.requests[0]["tools"] if tool["function"]["name"] == "shell")
+        self.assertIn("in the background", shell["description"])
         steps = json.loads(trajectory.read_text(encoding="utf-8"))["steps"]
         self.assertEqual([step["source"] for step in steps], ["system", "user", "agent", "agent", "agent"])
         self.assertIn("checked", steps[3]["observation"]["results"][0]["content"])
@@ -294,6 +298,12 @@ class SessionTests(unittest.TestCase):
         code, _, errors = self.cli("run", "hello", "--workspace", str(self.workspace), "--read-only", "--persona", "nobody")
         self.assertEqual(code, 2)
         self.assertIn("Unknown persona", errors)
+        self.assertEqual(Provider.requests, [])
+
+    def test_budget_without_prices_says_how_to_supply_them(self):
+        code, _, errors = self.cli("run", "hello", "--workspace", str(self.workspace), "--read-only", "--budget", "0.25")
+        self.assertEqual(code, 2)
+        self.assertIn("--input-rate and --output-rate", errors)
         self.assertEqual(Provider.requests, [])
 
     def test_doctor_reports_setup_without_secrets(self):

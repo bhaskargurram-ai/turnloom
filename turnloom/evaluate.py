@@ -80,7 +80,7 @@ def validate_manifest(cases: list[dict[str, Any]], base: Path = Path(".")) -> No
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Evaluate the harness on an isolated task manifest")
+    parser = argparse.ArgumentParser(prog="turnloom-eval", description="Run Turnloom on each task in a manifest, each in its own copy of the workspace, and record the results")
     parser.add_argument("manifest", type=Path)
     parser.add_argument("--results", type=Path, default=Path("results"))
     parser.add_argument("--attempts", type=int, default=3)

@@ -138,8 +138,10 @@ def serve(workspace, allow_run=False, allow_edits=False, allow_shell=False):
             if guard.policy_path(base).is_file():
                 if not guard.installed():
                     raise ValueError('This workspace has a provio.yaml but Provio is not installed. Install "turnloom[guard]".')
-                # The workspace's policy applies to delegated work as it does to the operator's own.
-                with guard.Gate(base, approve=policy, confirm=True, session=session_id) as config.gate:
+                # The workspace's policy applies to delegated work as it does to the operator's own. Nobody is
+                # present to answer a rule that asks, so such a call is refused, as it is under --yes.
+                with guard.Gate(base, approve=policy, confirm=True, session=session_id,
+                                ask=lambda kind, detail, note: False) as config.gate:
                     result = run_agent(task, config)
             else:
                 result = run_agent(task, config)

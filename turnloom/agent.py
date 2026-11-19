@@ -36,6 +36,11 @@ KEY_VARIABLES = {variable for _, _, variable in PROVIDERS.values()} | {
 # Added to sessions that are scored by a benchmark. Interactive sessions do not carry it.
 FAIR_PLAY = ("\n\nThis is an evaluation task. Never fetch benchmark solutions, answer keys, other agents' trajectories, "
              "or upstream versions containing the task's answer. Do not tailor code to a hidden grader.")
+UNATTENDED = ("\n\nThis session is unattended. Nobody will answer a question, run a command for you or act on advice in your "
+              "reply, and every tool call is approved. Carry out the whole task yourself: run the commands, start any service the "
+              "task expects to be running, and leave the machine in the state the task describes. The task may involve paths "
+              "outside the project directory; reach those through the shell. Before finishing, check the result the way it will "
+              "be used.")
 HOMEPAGE = "https://github.com/bhaskargurram-ai/turnloom"
 
 SYSTEM_PROMPT = """You are Turnloom, a coding agent working in the user's project directory.
@@ -48,7 +53,9 @@ Finish with a short report: what changed, what you ran, and anything that still 
 
 SHELL = {"type": "function", "function": {
     "name": "shell",
-    "description": "Run a shell command in the workspace and return its exit code and output.",
+    "description": "Run a shell command in the workspace and return its exit code and output. The command has to finish within "
+                   "its timeout, so start a server or other long-running process in the background and check on it with a "
+                   "second command.",
     "parameters": {"type": "object", "required": ["command"], "properties": {
         "command": {"type": "string"},
         "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 600}}}}}
@@ -899,8 +906,9 @@ def main() -> int:
     parser.add_argument("--output-chars", type=int, default=16000)
     parser.add_argument("--transcript", type=Path)
     arguments = parser.parse_args()
-    if not arguments.model or not arguments.endpoint or not arguments.api_key:
-        parser.error("Set TURNLOOM_MODEL, TURNLOOM_ENDPOINT and TURNLOOM_API_KEY (or pass flags)")
+    if not arguments.model or not arguments.endpoint:
+        parser.error("Set TURNLOOM_MODEL and TURNLOOM_ENDPOINT, and TURNLOOM_API_KEY unless the endpoint needs no key "
+                     "(or pass --model, --endpoint and --api-key)")
     task = arguments.task if arguments.task is not None else sys.stdin.read()
     if not task.strip():
         parser.error("Task text is empty")
@@ -910,7 +918,7 @@ def main() -> int:
     except OSError as error:
         parser.error(f"Cannot read the system prompt file: {error}")
     prompt = (base + "\nOlder tool output may be folded. Use recall with the reference and offset to retrieve it."
-              + FAIR_PLAY + "\n\n" + environment(workspace))
+              + UNATTENDED + FAIR_PLAY + "\n\n" + environment(workspace))
     config = Config(
         endpoint=arguments.endpoint, model=arguments.model, api_key=arguments.api_key,
         workspace=workspace, deadline_seconds=arguments.deadline_seconds,

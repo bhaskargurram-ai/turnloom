@@ -351,13 +351,14 @@ class Workbench:
 
     # ---- approvals -------------------------------------------------------
 
-    def approve(self, kind, detail):
+    def approve(self, kind, detail, forced=False):
+        """Put a request to the operator. ``forced`` is a policy rule asking: standing choices do not answer it."""
         with self.lock:
             if self.stop.is_set():
                 return False
             settings = self.settings
             edits = kind == "edit" and (settings["auto_edit"] or self.session_edits)
-            if settings["auto_approve"] or edits or (kind, detail) in self.always:
+            if not forced and (settings["auto_approve"] or edits or (kind, detail) in self.always):
                 self.risk = self.verdict = None
                 return True
             title, _, body = detail.partition("\n") if kind == "edit" else ("", "", detail)
@@ -742,7 +743,8 @@ class Workbench:
                                  "or turn the gate off in the Policy view to run without the policy.")
             if state["active"]:
                 gate = guard.Gate(self.root, approve=self.approve, confirm=settings["gate"] == "confirm",
-                                  session=self.trace.stem, notify=self.note_verdict)
+                                  session=self.trace.stem, notify=self.note_verdict,
+                                  ask=lambda kind, detail, note: self.approve(kind, detail, forced=True))
             self.stop.clear()
             if team:
                 self.history.clear()

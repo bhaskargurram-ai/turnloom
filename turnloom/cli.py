@@ -58,18 +58,28 @@ class Approver:
         simple = kind == "shell" and not re.search(r"[;&|<>`$()\n\r%^]", detail)
         return simple and any(fnmatch.fnmatchcase(detail, pattern) for pattern in self.allow)
 
+    @staticmethod
+    def show(kind, detail):
+        shown = "".join(char if char in "\n\t" or char.isprintable() else repr(char)[1:-1] for char in detail)
+        print(f"\n$ {shown}" if kind == "shell" else f"\n{shown}", file=sys.stderr)
+
+    def ask(self, kind, detail, note=""):
+        """A question a policy rule put. Standing choices do not answer it, and a yes covers this call only."""
+        if not sys.stdin.isatty():
+            return False
+        self.show(kind, detail)
+        print(f"{note}\nAllow it this once? [y]es / [n]o: " if note else "Allow it this once? [y]es / [n]o: ",
+              end="", file=sys.stderr, flush=True)
+        return sys.stdin.readline().strip().lower() in ("y", "yes")
+
     def __call__(self, kind, detail):
         if self.allowed(kind, detail):
             return True
         if not sys.stdin.isatty():
             return False
-        shown = "".join(char if char in "\n\t" or char.isprintable() else repr(char)[1:-1] for char in detail)
-        if kind == "edit":
-            print(f"\n{shown}", file=sys.stderr)
-            question = "Apply this edit? [y]es / [n]o / [a]lways allow edits: "
-        else:
-            print(f"\n$ {shown}" if kind == "shell" else f"\n{shown}", file=sys.stderr)
-            question = "Run this? [y]es / [n]o / [a]lways allow this exact request: "
+        self.show(kind, detail)
+        question = ("Apply this edit? [y]es / [n]o / [a]lways allow edits: " if kind == "edit"
+                    else "Run this? [y]es / [n]o / [a]lways allow this exact request: ")
         print(question, end="", file=sys.stderr, flush=True)
         answer = sys.stdin.readline().strip().lower()
         if answer in ("a", "always"):
@@ -256,15 +266,15 @@ def main(argv=None):
     probe.add_argument("server")
     probe.add_argument("query", nargs="?", default="")
     serve = commands.add_parser("serve", help="Serve Turnloom to other agents over MCP stdio")
-    serve.add_argument("--workspace", type=Path, default=Path.cwd())
+    serve.add_argument("--workspace", type=Path, default=Path.cwd(), help="Project folder, default the current directory")
     serve.add_argument("--allow-run", action="store_true", help="Let clients delegate read-only tasks to the connected model")
     serve.add_argument("--allow-edits", action="store_true", help="With --allow-run, also let delegated tasks edit files")
     serve.add_argument("--allow-shell", action="store_true", help="With --allow-run, also let delegated tasks run commands")
     editor = commands.add_parser("acp", help="Serve Turnloom to editors over the Agent Client Protocol on stdio")
-    editor.add_argument("--workspace", type=Path, default=Path.cwd())
+    editor.add_argument("--workspace", type=Path, default=Path.cwd(), help="Project folder, default the current directory")
     editor.add_argument("--persona", default="builder", help="A persona id from turnloom personas")
     layer = commands.add_parser("proxy", help="Serve an OpenAI-compatible endpoint that folds context for another harness")
-    layer.add_argument("--port", type=int, default=8787)
+    layer.add_argument("--port", type=int, default=8787, help="Loopback port, default 8787")
     layer.add_argument("--workspace", type=Path, default=Path.cwd(), help="Where the usage ledger is written")
     layer.add_argument("--keep", type=int, default=3, help="Newest tool results left unfolded")
     layer.add_argument("--no-fold", action="store_true", help="Meter only")
@@ -275,7 +285,7 @@ def main(argv=None):
     for name, text in (("sessions", "List saved sessions in a workspace"), ("doctor", "Check the local setup"),
                        ("studio", "Open the browser workbench"), ("undo", "Restore files edited by a session's last turn")):
         sub = commands.add_parser(name, help=text)
-        sub.add_argument("--workspace", type=Path, default=Path.cwd())
+        sub.add_argument("--workspace", type=Path, default=Path.cwd(), help="Project folder, default the current directory")
         if name == "undo":
             sub.add_argument("session", nargs="?", help="Session ID prefix, default the most recent")
         if name == "studio":
@@ -286,10 +296,10 @@ def main(argv=None):
         sub = commands.add_parser(name, help={"run": "Run one task", "chat": "Start a chat", "team": "Plan, build and review in three stages"}[name])
         if name != "chat":
             sub.add_argument("task")
-        sub.add_argument("--mcp", type=Path, help="Explicit trusted stdio server configuration")
-        sub.add_argument("--skills-dir", type=Path)
+        sub.add_argument("--mcp", type=Path, help="A trusted MCP server configuration file: stdio or streamable HTTP servers")
+        sub.add_argument("--skills-dir", type=Path, help="A folder of Agent Skills to offer the model")
         sub.add_argument("--skill", action="append", default=[], help="Load a named skill from --skills-dir")
-        sub.add_argument("--workspace", type=Path, default=Path.cwd())
+        sub.add_argument("--workspace", type=Path, default=Path.cwd(), help="Project folder, default the current directory")
         sub.add_argument("--persona", default="builder", help="A persona id from turnloom personas")
         sub.add_argument("--persona-file", type=Path, help="Additional trusted Markdown instructions")
         sub.add_argument("--yes", action="store_true", help="Approve every command, edit and tool call")
@@ -302,11 +312,12 @@ def main(argv=None):
         sub.add_argument("--input-rate", type=float, help="USD per million input tokens")
         sub.add_argument("--output-rate", type=float, help="USD per million output tokens")
         sub.add_argument("--context", type=int, help="Context window in tokens, default from the model catalog or 128000")
-        sub.add_argument("--reply", type=int, default=4096)
-        sub.add_argument("--deadline", type=int, default=1800)
+        sub.add_argument("--reply", type=int, default=4096, help="Longest reply in tokens, default 4096")
+        sub.add_argument("--deadline", type=int, default=1800, help="Wall-clock limit for the task in seconds, default 1800")
         sub.add_argument("--max-steps", type=int, default=100, help="Model calls allowed per task, 0 for no limit")
-        sub.add_argument("--effort")
-        sub.add_argument("--no-fold", action="store_true")
+        sub.add_argument("--effort", help="Reasoning effort passed to the model, such as low, medium or high")
+        sub.add_argument("--no-fold", action="store_true",
+                         help="Keep every tool result in the prompt instead of folding older ones into the archive")
         sub.add_argument("--no-stream", action="store_true", help="Print the answer when it is complete")
         sub.add_argument("--json", action="store_true", help="Print the final result as one JSON object")
         sub.add_argument("--events", action="store_true", help="Print each session event as a JSON line while it happens")
@@ -358,7 +369,7 @@ def main(argv=None):
                 and (args.all or query or row["division"] in ("turnloom", "custom", "engineering", "testing", "security"))]
         for row in rows:
             print(f"{row['id']:<46} {row['division']:<18} {row['description'][:90]}")
-        print(f"\n{len(rows)} personas. reviewer and architect are short names for the code reviewer and "
+        print(f"\n{len(rows)} persona{'' if len(rows) == 1 else 's'}. reviewer and architect are short names for the code reviewer and "
               "software architect. Add --all for every division.", file=sys.stderr)
         return 0
     if args.action == "atif":
@@ -417,7 +428,8 @@ def main(argv=None):
     rates = (args.input_rate, args.output_rate, args.budget)
     free_route = connection.free and args.input_rate == args.output_rate == 0
     if any(value < 0 or not math.isfinite(value) for value in rates) or (args.budget and min(rates) <= 0 and not free_route):
-        parser.error("A budget requires positive finite input and output rates.")
+        parser.error("A budget needs this model's prices, and none are saved. Pass --input-rate and --output-rate in USD per "
+                     "million tokens, or run turnloom connect again to save the catalog's prices.")
     if not (args.yes or args.read_only or args.auto_edit) and not sys.stdin.isatty():
         parser.error("Interactive approvals require a terminal. Pass --read-only, --auto-edit (edits only), "
                      "or --yes inside a trusted sandbox.")
@@ -455,7 +467,8 @@ def main(argv=None):
                 parser.error('This workspace has a provio.yaml but Provio is not installed. Run python -m pip install '
                              '"turnloom[guard]", or pass --no-gate to run without the policy.')
             # With --yes nobody is there to answer, so an ask verdict is refused. Otherwise the operator confirms as usual.
-            gate = guard.Gate(config.workspace, approve=None if args.yes else approver, confirm=not args.yes, session=trace.stem)
+            gate = guard.Gate(config.workspace, approve=None if args.yes else approver, confirm=not args.yes, session=trace.stem,
+                              ask=None if args.yes else approver.ask)
             print("Provio policy gate on: provio.yaml", file=sys.stderr)
         with gate as config.gate, McpTools(args.mcp, config.workspace) if args.mcp else nullcontext() as connections:
             config.mcp = connections
