@@ -53,9 +53,18 @@ def calm(text, repository, limit=LIMIT):
 
 
 def proposed(answer, allowed):
-    """Split a triage answer into the allowed labels it names on its first line and the comment that follows."""
-    first, _, rest = answer.strip().partition("\n")
-    match = re.match(r"\s*\**labels\**\s*:\**(.*)", first, re.I)
+    """Split a triage answer into the allowed labels it names and the comment that follows.
+
+    The labels line is asked for first, but some models talk before it, so it may be any of the opening lines.
+    Whatever comes before it is dropped.
+    """
+    lines = answer.strip().split("\n")
+    match = None
+    for index, line in enumerate(lines[:6]):
+        match = re.match(r"\s*\**labels\**\s*:\**(.*)", line, re.I)
+        if match:
+            rest = "\n".join(lines[index + 1:])
+            break
     if not match:
         return [], answer.strip()
     known = {name.lower(): name for name in allowed}

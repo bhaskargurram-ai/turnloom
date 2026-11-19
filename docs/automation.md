@@ -49,6 +49,8 @@ A person opens the pull request from that branch, which runs the full test matri
 
 4. Make sure the labels `agent: review` and `agent: attempt` exist.
 
+A free model works too, such as one of OpenRouter's `:free` models that lists tool support (`turnloom models openrouter --tier free` shows them). Set the two rates to a small nominal price such as `0.05` and `0.2`: at the default rates a free model that reads a lot stops at its budget before it answers. Run the triage workflow by hand on one issue first and read what it posts, because free models vary a great deal. This repository runs on one; its first triage took 19 model calls and 173,000 input tokens where `gpt-5.1` took 5 and 22,000.
+
 To turn everything off again, delete the secret. To turn one workflow off, disable it under the repository's Actions tab.
 
 ## What it costs

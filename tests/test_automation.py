@@ -62,6 +62,10 @@ class AgentReplyTests(unittest.TestCase):
         self.assertEqual(rest, "The table is in `studio.py`.")
         self.assertEqual(self.reply.proposed("**Labels:** needs info\nMore detail please.", allowed), (["needs info"], "More detail please."))
         self.assertEqual(self.reply.proposed("No label line here.", allowed), ([], "No label line here."))
+        talkative = "Now I understand the issue. Here is the report.\n\nLabels: bug, area: studio\n\nThe cause is in `studio.py`."
+        self.assertEqual(self.reply.proposed(talkative, allowed), (["bug", "area: studio"], "The cause is in `studio.py`."))
+        late = "\n".join(["A line."] * 8) + "\nLabels: bug\nBody."
+        self.assertEqual(self.reply.proposed(late, allowed)[0], [], "a labels line deep in the answer is part of the comment")
 
     def test_the_comment_says_what_wrote_it_and_marks_itself(self):
         result = {"status": "budget_limit", "answer": "Looks wrong in `a.py`.", "steps": 7,
