@@ -9,6 +9,12 @@ Notable changes to Turnloom. Versions follow [Semantic Versioning](https://semve
 - **Agents in this repository's CI.** Three workflows run Turnloom on its own issues and pull requests: a review posted as one comment, triage of new issues, and an attempt at an issue on a branch when a maintainer labels it. The job that holds the model key cannot write or run commands, the agent's edits are executed only in a job with no secret, and `scripts/agent_reply.py` makes an answer safe to post. They are off until a `TURNLOOM_API_KEY` secret is set. [Agents in CI](docs/automation.md) describes the design and how to copy it.
 - The GitHub Action takes `budget`, `input-rate` and `output-rate`, so a task in CI can be given a spending limit.
 
+### Changed
+
+- **A read-only session is told that it is read-only.** Its system prompt used to be the standard one, which describes the edit and shell tools and asks for the smallest change that solves the task. With no tool to act with, the model read the same files until it ran out of calls. In a team run this stopped the plan stage at its 40-call limit on a five-file project, so nothing was built. The same task now finishes all three stages in 9 model calls.
+- **Small tool results are no longer folded.** The threshold rises from 800 to 4,000 characters. Folding a short file saved a few hundred tokens and made the model read it again. A result that was folded and then fetched again is now left whole.
+- Asking to read, list, search or recall something whose identical result is still in the conversation returns a one-line note in place of the same text.
+
 ### Security
 
 - The GitHub Action starts Turnloom with the working directory off Python's import path. Before, a file in the workspace named like a module that Turnloom imports later, including one the agent wrote in `auto-edit` mode, could be loaded by the process that holds the model key.
@@ -16,6 +22,7 @@ Notable changes to Turnloom. Versions follow [Semantic Versioning](https://semve
 ### Fixed
 
 - The GitHub Action no longer fails on a Windows runner when the answer holds a character the console cannot encode.
+- The proxy reads a refused request's body before it answers. Before, a client on Windows could get a connection reset in place of the 401, 403 or 404, and on a kept-alive connection the unread body was taken for the next request.
 
 ## 0.7.1
 

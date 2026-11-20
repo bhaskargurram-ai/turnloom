@@ -1,3 +1,4 @@
+import http.client
 import json
 import shutil
 import subprocess
@@ -213,6 +214,32 @@ class ProxyTests(unittest.TestCase):
                 urllib.request.urlopen(request, timeout=5)
             self.assertEqual(refused.exception.code, 403)
             refused.exception.close()
+
+    def test_a_refused_request_leaves_the_connection_usable(self):
+        layer = proxy.Layer(providers.Connection("http://upstream/v1", "fixture", ""), send=lambda body: reply("hello"))
+        server = proxy.make_server(layer, 0, token="secret")
+        thread = threading.Thread(target=server.serve_forever)
+        thread.start()
+        self.addCleanup(thread.join)
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        body = json.dumps({"model": "x", "messages": [{"role": "user", "content": "hi " * 2000}]})
+        good = {"Content-Type": "application/json", "Authorization": "Bearer secret"}
+        refusals = (("/v1/chat/completions", {**good, "Origin": "https://example.org"}, 403),
+                    ("/v1/chat/completions", {**good, "Authorization": "Bearer wrong"}, 401),
+                    ("/v1/embeddings", good, 404))
+        for path, headers, status in refusals:
+            connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+            self.addCleanup(connection.close)
+            connection.request("POST", path, body, headers)
+            refused = connection.getresponse()
+            refused.read()
+            self.assertEqual(refused.status, status)
+            # The same connection carries the next request: the refused body was not left behind to be read as one.
+            connection.request("POST", "/v1/chat/completions", body, good)
+            answered = connection.getresponse()
+            self.assertEqual(answered.status, 200, f"after a {status}")
+            self.assertEqual(json.loads(answered.read())["choices"][0]["message"]["content"], "hello")
 
     @unittest.skipUnless(find_spec("openai"), "requires the openai package")
     def test_openai_sdk_talks_to_the_proxy(self):

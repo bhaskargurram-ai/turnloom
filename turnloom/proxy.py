@@ -181,16 +181,29 @@ def make_server(layer, port=8787, token=""):
             self.end_headers()
             self.wfile.write(body)
 
+        def refuse(self, status, body):
+            # Read a modest body before answering, so that the client receives the status instead of a
+            # reset and the rest of this request is not taken for the next one on the connection.
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = -1
+            if 0 < length <= LIMIT:
+                self.rfile.read(length)
+            elif length != 0:
+                self.close_connection = True
+            self.reply(status, body)
+
         def allowed(self):
             # A harness on this machine sends no Origin and addresses the proxy by its loopback name.
             # Anything else is a web page trying to spend the operator's tokens, or a rebound hostname.
             port = self.server.server_port
             if self.headers.get("Origin") or self.headers.get("Host") not in (f"127.0.0.1:{port}", f"localhost:{port}"):
-                self.reply(403, b'{"error":{"message":"The Turnloom proxy accepts local clients only"}}')
+                self.refuse(403, b'{"error":{"message":"The Turnloom proxy accepts local clients only"}}')
                 return False
             supplied = self.headers.get("Authorization", "")
             if token and not secrets.compare_digest(supplied.encode(), ("Bearer " + token).encode()):
-                self.reply(401, b'{"error":{"message":"Invalid proxy token"}}')
+                self.refuse(401, b'{"error":{"message":"Invalid proxy token"}}')
                 return False
             return True
 
@@ -211,10 +224,11 @@ def make_server(layer, port=8787, token=""):
             if not self.allowed():
                 return
             if not self.path.split("?")[0].rstrip("/").endswith("/chat/completions"):
-                return self.reply(404, b'{"error":{"message":"Turnloom proxies /v1/chat/completions"}}')
+                return self.refuse(404, b'{"error":{"message":"Turnloom proxies /v1/chat/completions"}}')
             try:
                 length = int(self.headers.get("Content-Length", "0"))
                 if not 0 < length <= LIMIT:
+                    self.close_connection = True  # the body is not read, so the connection cannot be used again
                     raise ValueError("Invalid request size")
                 body = json.loads(self.rfile.read(length))
                 agent = (self.headers.get("User-Agent") or "").split("/")[0][:40]
