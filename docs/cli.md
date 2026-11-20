@@ -170,8 +170,21 @@ In `chat` these apply to each turn separately.
 | `--output-rate USD` | from the saved connection | Price per million output tokens. |
 | `--reply TOKENS` | 4096 | Longest reply the model may write in one call. It has to leave more than 2000 tokens of `--context` free. |
 | `--context TOKENS` | from the model catalog, else 128000 | The model's context window. |
-| `--effort VALUE` | not sent | Sent to the model as `reasoning_effort` on every request. |
+| `--effort VALUE` | not sent | Sent to the model as `reasoning_effort` on every request, or as `reasoning.effort` with `--transport responses`. |
 | `--no-fold` | off | Keep old tool results whole in the prompt. See [the FAQ](faq.md#what-is-folding-and-how-do-i-turn-it-off). |
+
+### Model transport
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| `--transport chat` | the default, unless `TURNLOOM_TRANSPORT` says otherwise | Send requests to `/chat/completions`. Every OpenAI-compatible endpoint has it. |
+| `--transport responses` | off | Send requests to `/responses`, OpenAI's Responses API. |
+
+With `responses`, the reasoning a model does before a tool call comes back encrypted. Turnloom saves it in the session transcript and sends it again on the following requests, so the model can continue from it. Requests carry `store: false`, so the conversation is not kept on the provider's side between requests. Everything else is the same under both transports: tools, folding, limits, streaming, the receipt and the `--json` result.
+
+Use `responses` only with an endpoint that has a Responses API. One that does not answers with HTTP 404, and Turnloom says to use the chat transport. A `litellm://` connection takes `chat` only.
+
+A saved session can be resumed under either transport. The chat transport leaves the saved reasoning out of its requests. If saved reasoning was encrypted for another key or organization and the endpoint refuses it, Turnloom drops it and repeats the request.
 
 ### Output
 
@@ -489,8 +502,8 @@ Runs one task unattended and prints the result as one JSON object. It is the ent
 ```text
 turnloom-agent [--task TASK] [--workspace WORKSPACE] [--model MODEL] [--endpoint ENDPOINT] [--api-key API_KEY]
                [--deadline-seconds N] [--max-steps N] [--context-tokens N] [--max-reply-tokens N]
-               [--reasoning-effort VALUE] [--atif PATH] [--system-prompt-file FILE] [--output-chars N]
-               [--transcript PATH]
+               [--reasoning-effort VALUE] [--transport {chat,responses}] [--atif PATH] [--system-prompt-file FILE]
+               [--output-chars N] [--transcript PATH]
 ```
 
 | Flag | Default | Effect |
@@ -505,6 +518,7 @@ turnloom-agent [--task TASK] [--workspace WORKSPACE] [--model MODEL] [--endpoint
 | `--context-tokens N` | `HARNESS_CONTEXT_TOKENS`, then `HLB_CONTEXT_WINDOW`, else 128000 | The context window. |
 | `--max-reply-tokens N` | `HARNESS_MAX_REPLY_TOKENS`, then `HLB_MAX_OUTPUT_TOKENS`, else 16384 | Longest reply per call. |
 | `--reasoning-effort VALUE` | `HARNESS_REASONING_EFFORT`, then `HLB_REASONING_EFFORT`, else not sent | Sent as `reasoning_effort`. |
+| `--transport chat` or `--transport responses` | `TURNLOOM_TRANSPORT`, else `chat` | Chat Completions or OpenAI's Responses API. See [Model transport](#model-transport). |
 | `--atif PATH` | none | Also write an ATIF trajectory, rewritten after every model call. |
 | `--transcript PATH` | none, or the `--atif` path with a `.jsonl` suffix | Where to write the session transcript. |
 | `--system-prompt-file FILE` | the built-in prompt | Replace the base system prompt with this file. |
@@ -582,6 +596,7 @@ turnloom-compare results/control/trials.jsonl results/fold/trials.jsonl
 | `TURNLOOM_MODEL` | Every command that needs a model | The model ID at that endpoint. |
 | `TURNLOOM_API_KEY` | Every command that needs a model | The credential for `TURNLOOM_ENDPOINT`. May be empty for a local server, except with `turnloom-agent`. |
 | `HARNESS_ENDPOINT`, `HARNESS_MODEL`, `HARNESS_API_KEY` | The same commands | Older names for the three variables above. Used when the `TURNLOOM_` one is not set. |
+| `TURNLOOM_TRANSPORT` | Every command that calls a model, except `proxy` | `chat` or `responses`. The default for `--transport`, and the only way to choose the transport in Studio, `serve`, `acp` and `turnloom-eval`. See [Model transport](#model-transport). |
 | `TURNLOOM_CONFIG_DIR` | Every command | The folder for the saved connection, the catalog cache and Studio's settings. See [Configuration](configuration.md#files-in-your-user-profile). |
 | A provider's key variable, such as `OPENROUTER_API_KEY`, `OPENAI_API_KEY` or `GROQ_API_KEY` | `connect`, `models` and every command that uses the saved connection | That provider's key. It takes precedence over the credential store. `turnloom connect` names the variable when a key is missing. |
 | `OPENAI_BASE_URL`, `OPENAI_API_BASE` | `turnloom-agent` | The endpoint, when neither `TURNLOOM_ENDPOINT` nor `HARNESS_ENDPOINT` is set. |

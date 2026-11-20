@@ -7,6 +7,7 @@ Turnloom is a small coding agent: one loop, a context store and a handful of too
 | Path | Role |
 | --- | --- |
 | `turnloom/agent.py` | The loop: model requests, streaming, retries, tool dispatch, context fitting, the transcript |
+| `turnloom/responses.py` | The optional Responses API transport: the conversation as input items, a reply back in the chat shape |
 | `turnloom/context.py` | `Observations`: fold, archive, recall |
 | `turnloom/tools.py` | Workspace file tools, path confinement, edits and undo |
 | `turnloom/cli.py` | The `turnloom` command, approvals, sessions, receipts |

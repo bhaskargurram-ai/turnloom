@@ -10,6 +10,7 @@ Turnloom now works on its own repository, and doing that turned up three things 
 
 - **Agents in this repository's CI.** Three workflows run Turnloom on its own issues and pull requests: a review posted as one comment, triage of new issues, and an attempt at an issue on a branch when a maintainer labels it. The job that holds the model key cannot write or run commands, the agent's edits are executed only in a job with no secret, and `scripts/agent_reply.py` makes an answer safe to post. They are off until a `TURNLOOM_API_KEY` secret is set. [Agents in CI](docs/automation.md) describes the design and how to copy it.
 - The GitHub Action takes `budget`, `input-rate` and `output-rate`, so a task in CI can be given a spending limit.
+- **An optional Responses API transport.** `--transport responses` on `run`, `chat`, `team` and `turnloom-agent`, or `TURNLOOM_TRANSPORT=responses` for every command, sends requests to OpenAI's Responses API instead of Chat Completions. The model's reasoning comes back encrypted, is saved with the session and is sent again on later requests, so the model can continue from it. Requests are stateless (`store: false`). Chat Completions stays the default for every provider. [Model transport](docs/cli.md#model-transport) has the details.
 
 ### Changed
 

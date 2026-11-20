@@ -16,7 +16,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from turnloom import __version__
-from turnloom.agent import Config, SYSTEM_PROMPT, environment, load_history, project_instructions, run_agent
+from turnloom.agent import Config, SYSTEM_PROMPT, TRANSPORTS, environment, load_history, project_instructions, run_agent
 from turnloom.context import Observations
 from turnloom.extensions import McpTools, project_skills, skills
 from turnloom import providers, roster
@@ -316,6 +316,8 @@ def main(argv=None):
         sub.add_argument("--deadline", type=int, default=1800, help="Wall-clock limit for the task in seconds, default 1800")
         sub.add_argument("--max-steps", type=int, default=100, help="Model calls allowed per task, 0 for no limit")
         sub.add_argument("--effort", help="Reasoning effort passed to the model, such as low, medium or high")
+        sub.add_argument("--transport", choices=TRANSPORTS, help="How to call the model: chat for Chat Completions (the default) "
+                         "or responses for OpenAI's Responses API. TURNLOOM_TRANSPORT sets it for every command")
         sub.add_argument("--no-fold", action="store_true",
                          help="Keep every tool result in the prompt instead of folding older ones into the archive")
         sub.add_argument("--no-stream", action="store_true", help="Print the answer when it is complete")
@@ -447,7 +449,7 @@ def main(argv=None):
                         reasoning_effort=args.effort, approve=approver, max_steps=args.max_steps,
                         fold_history=not args.no_fold, budget_usd=args.budget, read_only=args.read_only,
                         input_rate=args.input_rate, output_rate=args.output_rate, cache_rate=connection.cache_rate,
-                        files=Workspace(workspace))
+                        files=Workspace(workspace), transport=args.transport or "")
         if args.events:
             config.on_event = lambda event: print(json.dumps(event, ensure_ascii=False), flush=True)
         if args.skill and not args.skills_dir:

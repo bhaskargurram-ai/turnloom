@@ -21,7 +21,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from turnloom import __version__, gateway, meter
+from turnloom import __version__, gateway, meter, responses
 from turnloom.context import Observations
 from turnloom.providers import PROVIDERS
 from turnloom.tools import NAMES as FILE_TOOLS
@@ -93,6 +93,7 @@ DECLINED = ("Operator declined the command", "Operator declined the tool call", 
 STREAM_UNSUPPORTED: set[str] = set()
 # Endpoints that refused max_tokens and asked for max_completion_tokens. Remembered so only the first request pays for it.
 COMPLETION_TOKENS: set[str] = {"https://api.openai.com/v1"}
+TRANSPORTS = ("chat", "responses")
 
 
 class Stopped(Exception):
@@ -135,6 +136,14 @@ class Config:
     cache_prompt: bool = True
     on_step: Callable[[dict], None] | None = None
     gate: Any = None
+    # How the model is called: "chat" for Chat Completions or "responses" for OpenAI's Responses API.
+    # Left empty, TURNLOOM_TRANSPORT decides, and chat is the default.
+    transport: str = ""
+
+    def __post_init__(self):
+        self.transport = (self.transport or os.environ.get("TURNLOOM_TRANSPORT") or "chat").strip().lower()
+        if self.transport not in TRANSPORTS:
+            raise ValueError(f"Unknown transport {self.transport!r}. Set --transport or TURNLOOM_TRANSPORT to chat or responses.")
 
 
 @dataclass
@@ -201,11 +210,8 @@ def tool_schemas(config: Config) -> list[dict[str, Any]]:
     return tools
 
 
-def read_stream(response, config: Config, on_text, deadline: float) -> dict[str, Any]:
-    """Assemble a chat completion from server-sent deltas, reporting text as it arrives."""
-    message: dict[str, Any] = {"role": "assistant", "content": ""}
-    calls: dict[int, dict[str, Any]] = {}
-    usage, finish, reasoning = None, None, ""
+def stream_events(response, config: Config, deadline: float):
+    """Yield the JSON objects of a server-sent event stream, watching for a stop request and the deadline."""
     for raw in response:
         if config.stop_requested and config.stop_requested():
             raise Stopped()
@@ -221,8 +227,41 @@ def read_stream(response, config: Config, on_text, deadline: float) -> dict[str,
             chunk = json.loads(data)
         except ValueError:
             continue
-        if not isinstance(chunk, dict):
-            continue
+        if isinstance(chunk, dict):
+            yield chunk
+
+
+def read_events(response, config: Config, on_text, deadline: float) -> dict[str, Any]:
+    """Assemble a Responses reply from its typed events, reporting text as it arrives."""
+    finished: list[Any] = []
+    final = None
+    for event in stream_events(response, config, deadline):
+        kind, delta = event.get("type"), event.get("delta")
+        if kind == "error" or (kind is None and event.get("error")):
+            raise RuntimeError(f"Model stream error: {shorten(json.dumps(event, ensure_ascii=False), 600)}")
+        if kind == "response.output_item.done":
+            finished.append(event.get("item"))
+        elif kind in ("response.completed", "response.incomplete", "response.failed"):
+            final = event.get("response")
+            break
+        elif isinstance(delta, str) and delta:
+            if kind in ("response.output_text.delta", "response.refusal.delta"):
+                on_text(delta)
+            elif kind in ("response.reasoning_summary_text.delta", "response.reasoning_text.delta") and config.on_thought:
+                config.on_thought(delta)
+    final = final if isinstance(final, dict) else {}
+    if not final.get("output"):
+        # A stream cut off before its closing event has still delivered these items. Usage is then estimated.
+        final["output"] = finished
+    return responses.reply(final)
+
+
+def read_stream(response, config: Config, on_text, deadline: float) -> dict[str, Any]:
+    """Assemble a chat completion from server-sent deltas, reporting text as it arrives."""
+    message: dict[str, Any] = {"role": "assistant", "content": ""}
+    calls: dict[int, dict[str, Any]] = {}
+    usage, finish, reasoning = None, None, ""
+    for chunk in stream_events(response, config, deadline):
         if chunk.get("error"):
             raise RuntimeError(f"Model stream error: {shorten(json.dumps(chunk['error'], ensure_ascii=False), 600)}")
         usage = chunk.get("usage") or usage
@@ -260,23 +299,34 @@ def read_stream(response, config: Config, on_text, deadline: float) -> dict[str,
 
 def api_request(config: Config, messages: list[dict[str, Any]], deadline: float, allow_tools: bool = True,
                 on_text: Callable[[str], None] | None = None) -> dict[str, Any]:
-    payload: dict[str, Any] = {"model": config.model, "messages": cache_marked(messages, config),
-                               "max_tokens": config.max_reply_tokens}
-    if allow_tools:
-        payload["tools"] = tool_schemas(config)
-        payload["tool_choice"] = "auto"
-    if config.reasoning_effort:
-        payload["reasoning_effort"] = config.reasoning_effort
-    if config.endpoint.startswith(gateway.SCHEME):
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            raise TimeoutError("Agent deadline exceeded during model request")
-        return gateway.complete(payload, config.api_key, min(remaining, 180))
+    """Ask the model for its next message and return it in the chat-completions shape, whichever transport carried it."""
+    by_items = config.transport == "responses"
     base = config.endpoint.rstrip("/")
-    if base in COMPLETION_TOKENS:
-        payload["max_completion_tokens"] = payload.pop("max_tokens")
-    url = base if base.endswith("/chat/completions") else base + "/chat/completions"
-    stream = on_text is not None and base not in STREAM_UNSUPPORTED
+    if by_items:
+        if config.endpoint.startswith(gateway.SCHEME):
+            raise ValueError("LiteLLM routes speak Chat Completions. Use the chat transport with this connection.")
+        payload = responses.request(config.model, messages, tool_schemas(config) if allow_tools else [],
+                                    config.max_reply_tokens, config.reasoning_effort)
+        url = responses.url(base)
+    else:
+        payload = {"model": config.model, "messages": cache_marked(responses.plain(messages), config),
+                   "max_tokens": config.max_reply_tokens}
+        if allow_tools:
+            payload["tools"] = tool_schemas(config)
+            payload["tool_choice"] = "auto"
+        if config.reasoning_effort:
+            payload["reasoning_effort"] = config.reasoning_effort
+        if config.endpoint.startswith(gateway.SCHEME):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("Agent deadline exceeded during model request")
+            return gateway.complete(payload, config.api_key, min(remaining, 180))
+        if base in COMPLETION_TOKENS:
+            payload["max_completion_tokens"] = payload.pop("max_tokens")
+        url = base if base.endswith("/chat/completions") else base + "/chat/completions"
+    # Whether an endpoint streams is remembered for each transport on its own.
+    route = url if by_items else base
+    stream = on_text is not None and route not in STREAM_UNSUPPORTED
     shown = []
 
     def emit(text):
@@ -291,7 +341,9 @@ def api_request(config: Config, messages: list[dict[str, Any]], deadline: float,
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError("Agent deadline exceeded during model request")
-        body = {**payload, "stream": True, "stream_options": {"include_usage": True}} if stream else payload
+        body = payload
+        if stream:
+            body = {**payload, "stream": True, **({} if by_items else {"stream_options": {"include_usage": True}})}
         request = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
         if config.api_key:
             request.add_unredirected_header("Authorization", f"Bearer {config.api_key}")
@@ -299,14 +351,14 @@ def api_request(config: Config, messages: list[dict[str, Any]], deadline: float,
         try:
             with urllib.request.urlopen(request, timeout=min(remaining, 180)) as response:
                 if stream and "text/event-stream" in (response.headers.get("Content-Type") or ""):
-                    return read_stream(response, config, emit, deadline)
+                    return (read_events if by_items else read_stream)(response, config, emit, deadline)
                 try:
                     reply = json.load(response)
                 except ValueError as error:
                     raise RuntimeError("Model endpoint returned a response that is not JSON. Check the endpoint URL.") from error
                 if not isinstance(reply, dict):
                     raise RuntimeError("Model endpoint returned an unexpected response shape.")
-                return reply
+                return responses.reply(reply) if by_items else reply
         except urllib.error.HTTPError as error:
             detail = error.read(2000).decode("utf-8", errors="replace")
             error.close()
@@ -314,16 +366,25 @@ def api_request(config: Config, messages: list[dict[str, Any]], deadline: float,
                 payload["max_completion_tokens"] = payload.pop("max_tokens")
                 COMPLETION_TOKENS.add(base)
                 continue
+            if by_items and error.code == 400 and "invalid_encrypted_content" in detail \
+                    and any(responses.ITEMS in message for message in messages):
+                # Reasoning saved under another key or organization cannot be read back. The conversation
+                # goes on without it, here and in the requests that follow.
+                for message in messages:
+                    message.pop(responses.ITEMS, None)
+                payload["input"] = responses.items(messages)
+                continue
             if stream and error.code in (400, 404, 422):
                 # The endpoint may have rejected the streaming options; ask again for a whole reply.
-                STREAM_UNSUPPORTED.add(base)
+                STREAM_UNSUPPORTED.add(route)
                 stream, fell_back = False, True
                 continue
             if fell_back and 400 <= error.code < 500:
                 # The request fails either way, so streaming was not the cause. Keep it for later requests.
-                STREAM_UNSUPPORTED.discard(base)
+                STREAM_UNSUPPORTED.discard(route)
             if error.code not in (408, 409, 425, 429, 500, 502, 503, 504, 529) or attempt == 3:
-                raise RuntimeError(f"Model HTTP {error.code}: {detail}") from error
+                hint = " If this endpoint has no Responses API, use the chat transport." if by_items and error.code in (404, 405) else ""
+                raise RuntimeError(f"Model HTTP {error.code}: {detail}{hint}") from error
             try:
                 pause = min(max(pause, float(error.headers.get("Retry-After") or 0)), 60.0)
             except (TypeError, ValueError):
@@ -552,7 +613,8 @@ def fit_context(messages, config, archive=None, scale=1.0):
                                            "preview": shorten(content, max(300, len(content) // 3))}, ensure_ascii=False)
             continue
         if archive is not None:
-            blob = json.dumps(messages[start:boundary], ensure_ascii=False)
+            # Encrypted reasoning is of no use to recall, so the archive keeps the exchange without it.
+            blob = json.dumps(responses.plain(messages[start:boundary]), ensure_ascii=False)
             reference = archive.save(blob)
             if reference:
                 archive.exchanges.append((reference, len(blob)))
@@ -652,7 +714,8 @@ def reply_message(response: dict[str, Any]) -> tuple[dict[str, Any], str | None]
     if not isinstance(choices, list) or not choices or not isinstance(choices[0].get("message"), dict):
         raise RuntimeError("Model returned no message: " + shorten(json.dumps(response, ensure_ascii=False), 300))
     raw = choices[0]["message"]
-    message = {key: value for key, value in raw.items() if key in ("content", "tool_calls", "reasoning_content", "reasoning")}
+    message = {key: value for key, value in raw.items()
+               if key in ("content", "tool_calls", "reasoning_content", "reasoning", responses.ITEMS)}
     message["role"] = "assistant"
     if isinstance(message.get("content"), list):
         message["content"] = "".join(part.get("text", "") for part in message["content"] if isinstance(part, dict))
@@ -929,6 +992,8 @@ def main() -> int:
     parser.add_argument("--context-tokens", type=int, default=int(env("HARNESS_CONTEXT_TOKENS", "HLB_CONTEXT_WINDOW", default="128000")))
     parser.add_argument("--max-reply-tokens", type=int, default=int(env("HARNESS_MAX_REPLY_TOKENS", "HLB_MAX_OUTPUT_TOKENS", default="16384")))
     parser.add_argument("--reasoning-effort", default=env("HARNESS_REASONING_EFFORT", "HLB_REASONING_EFFORT"))
+    parser.add_argument("--transport", choices=TRANSPORTS, help="How to call the model: chat for Chat Completions (the default) "
+                        "or responses for OpenAI's Responses API. Without the flag, TURNLOOM_TRANSPORT decides")
     parser.add_argument("--atif", type=Path, help="Also write an ATIF trajectory, updated after every step")
     parser.add_argument("--system-prompt-file", type=Path)
     parser.add_argument("--output-chars", type=int, default=16000)
@@ -947,13 +1012,16 @@ def main() -> int:
         parser.error(f"Cannot read the system prompt file: {error}")
     prompt = (base + "\nOlder tool output may be folded. Use recall with the reference and offset to retrieve it."
               + UNATTENDED + FAIR_PLAY + "\n\n" + environment(workspace))
-    config = Config(
-        endpoint=arguments.endpoint, model=arguments.model, api_key=arguments.api_key,
-        workspace=workspace, deadline_seconds=arguments.deadline_seconds,
-        max_steps=arguments.max_steps, context_tokens=arguments.context_tokens,
-        max_reply_tokens=arguments.max_reply_tokens, reasoning_effort=arguments.reasoning_effort,
-        transcript=arguments.transcript or (arguments.atif.with_suffix(".jsonl") if arguments.atif else None),
-        output_chars=arguments.output_chars, system_prompt=prompt, auto_approve=True)
+    try:
+        config = Config(
+            endpoint=arguments.endpoint, model=arguments.model, api_key=arguments.api_key,
+            workspace=workspace, deadline_seconds=arguments.deadline_seconds,
+            max_steps=arguments.max_steps, context_tokens=arguments.context_tokens,
+            max_reply_tokens=arguments.max_reply_tokens, reasoning_effort=arguments.reasoning_effort,
+            transcript=arguments.transcript or (arguments.atif.with_suffix(".jsonl") if arguments.atif else None),
+            output_chars=arguments.output_chars, system_prompt=prompt, auto_approve=True, transport=arguments.transport or "")
+    except ValueError as error:
+        parser.error(str(error))
     if arguments.atif:
         from turnloom import atif
 

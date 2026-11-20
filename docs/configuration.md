@@ -15,6 +15,7 @@ This page covers the last three.
 | --- | --- |
 | Which model to call | `TURNLOOM_ENDPOINT` with `TURNLOOM_MODEL`, then the connection saved by `turnloom connect` |
 | The key for a saved connection | The provider's environment variable, then the operating system's credential store |
+| How the model is called | `--transport`, then `TURNLOOM_TRANSPORT`, then Chat Completions |
 | Prices and context window | `--input-rate`, `--output-rate` and `--context`, then the saved connection, then no prices and 128,000 tokens |
 | Project instructions | `AGENTS.md`, then `CLAUDE.md` |
 
@@ -270,6 +271,27 @@ turnloom chat
 $env:TURNLOOM_ENDPOINT = "http://127.0.0.1:4000/v1"
 $env:TURNLOOM_MODEL = "my-model"
 turnloom chat
+```
+
+### Model transport
+
+| Variable | Meaning |
+| --- | --- |
+| `TURNLOOM_TRANSPORT` | `chat` or `responses`. Not set means `chat`. Any other value stops the command. |
+
+`chat` sends each request to the endpoint's `/chat/completions`. `responses` sends it to `/responses`, OpenAI's Responses API, and carries the model's reasoning from one request to the next: the reasoning comes back encrypted, is saved in the session transcript, and is sent again with the conversation. Requests carry `store: false`. Transcripts of such sessions are larger, because they hold the encrypted reasoning.
+
+The variable is read by `run`, `chat`, `team`, Studio, `serve`, `acp`, `turnloom-agent` and `turnloom-eval`. On `run`, `chat`, `team` and `turnloom-agent` the `--transport` flag overrides it. `proxy` passes Chat Completions requests through and does not read it.
+
+Set it only for an endpoint that has a Responses API. A `litellm://` connection works with `chat` only. The [command reference](cli.md#model-transport) says what happens when an endpoint refuses.
+
+```sh
+turnloom run --transport responses "Fix the failing test"
+```
+
+```powershell
+$env:TURNLOOM_TRANSPORT = "responses"
+turnloom studio
 ```
 
 ### Variables read only by `turnloom-agent`
