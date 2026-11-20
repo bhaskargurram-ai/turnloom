@@ -15,8 +15,10 @@ import { chromium } from "playwright";
 
 const SHOTS = process.env.SHOTS;
 const DOCS = process.env.DOCS;
+// The fixture imports Turnloom from this checkout, whatever copy the interpreter has installed.
 const fixture = spawn(process.env.PYTHON || "python", ["-u", "../tests/studio_browser_fixture.py"], {
   stdio: ["ignore", "pipe", "inherit"],
+  env: { ...process.env, PYTHONPATH: [path.resolve(".."), process.env.PYTHONPATH].filter(Boolean).join(path.delimiter) },
 });
 const lines = createInterface({ input: fixture.stdout });
 let browser;

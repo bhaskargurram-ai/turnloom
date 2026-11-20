@@ -91,10 +91,13 @@ def model(config, messages, deadline, allow_tools=True, on_text=None):
             return reply(None, [("shell", {"command": SLOW_COMMAND})], (prompt, 18, 600))
         return reply(say(on_text, "The slow command ran twice."), usage=(prompt, 16, 900))
     if "Read everything" in task:
-        # Sixty distinct reads in one turn, two per model reply, to fill the Loom with rows.
+        # Sixty reads in one turn, two per model reply, to fill the Loom with rows. Each read in each pass
+        # starts at a line of its own: a read that repeats one still in view is answered with a note and
+        # is never folded, and this scenario is here to fill the Loom with folded originals.
         if step < 60:
-            reads = [("read_file", {"path": f"notes/n{1 + (step + offset) % 6}.md", "line": 1 + (step + offset) % 9})
-                     for offset in (0, 1)]
+            earlier = next((index for index, word in enumerate(("first", "second", "third", "fourth")) if word in task), 0)
+            reads = [("read_file", {"path": f"notes/n{1 + (step + offset) % 6}.md",
+                                    "line": 1 + (step + offset) // 6 + 10 * earlier}) for offset in (0, 1)]
             return reply(None, reads, (prompt, 12, 0))
         return reply(say(on_text, "Read the notes again."), usage=(prompt, 8, 0))
     if "Survey the notes" in task:
@@ -163,7 +166,7 @@ def populate(root):
     stages = ["warping", "beaming", "threading", "sleying", "weaving", "finishing"]
     for index, stage in enumerate(stages, 1):
         body = "\n".join(f"{line}. In {stage}, each thread is checked, counted and tied before the next pass begins."
-                         for line in range(1, 61 + index * 3))
+                         for line in range(1, 101 + index * 3))
         (root / "notes" / f"n{index}.md").write_text(f"# Note {index}: {stage}\n\n{body}\n", encoding="utf-8")
 
 
