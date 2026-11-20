@@ -149,6 +149,38 @@ class LoopTests(unittest.TestCase):
         self.assertIn("same", results[0])
         self.assertEqual(results[0], results[2])
 
+    def test_finishing_after_a_failed_command_is_questioned_once(self):
+        model = Scripted(reply(calls=[("shell", {"command": "exit 3"})]), reply("It should pass now."),
+                         reply(calls=[("shell", {"command": "echo fixed"})]), reply("Fixed and checked."))
+        result = self.run_with(model)
+        self.assertEqual((result.status, result.answer), ("completed", "Fixed and checked."))
+        asked = model.sent[2]["messages"][-1]
+        self.assertEqual(asked["role"], "user")
+        self.assertTrue(asked["content"].startswith(agent.UNFINISHED))
+        self.assertIn("`exit 3`, exited with code 3", asked["content"])
+        self.assertEqual(model.sent[2]["messages"][-2]["content"], "It should pass now.")
+        # A model that stands by its answer is believed the second time.
+        stubborn = Scripted(reply(calls=[("shell", {"command": "exit 3"})]), reply("Done."), reply("It fails by design."))
+        result = self.run_with(stubborn)
+        self.assertEqual((result.status, result.answer, result.steps), ("completed", "It fails by design.", 3))
+        self.assertEqual(stubborn.replies, [])
+
+    def test_a_command_that_passed_last_raises_no_question(self):
+        model = Scripted(reply(calls=[("shell", {"command": "exit 3"})]), reply(calls=[("shell", {"command": "echo ok"})]),
+                         reply("Done."))
+        result = self.run_with(model)
+        self.assertEqual((result.status, result.answer, result.steps), ("completed", "Done.", 3))
+        self.assertFalse(any(str(item.get("content") or "").startswith(agent.UNFINISHED) for item in model.sent[-1]["messages"]))
+
+    def test_the_question_survives_in_the_transcript(self):
+        trace = self.root / "trace.jsonl"
+        model = Scripted(reply(calls=[("shell", {"command": "exit 3"})]), reply("Done."), reply("It fails by design."))
+        self.run_with(model, transcript=trace)
+        restored = load_history(trace, "System.")
+        roles = [item["role"] for item in restored]
+        self.assertEqual(roles, ["system", "user", "assistant", "tool", "assistant", "user", "assistant"])
+        self.assertTrue(restored[5]["content"].startswith(agent.UNFINISHED))
+
     def test_read_only_sessions_offer_no_write_or_shell_tools(self):
         class Servers:
             def __init__(self):

@@ -47,6 +47,8 @@ A read-only session offers the model only the read tools and `recall`: no edits,
 
 When the model asks to read, list, search or recall something and the result is identical to one still in the conversation in full, it gets a one-line note saying so in place of the same text again. Commands are not treated this way: running a test twice and getting the same output is information.
 
+When the model gives its final answer and the last command it ran exited with an error or timed out, the loop does not accept the answer at once. It adds one message naming the command and how it failed, and the model either carries on or answers again, saying that the command still fails and why. This happens at most once in a turn, and a command that succeeds afterwards clears it. The message is recorded in the transcript as a `check` event, so a resumed session has it too.
+
 External programs Turnloom starts itself (ripgrep, Git, Provio, a browser) are looked up on `PATH` and in the interpreter's scripts folder, never in the current directory or the workspace, so a repository cannot supply its own `rg.cmd` or `git.cmd`.
 
 ## Approval and policy

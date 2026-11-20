@@ -67,6 +67,16 @@ UNCHANGED = json.dumps({"unchanged": True, "note": "This is the same result as a
                         "still above in full. Nothing has changed since, so use it and go on."})
 
 
+# Said once when the model answers although the last command it ran failed. A model that stops there
+# tends to report that the work "should" pass; this makes it either go on or say that the check fails.
+UNFINISHED = "Before you finish: "
+
+
+def unfinished(command: str, failure: str) -> str:
+    return (f"{UNFINISHED}the last command you ran, `{shorten(command, 200)}`, {failure}. If the task is not done, keep working. "
+            "If it is done, say plainly in your answer that this command still fails and why that is acceptable.")
+
+
 def fitted_prompt(prompt: str, read_only: bool) -> str:
     """Return the prompt with the standard opening that matches the session: the one for acting or the one for reading."""
     wanted, other = (READ_ONLY_PROMPT, SYSTEM_PROMPT) if read_only else (SYSTEM_PROMPT, READ_ONLY_PROMPT)
@@ -681,6 +691,8 @@ def load_history(path: Path, system_prompt: str) -> list[dict[str, Any]]:
                 messages.append({"role": "user", "content": event["task"]})
             elif kind == "assistant":
                 messages.append(event["message"])
+            elif kind == "check":
+                messages.append({"role": "user", "content": event["text"]})
             elif kind == "tool":
                 messages.append({"role": "tool", "tool_call_id": event["id"],
                                  "content": json.dumps(event["result"], ensure_ascii=False)})
@@ -692,7 +704,8 @@ def load_history(path: Path, system_prompt: str) -> list[dict[str, Any]]:
 
 
 def final_review_messages(task, messages, reason):
-    start = max(i for i, item in enumerate(messages) if item["role"] == "user")
+    start = max(i for i, item in enumerate(messages)
+                if item["role"] == "user" and not str(item.get("content") or "").startswith(UNFINISHED))
     calls = {c["id"]: c["function"] for item in messages[start:] for c in (item.get("tool_calls") or [])}
     evidence = []
     for item in messages[start:]:
@@ -776,6 +789,7 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
     status = "timeout"
     steps = 0
     last_call, streak = None, 0
+    failed_check, challenged = None, False
     executed = 0
     retried_empty = False
     truncated = False
@@ -869,6 +883,13 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
                     elif finish_reason:
                         status = "partial"
                         errors.append(finish_reason)
+                    elif failed_check and not challenged:
+                        # Once per turn: the answer stays in the conversation, and the model is told what it left behind.
+                        challenged = True
+                        text = unfinished(*failed_check)
+                        messages.append({"role": "user", "content": text})
+                        record({"type": "check", "step": steps, "text": text})
+                        continue
                     else:
                         status = "completed"
                     break
@@ -955,6 +976,14 @@ def run_agent(task: str, config: Config, history=None, archive=None) -> Result:
                         config.on_tool_event(tool_name, arguments, result)
                     outcome = json.loads(result)
                     record({"type": "tool", "step": steps, "id": call["id"], "name": tool_name, "result": outcome})
+                    if tool_name == "shell" and isinstance(outcome, dict) and isinstance(params, dict):
+                        code, error = outcome.get("exit_code"), str(outcome.get("error") or "")
+                        if isinstance(code, int) and code != 0:
+                            failed_check = (str(params.get("command") or ""), f"exited with code {code}")
+                        elif "timed out" in error:
+                            failed_check = (str(params.get("command") or ""), "timed out")
+                        elif code == 0:
+                            failed_check = None
                     if config.tool_limit and isinstance(outcome, dict) and (outcome.get("declined") or outcome.get("error") in DECLINED):
                         finish_reason = "The operator declined the action."
                 if config.tool_limit and executed >= config.tool_limit:

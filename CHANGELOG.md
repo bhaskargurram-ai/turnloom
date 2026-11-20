@@ -10,13 +10,14 @@ Turnloom now works on its own repository, and doing that turned up three things 
 
 - **Agents in this repository's CI.** Three workflows run Turnloom on its own issues and pull requests: a review posted as one comment, triage of new issues, and an attempt at an issue on a branch when a maintainer labels it. The job that holds the model key cannot write or run commands, the agent's edits are executed only in a job with no secret, and `scripts/agent_reply.py` makes an answer safe to post. They are off until a `TURNLOOM_API_KEY` secret is set. [Agents in CI](docs/automation.md) describes the design and how to copy it.
 - The GitHub Action takes `budget`, `input-rate` and `output-rate`, so a task in CI can be given a spending limit.
-- **An optional Responses API transport.** `--transport responses` on `run`, `chat`, `team` and `turnloom-agent`, or `TURNLOOM_TRANSPORT=responses` for every command, sends requests to OpenAI's Responses API instead of Chat Completions. The model's reasoning comes back encrypted, is saved with the session and is sent again on later requests, so the model can continue from it. Requests are stateless (`store: false`). Chat Completions stays the default for every provider. [Model transport](docs/cli.md#model-transport) has the details.
+- **An optional Responses API transport.** `--transport responses` on `run`, `chat`, `team` and `turnloom-agent`, or `TURNLOOM_TRANSPORT=responses` for every command, sends requests to OpenAI's Responses API instead of Chat Completions. The model's reasoning comes back encrypted, is saved with the session and is sent again on later requests, so the model can continue from it. Requests are stateless (`store: false`). Chat Completions stays the default for every provider. Whether it saves anything depends on the task: on `gpt-5.1` it wrote about half the output tokens on three very small bug fixes and the same amount on a fourth, so measure on your own work. [Model transport](docs/cli.md#model-transport) has the details.
 
 ### Changed
 
 - **A read-only session is told that it is read-only.** Its system prompt used to be the standard one, which describes the edit and shell tools and asks for the smallest change that solves the task. With no tool to act with, the model read the same files until it ran out of calls. In a team run this stopped the plan stage at its 40-call limit on a five-file project, so nothing was built. The same task now finishes all three stages in 9 model calls.
 - **Small tool results are no longer folded.** The threshold rises from 800 to 4,000 characters. Folding a short file saved a few hundred tokens and made the model read it again. A result that was folded and then fetched again is now left whole.
 - Asking to read, list, search or recall something whose identical result is still in the conversation returns a one-line note in place of the same text.
+- **A model that finishes right after a command failed is told so, once.** It then either carries on or says in its answer that the command still fails and why. Before, a turn could end with "the tests should pass now" directly after a failing test run.
 
 ### Security
 

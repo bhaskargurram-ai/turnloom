@@ -35,7 +35,8 @@ class GateTests(unittest.TestCase):
             return approve
         with guard.Gate(self.root, approve=operator, confirm=confirm, session="test") as gate:
             config = Config("local", "fixture", "", self.root, approve=operator, gate=gate)
-            with patch("turnloom.agent.api_request", side_effect=[reply(None, calls), reply("done")]):
+            # A third reply answers the question put when the last command failed, as `git reset --hard` does here.
+            with patch("turnloom.agent.api_request", side_effect=[reply(None, calls), reply("done"), reply("done")]):
                 run_agent("task", config, history := [])
         results = [json.loads(message["content"]) for message in history if message["role"] == "tool"]
         return results, asked
