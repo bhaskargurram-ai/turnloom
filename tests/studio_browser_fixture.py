@@ -163,7 +163,7 @@ def populate(root):
     stages = ["warping", "beaming", "threading", "sleying", "weaving", "finishing"]
     for index, stage in enumerate(stages, 1):
         body = "\n".join(f"{line}. In {stage}, each thread is checked, counted and tied before the next pass begins."
-                         for line in range(1, 16 + index * 3))
+                         for line in range(1, 61 + index * 3))
         (root / "notes" / f"n{index}.md").write_text(f"# Note {index}: {stage}\n\n{body}\n", encoding="utf-8")
 
 

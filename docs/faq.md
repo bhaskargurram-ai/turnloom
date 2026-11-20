@@ -93,7 +93,7 @@ So read a command before you approve it, and keep `--yes` for places where a wro
 A long session fills the prompt with old tool output. Folding replaces it with short previews so the prompt stays small, without a summarizing model call.
 
 - The three most recent tool results stay whole. So does any result the model has not read yet.
-- An older result of 800 characters or more becomes a preview: its first 180 characters, its last 120, its length and a reference.
+- An older result of 4,000 characters or more becomes a preview: its first 180 characters, its last 120, its length and a reference. Smaller results stay in the prompt, and so does a result the model fetched again after it was folded.
 - The full text stays in the session's archive. The model reads any part back with its `recall` tool, by offset or by searching for a string. The transcript on disk always has the full result.
 
 Turn it off for one run with `--no-fold` on `run`, `chat`, `team`, `turnloom-eval` or `proxy`. In Studio, switch off **Fold older tool output** in the Cost view.

@@ -97,6 +97,58 @@ class LoopTests(unittest.TestCase):
         self.assertTrue({"*.jsonl", "*.db", ".gitignore"} <= set(ignored))
         self.assertNotIn("*", ignored)
 
+    def test_a_read_only_session_is_told_it_cannot_change_anything(self):
+        model = Scripted(reply("A plan."))
+        self.run_with(model, read_only=True, system_prompt=agent.SYSTEM_PROMPT + "\n\nPersona text.")
+        prompt = model.sent[0]["messages"][0]["content"]
+        self.assertTrue(prompt.startswith(agent.READ_ONLY_PROMPT))
+        self.assertTrue(prompt.endswith("Persona text."))
+        self.assertNotIn("edit_file", prompt)
+        self.assertNotIn("what changed, what you ran", prompt)
+        acting = Scripted(reply("Done."))
+        self.run_with(acting, system_prompt=agent.SYSTEM_PROMPT + "\n\nPersona text.")
+        self.assertTrue(acting.sent[0]["messages"][0]["content"].startswith(agent.SYSTEM_PROMPT))
+        own = Scripted(reply("Done."))
+        self.run_with(own, read_only=True, system_prompt="My own prompt.")
+        self.assertEqual(own.sent[0]["messages"][0]["content"], "My own prompt.")
+
+    def test_a_session_that_switches_to_read_only_gets_the_matching_prompt(self):
+        history = []
+        self.run_with(Scripted(reply("Done.")), history=history)
+        self.assertTrue(history[0]["content"].startswith(agent.SYSTEM_PROMPT))
+        self.run_with(Scripted(reply("A plan.")), history=history, read_only=True)
+        self.assertTrue(history[0]["content"].startswith(agent.READ_ONLY_PROMPT))
+        self.run_with(Scripted(reply("Done.")), history=history)
+        self.assertTrue(history[0]["content"].startswith(agent.SYSTEM_PROMPT))
+
+    def test_reading_the_same_thing_again_gets_a_note_while_the_first_result_is_in_view(self):
+        (self.root / "notes.txt").write_text("alpha\nbeta\n" * 30, encoding="utf-8")
+        (self.root / "other.txt").write_text("gamma\n" * 30, encoding="utf-8")
+        read, other = ("read_file", {"path": "notes.txt"}), ("read_file", {"path": "other.txt"})
+        model = Scripted(reply(calls=[read]), reply(calls=[other]), reply(calls=[read]), reply("Done."))
+        self.run_with(model, read_only=True)
+        results = [item["content"] for item in model.sent[-1]["messages"] if item["role"] == "tool"]
+        self.assertIn("alpha", results[0])
+        self.assertIn("gamma", results[1])
+        self.assertEqual(json.loads(results[2]), json.loads(agent.UNCHANGED))
+        # Once the file has changed, reading it again returns the new text.
+        (self.root / "notes.txt").write_text("alpha\n" * 30, encoding="utf-8")
+        again = Scripted(reply(calls=[read]), reply(calls=[read]), reply("Done."))
+        history = model.sent[-1]["messages"] + [{"role": "assistant", "content": "Done."}]
+        self.run_with(again, history=history, read_only=True)
+        results = [item["content"] for item in again.sent[-1]["messages"] if item["role"] == "tool"]
+        self.assertNotIn("beta", results[-2])
+        self.assertIn("alpha", results[-2])
+        self.assertEqual(json.loads(results[-1]), json.loads(agent.UNCHANGED))
+
+    def test_a_command_run_again_returns_its_output_again(self):
+        model = Scripted(reply(calls=[("shell", {"command": "echo same"})]), reply(calls=[("shell", {"command": "echo other"})]),
+                         reply(calls=[("shell", {"command": "echo same"})]), reply("Done."))
+        self.run_with(model)
+        results = [item["content"] for item in model.sent[-1]["messages"] if item["role"] == "tool"]
+        self.assertIn("same", results[0])
+        self.assertEqual(results[0], results[2])
+
     def test_read_only_sessions_offer_no_write_or_shell_tools(self):
         class Servers:
             def __init__(self):
@@ -345,18 +397,59 @@ class ContextTests(unittest.TestCase):
     def test_results_of_the_latest_batch_are_never_folded_unread(self):
         archive = Observations()
         batch = {"role": "assistant", "content": None, "tool_calls": [{"id": str(index)} for index in range(5)]}
-        results = [{"role": "tool", "tool_call_id": str(index), "content": "r" * 900} for index in range(5)]
+        results = [{"role": "tool", "tool_call_id": str(index), "content": "r" * 5000} for index in range(5)]
         messages = [{"role": "user", "content": "go"}, batch, *results]
         self.assertEqual(archive.fold(messages), 0)
         messages.append({"role": "assistant", "content": None, "tool_calls": [{"id": "next"}]})
-        messages.append({"role": "tool", "tool_call_id": "next", "content": "n" * 900})
+        messages.append({"role": "tool", "tool_call_id": "next", "content": "n" * 5000})
         self.assertGreater(archive.fold(messages), 0)
         sizes = [len(item["content"]) for item in messages if item["role"] == "tool"]
-        self.assertEqual(sizes[3:], [900, 900, 900])
+        self.assertEqual(sizes[3:], [5000, 5000, 5000])
         self.assertTrue(all(size < 650 for size in sizes[:3]))
         first = json.loads(next(item["content"] for item in messages if item["role"] == "tool"))
-        self.assertEqual((first["ending"], first["characters"]), ("r" * 120, 900))
+        self.assertEqual((first["ending"], first["characters"]), ("r" * 120, 5000))
         self.assertIn("Call recall", first["note"])
+
+    def test_a_small_result_is_never_folded(self):
+        archive = Observations()
+        small = "def total(items):\n    return sum(items)\n" * 40          # a 1,600-character file
+        messages = [{"role": "tool", "tool_call_id": "file", "content": small}] + [
+            {"role": "tool", "tool_call_id": str(index), "content": "recent"} for index in range(6)]
+        self.assertEqual(archive.fold(messages), 0)
+        self.assertEqual(messages[0]["content"], small)
+
+    def test_a_result_fetched_again_after_folding_stays_whole(self):
+        archive = Observations()
+        big = "line of a file the model keeps needing\n" * 200          # 7,800 characters
+        other = ["x" * 5000, "y" * 5000, "z" * 5000]
+
+        def step(content, name):
+            return [{"role": "assistant", "content": None, "tool_calls": [{"id": name}]},
+                    {"role": "tool", "tool_call_id": name, "content": content}]
+
+        messages = [{"role": "user", "content": "go"}, *step(big, "first")]
+        for index, content in enumerate(other):
+            messages += step(content, f"other-{index}")
+        messages += step("s", "tail")
+        archive.fold(messages)
+        first = next(item for item in messages if item.get("tool_call_id") == "first")
+        self.assertIn("Folded", first["content"], "the first read is folded once three newer results exist")
+        # The model reads the same file again, and work goes on.
+        messages += step(big, "second")
+        for index in range(4):
+            messages += step("w" * 5000 + str(index), f"later-{index}")
+            archive.fold(messages)
+        second = next(item for item in messages if item.get("tool_call_id") == "second")
+        self.assertEqual(second["content"], big, "a result fetched again is left whole")
+        # A third copy takes over as the one that stays; the second is folded like any other old result.
+        messages += step(big, "third")
+        for index in range(4):
+            messages += step("v" * 5000 + str(index), f"last-{index}")
+            archive.fold(messages)
+        third = next(item for item in messages if item.get("tool_call_id") == "third")
+        self.assertEqual(third["content"], big)
+        self.assertIn("Folded", second["content"])
+        self.assertEqual(json.loads(second["content"])["characters"], len(big))
 
     def test_refolding_keeps_the_reference_to_the_full_record(self):
         archive = Observations()
@@ -371,7 +464,7 @@ class ContextTests(unittest.TestCase):
 
     def test_folding_non_ascii_output_shrinks_it_and_never_nests(self):
         archive = Observations()
-        text = "变量 значение مقدار " * 60
+        text = "变量 значение مقدار " * 400
         messages = [{"role": "tool", "tool_call_id": "u", "content": text}] + [
             {"role": "tool", "tool_call_id": str(index), "content": "recent"} for index in range(3)]
         removed = archive.fold(messages)

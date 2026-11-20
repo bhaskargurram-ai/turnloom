@@ -163,7 +163,7 @@ Of these, the OpenAI Python SDK is the one exercised in the test suite. The othe
 
 What the proxy does to a request:
 
-1. Tool results older than the newest `--keep` and longer than 800 characters become a preview: the first 180 characters, the last 120, the length and a reference. The caller's own history is never modified.
+1. Tool results older than the newest `--keep` and of 4,000 characters or more become a preview: the first 180 characters, the last 120, the length and a reference. The caller's own history is never modified.
 2. The model gets a `turnloom_recall` tool. When it calls it, the proxy answers from its archive and asks the model again. The harness never sees these calls, and their tokens are included in the usage it receives.
 3. If the model is still reading after eight rounds, the proxy sends the caller's unfolded history instead, so the answer is the one the harness would have had without the layer.
 4. Each request is written to `.turnloom/usage.jsonl` in `--workspace`, tagged with the client's user agent. `GET /v1/turnloom/stats` returns running totals.

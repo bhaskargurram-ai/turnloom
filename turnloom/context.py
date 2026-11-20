@@ -4,7 +4,9 @@ import hashlib
 import json
 from collections import OrderedDict
 
-FOLD_AT = 800
+# A result shorter than this stays in the prompt. Folding a small file saves a few hundred tokens and costs
+# far more when the model, no longer able to see it, reads it again.
+FOLD_AT = 4000
 
 
 class Observations:
@@ -32,7 +34,8 @@ class Observations:
         """Replace long tool results older than the newest `keep` with a preview and a reference.
 
         Results the model has not read yet (those after the latest assistant message) are never folded,
-        so a batch of parallel calls reaches the model whole.
+        so a batch of parallel calls reaches the model whole. A result that was folded and then fetched
+        again is left whole: folding it a second time only makes the model fetch it a third.
         """
         latest = max((index for index, item in enumerate(messages) if item.get("role") == "assistant"), default=None)
         tools = [(index, item) for index, item in enumerate(messages) if item.get("role") == "tool"]
@@ -40,7 +43,10 @@ class Observations:
         read = [item for index, item in tools if latest is None or index < latest]
         spare = max(0, keep - len(unread))
         removed = 0
-        for item in read[:len(read) - spare] if spare else read:
+        folded_before = set(self.records)
+        fetched_again = set()
+        # Newest first, so that of several copies of one result it is the latest that stays whole.
+        for item in reversed(read[:len(read) - spare] if spare else read):
             content = item["content"]
             if isinstance(content, list) and all(isinstance(part, dict) and part.get("type") == "text" for part in content):
                 content = "\n".join(part.get("text", "") for part in content)
@@ -59,6 +65,12 @@ class Observations:
                 total = len(self.records[reference])
                 self.records.move_to_end(reference)
             else:
+                again = hashlib.sha256(content.encode()).hexdigest()[:16]
+                if again in folded_before and again not in fetched_again:
+                    # Folded once and fetched again: the model needs this text in view, so one copy stays.
+                    fetched_again.add(again)
+                    self.records.move_to_end(again)
+                    continue
                 reference = self.save(content)
                 total = len(content)
             if reference:

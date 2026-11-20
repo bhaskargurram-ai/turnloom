@@ -197,7 +197,7 @@ class StudioTests(unittest.TestCase):
             self.bench.dispatch("resume", {"id": "f" * 32})
 
     def test_loom_reports_folded_results_and_serves_recall(self):
-        commands = [reply(calls=[("write_file", {"path": f"f{index}.txt", "content": "x" * 900})]) for index in range(5)]
+        commands = [reply(calls=[("write_file", {"path": f"f{index}.txt", "content": "x" * 5000})]) for index in range(5)]
         self.bench.settings["auto_edit"] = True
         self.run_turn("Write five files", *commands, reply("Written."))
         done = self.wait(lambda snapshot: not snapshot["busy"])

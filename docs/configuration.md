@@ -326,7 +326,7 @@ These are fixed in the terminal commands. Knowing them explains most surprises.
 
 | Limit | Value |
 | --- | --- |
-| Tool results kept whole before folding | The newest 3. Older ones of 800 characters or more are folded. |
+| Tool results kept whole before folding | The newest 3, anything under 4,000 characters, and a result the model fetched again after it was folded. Older ones of 4,000 characters or more are folded. |
 | Command output the prompt receives | 16,000 characters each of standard output and standard error. The full output, up to 400,000 characters per stream, goes to the archive. |
 | Session archive | 4,000,000 characters. The least recently used record is dropped first. |
 | Command timeout | 120 seconds unless the model asks for more, up to 600. |

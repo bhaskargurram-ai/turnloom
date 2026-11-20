@@ -79,7 +79,7 @@ class SessionTests(unittest.TestCase):
 
     def test_fold_and_recall_preserve_tool_pair(self):
         archive = Observations()
-        message = {"role": "tool", "tool_call_id": "first", "content": "abcdefghij" * 200}
+        message = {"role": "tool", "tool_call_id": "first", "content": "abcdefghij" * 600}
         history = [message] + [{"role": "tool", "content": "recent"} for _ in range(3)]
         self.assertGreater(archive.fold(history), 1000)
         self.assertEqual(message["tool_call_id"], "first")
