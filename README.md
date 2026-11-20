@@ -113,7 +113,7 @@ docker run --rm -it -v "$PWD:/workspace" \
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: bhaskargurram-ai/turnloom@v0.7.1
+- uses: bhaskargurram-ai/turnloom@v0.7.2
   with:
     task: Review the code under src/ for bugs and report the three most important findings.
     persona: reviewer
@@ -249,7 +249,7 @@ This is a small sample, run once, by Turnloom's author. The run also found three
 | Another harness | Folds and meters its requests through an OpenAI-compatible endpoint | `turnloom proxy` |
 | An editor that speaks ACP (Zed, JetBrains) | Runs as its agent | `turnloom acp` |
 | A provider that is not OpenAI-compatible | Reaches it through [LiteLLM](https://github.com/BerriAI/litellm) | `turnloom connect litellm:anthropic` with the `llm` extra |
-| GitHub Actions or a container | Runs one task and reports the result | `uses: bhaskargurram-ai/turnloom@v0.7.1`, `ghcr.io/bhaskargurram-ai/turnloom` |
+| GitHub Actions or a container | Runs one task and reports the result | `uses: bhaskargurram-ai/turnloom@v0.7.2`, `ghcr.io/bhaskargurram-ai/turnloom` |
 | Documents and MCP side effects | Scores extracted fields with [VerifyDoc](https://github.com/bhaskargurram-ai/verifydoc); classifies and reverses MCP calls with [Unwind](https://github.com/bhaskargurram-ai/unwind) | The `documents` extra |
 | A benchmark harness | Runs headless with a [Harbor](https://github.com/harbor-framework/harbor) adapter and ATIF export | `turnloom-agent` |
 

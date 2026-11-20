@@ -290,7 +290,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - id: turnloom
-        uses: bhaskargurram-ai/turnloom@v0.7.1
+        uses: bhaskargurram-ai/turnloom@v0.7.2
         with:
           task: Review the code under src/ for bugs and report the three most important findings.
           persona: reviewer
@@ -315,7 +315,7 @@ Use the newest release tag after `@`.
 | `workspace` | `.` | The directory the agent works in |
 | `max-steps` | 40 | Model calls allowed |
 | `deadline` | 900 | Seconds allowed |
-| `budget` | 0 | Estimated USD the task may spend, 0 for no limit. Newer than release 0.7.1. |
+| `budget` | 0 | Estimated USD the task may spend, 0 for no limit. Added in 0.7.2. |
 | `input-rate`, `output-rate` | empty | USD per million tokens, which a budget needs unless the model is free |
 | `python-version` | 3.12 | The Python that runs Turnloom |
 | `fail-on-incomplete` | `true` | Fail the step unless the task completes |

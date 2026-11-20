@@ -2,7 +2,9 @@
 
 Notable changes to Turnloom. Versions follow [Semantic Versioning](https://semver.org); before 1.0 a minor version may change behavior.
 
-## Unreleased
+## 0.7.2
+
+Turnloom now works on its own repository, and doing that turned up three things to fix: a read-only session that was told to edit files, a fold threshold low enough to make the model read small files twice, and a proxy that could reset a connection in place of an error.
 
 ### Added
 

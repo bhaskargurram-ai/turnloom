@@ -1,7 +1,7 @@
 """Run Turnloom's headless agent as a Harbor installed agent.
 
     harbor run -d <dataset> -a turnloom_harbor:Turnloom -m openai/<model-id> \\
-        --ae OPENAI_API_KEY=... --ae OPENAI_BASE_URL=https://.../v1 --ak version=v0.7.1
+        --ae OPENAI_API_KEY=... --ae OPENAI_BASE_URL=https://.../v1 --ak version=v0.7.2
 
 Written against Harbor 0.24.0. The agent installs its own Python with uv, so it does not
 depend on the task image, and finishes every download in install(): the run phase needs

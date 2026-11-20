@@ -41,7 +41,7 @@ export PYTHONPATH=integrations/harbor
 harbor run -d terminal-bench@2.1 -a turnloom_harbor:Turnloom -m openai/MODEL_ID \
   --ae OPENAI_API_KEY=$KEY --ae OPENAI_BASE_URL=https://PROVIDER/v1 \
   --ae HLB_CONTEXT_WINDOW=1048576 --ae HLB_MAX_OUTPUT_TOKENS=131072 \
-  --ak version=v0.7.1 --n-attempts 3
+  --ak version=v0.7.2 --n-attempts 3
 ```
 
 The dataset name is the one Harbor's registry uses. This repository's own runs use a checkout of the task repository instead; see [benchmarks](../benchmarks/README.md). The board itself pins the task repositories by commit: `harbor-framework/terminal-bench-2-1` at `d49e28f` and `datacurve-ai/deep-swe` at `0b9fabb`.
@@ -50,7 +50,7 @@ The adapter installs Turnloom with `uv tool install` from this repository at the
 
 ## Before asking for a run
 
-1. Use a tagged release, `v0.7.1` or later, so the version can be pinned.
+1. Use a tagged release, `v0.7.2` or later, so the version can be pinned.
 2. Run both benchmarks locally on one of the board's models with three attempts, and keep the trajectories.
 3. Run `atif-scan` over them and read anything it flags.
 4. Share the adapter, the pinned tag and your local numbers with the board's owner. The board's notes put a new harness at about 330 USD of inference plus GPU time, and they rank open-source harnesses ahead of closed ones.

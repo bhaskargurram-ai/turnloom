@@ -183,7 +183,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - id: turnloom
-        uses: bhaskargurram-ai/turnloom@v0.7.1
+        uses: bhaskargurram-ai/turnloom@v0.7.2
         with:
           task: Review the code under src/ for bugs and report the three most important findings.
           persona: reviewer
@@ -207,7 +207,7 @@ Each release publishes `ghcr.io/bhaskargurram-ai/turnloom`, an image with Turnlo
 ```sh
 docker run --rm -it -v "$PWD:/workspace" \
   -e TURNLOOM_ENDPOINT -e TURNLOOM_MODEL -e TURNLOOM_API_KEY \
-  ghcr.io/bhaskargurram-ai/turnloom:v0.7.1 run "Fix the failing test" --yes
+  ghcr.io/bhaskargurram-ai/turnloom:v0.7.2 run "Fix the failing test" --yes
 ```
 
 The repository's `Dockerfile` builds the same image locally with `docker build -t turnloom .`.

@@ -105,7 +105,7 @@ An agent in CI reads text that strangers wrote: an issue, a pull request descrip
 The workflows are written for this repository but carry little that is specific to it.
 
 1. Copy the four files `.github/workflows/agent-*.yml` and `scripts/agent_reply.py`.
-2. Replace each `uses: ./` with the action at a commit you have read, such as `uses: bhaskargurram-ai/turnloom@<commit>`. The `budget` inputs are newer than release 0.7.1, so use a commit of `main` until the next release.
+2. Replace each `uses: ./` with the action at a release or a commit you have read, such as `uses: bhaskargurram-ai/turnloom@v0.7.2`. The `budget` inputs need 0.7.2 or later.
 3. In `agent-check.yml`, replace the install, lint and test commands with your project's.
 4. In `agent-triage.yml`, replace the `LABELS` list with your labels.
 5. In `agent-review.yml`, replace the list of project rules in the task with your own, or point it at your `AGENTS.md`.
