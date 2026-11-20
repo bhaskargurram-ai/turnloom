@@ -8,6 +8,10 @@ It works with any OpenAI-compatible endpoint: hosted providers, OpenRouter, or a
 
 [Quick start](#quick-start) · [Examples](#examples) · [Studio](#studio) · [Staying in control](#staying-in-control) · [How context works](#how-context-works) · [Benchmarks](#benchmarks) · [Works with](#works-with) · [Docs](#documentation) · [Contributing](#contributing)
 
+![Turnloom Studio fixing a failing test while every command and edit waits for approval](https://raw.githubusercontent.com/bhaskargurram-ai/turnloom/main/docs/studio-demo.gif)
+
+*A real session, sped up: `gpt-5.1` fixes a failing test in Studio. Each command and the edit wait for approval, and the Context Loom at the bottom shows what was folded out of the prompt.*
+
 ## Why Turnloom
 
 - **You can see the context.** Long tool output is folded out of the prompt, not summarised away. The original stays in a local archive, the model reads it back with `recall`, and you can open the same reference yourself.
