@@ -268,7 +268,7 @@ It is a small agent: one loop, a handful of tools, no background services and no
 | [FAQ and troubleshooting](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/faq.md) | [Providers, models and credentials](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/providers.md) | [Experiments: comparing two configurations](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/experiments.md) |
 | [Security model](https://github.com/bhaskargurram-ai/turnloom/blob/main/SECURITY.md) | [Desktop app](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/desktop.md) | [Benchmarks](https://github.com/bhaskargurram-ai/turnloom/blob/main/benchmarks/README.md) and [leaderboard status](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/leaderboard.md) |
 
-[Changelog](https://github.com/bhaskargurram-ai/turnloom/blob/main/CHANGELOG.md) · [Roadmap](https://github.com/bhaskargurram-ai/turnloom/blob/main/ROADMAP.md) · [All documentation](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/README.md)
+[White paper](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/whitepaper.md) ([PDF](https://github.com/bhaskargurram-ai/turnloom/raw/main/docs/turnloom-whitepaper.pdf)) · [Changelog](https://github.com/bhaskargurram-ai/turnloom/blob/main/CHANGELOG.md) · [Roadmap](https://github.com/bhaskargurram-ai/turnloom/blob/main/ROADMAP.md) · [All documentation](https://github.com/bhaskargurram-ai/turnloom/blob/main/docs/README.md)
 
 ## Contributing
 

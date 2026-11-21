@@ -25,6 +25,7 @@ Each page answers one question. If you are new, read the quick start first.
 | --- | --- |
 | [Integration guide](integrations.md) | How do I add MCP servers, skills, personas, editors, the proxy, CI or containers? |
 | [Design](design.md) | How do the agent loop, the context store and the approval gates work inside? |
+| [White paper](whitepaper.md) ([PDF](turnloom-whitepaper.pdf)) | Why recoverable context, how it is built, and what was measured, including where Turnloom lost? |
 
 ## Measure
 
