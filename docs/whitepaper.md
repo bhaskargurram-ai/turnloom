@@ -86,9 +86,9 @@ Three things enter the archive: a tool result when it is folded; the complete ou
 
 Studio's Context Loom shows every tool result of the session as a thread: its original size, the size it has in the prompt now, and whether it is folded. Any folded original opens with one click. The session transcript on disk always holds every result in full, and the same data is available to other agents through Turnloom's MCP server.
 
-![Turnloom Studio: the agent log on the right, an edit waiting for approval as a diff, and the Context Loom at the bottom showing which tool results are folded](studio-preview.png)
+![Turnloom Studio after a turn that read six notes: the agent log on the right and the Context Loom at the bottom, where three large results are folded and the rest stay in full](whitepaper-loom.png)
 
-*Figure 2. Studio during a turn. The Context Loom (bottom) shows 30,748 characters of tool output reduced to 8,715 in the prompt, with each folded original one click away.*
+*Figure 2. Studio after a turn, on version 0.7.2. The Context Loom (bottom) shows 77,949 characters of tool output reduced to 34,082 in the prompt: three results of about 10,000 characters are folded, each one click away, and the smaller results stay in full.*
 
 ### 4.4 Repeated reads
 
